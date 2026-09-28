@@ -1,0 +1,12 @@
+============================================================
+              VM MOBILES - ONLINE STORE
+============================================================
+Status:            ONLINE (24/7 Background Service)
+Public Web Link:   https://flashing-assembly-connect-acceptable.trycloudflare.com
+Local Link:        http://localhost:3000
+Local Wi-Fi Link:  http://10.1.7.122:3000
+Last Updated:      28/9/2026, 1:52:28 pm
+============================================================
+Share the Public Web Link with anyone on any phone, laptop,
+or tablet anywhere in the world to browse and buy mobiles!
+============================================================

@@ -1,0 +1,84 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { verifyPassword } from "@/lib/auth";
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const { emailOrPhone, email, phone, password, requiredRole } = body;
+    const targetIdentifier = (emailOrPhone || email || phone || "").trim();
+
+    if (!targetIdentifier || !password) {
+      return NextResponse.json(
+        { success: false, error: "Please provide email/phone and password." },
+        { status: 400 }
+      );
+    }
+
+    const query = targetIdentifier.trim();
+    let cleanEmail = query.toLowerCase();
+
+    // Friendly username alias mapping (e.g. typing just "admin", "vicram", or "zara")
+    if (cleanEmail === "admin") {
+      cleanEmail = "admin@vmmobiles.in";
+    } else if (cleanEmail === "vicram") {
+      cleanEmail = "vicram@example.com";
+    } else if (cleanEmail === "zara") {
+      cleanEmail = "zara@example.com";
+    }
+
+    // Find user by email or phone or name
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: cleanEmail },
+          { phone: query },
+        ],
+      },
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: "Invalid login credentials. No account found for this username/email." },
+        { status: 401 }
+      );
+    }
+
+    const passwordMatches = verifyPassword(password, user.password);
+    if (!passwordMatches) {
+      return NextResponse.json(
+        { success: false, error: "Invalid password. Please check and try again." },
+        { status: 401 }
+      );
+    }
+
+    if (requiredRole && user.role !== requiredRole) {
+      return NextResponse.json(
+        { success: false, error: `Access denied. This action requires ${requiredRole} privileges.` },
+        { status: 403 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        createdAt: user.createdAt,
+      },
+      redirectUrl: user.role === "ADMIN" ? "/admin" : "/user",
+      message: user.role === "ADMIN"
+        ? "Administrator access granted! Redirecting to Admin Dashboard..."
+        : `Welcome back, ${user.name}! Accessing your account...`,
+    });
+  } catch (error) {
+    console.error("Login error:", error);
+    return NextResponse.json(
+      { success: false, error: "An error occurred while logging in." },
+      { status: 500 }
+    );
+  }
+}

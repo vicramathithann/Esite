@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="100%" height="100%">
+  <defs>
+    <!-- Amazon Pure White Studio Background with Soft Ambient Gradient -->
+    <radialGradient id="studio-bg-iphone-16-pro-max-1tb" cx="50%" cy="45%" r="70%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="70%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#edf2f7"/>
+    </radialGradient>
+
+    <!-- Metallic Smartphone Frame Gradient -->
+    <linearGradient id="metal-frame-iphone-16-pro-max-1tb" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9"/>
+      <stop offset="25%" stop-color="#cfb9a5"/>
+      <stop offset="50%" stop-color="#ffffff" stop-opacity="0.7"/>
+      <stop offset="75%" stop-color="#9e8976"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+
+    <!-- Real Glass AMOLED Screen Gradient -->
+    <linearGradient id="glass-screen-iphone-16-pro-max-1tb" x1="20%" y1="10%" x2="80%" y2="90%">
+      <stop offset="0%" stop-color="#2d251e"/>
+      <stop offset="100%" stop-color="#120e0b"/>
+    </linearGradient>
+
+    <!-- Rear Bodyplate Gradient -->
+    <linearGradient id="bodyplate-iphone-16-pro-max-1tb" x1="10%" y1="0%" x2="90%" y2="100%">
+      <stop offset="0%" stop-color="#b59f8c"/>
+      <stop offset="50%" stop-color="#9e8976"/>
+      <stop offset="100%" stop-color="#57483b"/>
+    </linearGradient>
+
+    <!-- Genuine Sapphire Optical Camera Lens -->
+    <radialGradient id="sapphire-lens" cx="35%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#60a5fa"/>
+      <stop offset="25%" stop-color="#1e3a8a"/>
+      <stop offset="60%" stop-color="#090d16"/>
+      <stop offset="100%" stop-color="#000000"/>
+    </radialGradient>
+
+    <!-- Studio Floor Soft Contact Shadows -->
+    <filter id="floor-shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="16" result="blur"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.18"/></feComponentTransfer>
+    </filter>
+
+    <!-- Realistic Device Chassis Drop Shadow -->
+    <filter id="device-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="14" flood-color="#090d14" flood-opacity="0.22"/>
+    </filter>
+
+    <!-- Lens Shadow for Elevation -->
+    <filter id="lens-shadow" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#000000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- Clean Amazon Studio White Canvas -->
+  <rect width="600" height="600" fill="url(#studio-bg-iphone-16-pro-max-1tb)"/>
+
+  <!-- Photorealistic Studio Floor Drop Shadow -->
+  <ellipse cx="295" cy="520" rx="180" ry="18" fill="#0f172a" filter="url(#floor-shadow)"/>
+  <ellipse cx="295" cy="520" rx="125" ry="10" fill="#020617" opacity="0.22"/>
+
+  <!-- Physical Buttons on Outer Metal Frame -->
+  <!-- Volume Up/Down on Left Side -->
+  <rect x="174" y="145" width="3" height="34" rx="1.5" fill="#cfb9a5"/>
+  <rect x="174" y="188" width="3" height="34" rx="1.5" fill="#cfb9a5"/>
+  <!-- Power / Lock Button on Right Side -->
+  <rect x="423" y="165" width="3" height="46" rx="1.5" fill="#cfb9a5"/>
+
+  <!-- Main Smartphone Hardware Chassis (Front View) -->
+  <g filter="url(#device-shadow)">
+    <!-- 1. Outer Metal/Titanium Polished Bezel -->
+    <rect x="176" y="58" width="248" height="454" rx="38" fill="url(#metal-frame-iphone-16-pro-max-1tb)" stroke="#ffffff" stroke-width="1.5" stroke-opacity="0.6"/>
+    
+    <!-- 2. Dark Inner Display Gasket Bezel -->
+    <rect x="181" y="63" width="238" height="444" rx="34" fill="#020408" stroke="#0f172a" stroke-width="1.5"/>
+
+    <!-- 3. Dynamic AMOLED Glass Screen -->
+    <rect x="184" y="66" width="232" height="438" rx="31" fill="url(#glass-screen-iphone-16-pro-max-1tb)"/>
+
+    <!-- 4. Photorealistic OLED Wallpaper with Glass Glow -->
+    <g opacity="0.85">
+      <!-- Curved Wave Glow -->
+      <path d="M 184 260 Q 230 180, 300 240 T 416 190 L 416 504 L 184 504 Z" fill="#b59f8c" opacity="0.32"/>
+      <path d="M 184 320 Q 250 270, 330 330 T 416 290 L 416 504 L 184 504 Z" fill="#9e8976" opacity="0.45"/>
+      <circle cx="360" cy="200" r="55" fill="#cfb9a5" opacity="0.2"/>
+    </g>
+
+    <!-- 5. Diagonal Photographic Glass Glare / Sheen -->
+    <path d="M 185 68 L 320 68 L 220 502 L 185 502 Z" fill="#ffffff" opacity="0.05"/>
+
+    <!-- 6. Real Ear-piece Speaker Mesh -->
+    <rect x="286" y="72" width="28" height="2" rx="1" fill="#1e293b"/>
+
+    <!-- 7. Real Punch Hole / Dynamic Island Front Optic -->
+    
+      <!-- Apple Dynamic Island Pill -->
+      <rect x="274" y="78" width="52" height="15" rx="7.5" fill="#000000"/>
+      <circle cx="284" cy="85.5" r="4" fill="#030712" stroke="#1e293b" stroke-width="0.8"/>
+      <circle cx="284.5" cy="85" r="1.5" fill="#3b82f6" opacity="0.85"/>
+      <circle cx="316" cy="85.5" r="3" fill="#030712"/>
+    
+
+    <!-- 8. Real Lockscreen Time & Date -->
+    <text x="300" y="146" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="40" font-weight="700" fill="#ffffff" text-anchor="middle" letter-spacing="-1" opacity="0.95">10:48</text>
+    <text x="300" y="168" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="600" fill="#cbd5e1" text-anchor="middle" letter-spacing="1.5">SUN, SEP 6</text>
+
+    <!-- 9. Real Brand Logo Watermark on Screen -->
+    <g transform="translate(300, 275)">
+      <rect x="-65" y="-17" width="130" height="34" rx="17" fill="#000000" fill-opacity="0.65" stroke="#cfb9a5" stroke-width="1.2"/>
+      <text x="0" y="0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="800" fill="#ffffff" text-anchor="middle" letter-spacing="2">APPLE</text>
+      <text x="0" y="11" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="8" font-weight="700" fill="#38bdf8" text-anchor="middle" letter-spacing="1">5G OFF-LINE</text>
+    </g>
+
+    <!-- 10. In-Display Fingerprint Scanner Sensor -->
+    <circle cx="300" cy="440" r="16" fill="none" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="4 2" opacity="0.8"/>
+    <circle cx="300" cy="440" r="6" fill="#38bdf8" opacity="0.3"/>
+  </g>
+
+  <!-- Real Angled Rearplate Camera Island Showcase -->
+  
+      <!-- Apple Pro Triangular Camera Island -->
+      <g transform="translate(425, 90)" filter="url(#lens-shadow)">
+        <rect x="-38" y="-38" width="76" height="76" rx="22" fill="#b59f8c" stroke="#ffffff" stroke-width="1.5" stroke-opacity="0.6"/>
+        <!-- 3 Giant Sapphire Lenses -->
+        <!-- Top Lens -->
+        <circle cx="-16" cy="-16" r="13" fill="url(#sapphire-lens)" stroke="#cfb9a5" stroke-width="2"/>
+        <circle cx="-16" cy="-16" r="5" fill="#030508" stroke="#3b82f6" stroke-width="0.8"/>
+        <!-- Bottom Lens -->
+        <circle cx="-16" cy="16" r="13" fill="url(#sapphire-lens)" stroke="#cfb9a5" stroke-width="2"/>
+        <circle cx="-16" cy="16" r="5" fill="#030508" stroke="#38bdf8" stroke-width="0.8"/>
+        <!-- Right Telephoto Lens -->
+        <circle cx="16" cy="0" r="13" fill="url(#sapphire-lens)" stroke="#cfb9a5" stroke-width="2"/>
+        <circle cx="16" cy="0" r="5" fill="#030508" stroke="#3b82f6" stroke-width="0.8"/>
+        <!-- True Tone Flash -->
+        <circle cx="16" cy="-22" r="4.5" fill="#fef08a" stroke="#ca8a04" stroke-width="0.8"/>
+        <!-- LiDAR Sensor -->
+        <circle cx="16" cy="22" r="3.5" fill="#0f172a"/>
+        <!-- Mic Hole -->
+        <circle cx="27" cy="12" r="1.5" fill="#000000"/>
+      </g>
+
+  <!-- Authentic Brand Badge Header Pill -->
+  <g transform="translate(300, 34)">
+    <rect x="-110" y="-12" width="220" height="24" rx="12" fill="#131921" stroke="#febd69" stroke-width="1"/>
+    <text x="0" y="4" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" font-weight="800" fill="#febd69" text-anchor="middle" letter-spacing="1.5">APPLE OFFICIAL 5G</text>
+  </g>
+
+  <!-- Amazon Product Price Banner Footer -->
+  <g transform="translate(300, 565)">
+    <rect x="-160" y="-17" width="320" height="34" rx="17" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5" filter="url(#lens-shadow)"/>
+    <text x="0" y="-1" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11.5" font-weight="800" fill="#0f1111" text-anchor="middle">Apple iPhone 16 Pro Max 1TB (Desert Titanium)</text>
+    <text x="0" y="12" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" font-weight="700" fill="#b12704" text-anchor="middle">₹1,84,900</text>
+  </g>
+</svg>

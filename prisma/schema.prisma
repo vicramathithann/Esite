@@ -1,0 +1,139 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Mobile {
+  id              String   @id @default(uuid())
+  brand           String
+  model           String
+  variant         String
+  ram             String
+  storage         String
+  price           Int
+  imageUrl        String   @map("image_url")
+  displaySize     String   @map("display_size")
+  processor       String
+  camera          String
+  battery         String
+  operatingSystem String   @map("operating_system")
+  description     String
+  stock           Int      @default(50)
+  rating          Float    @default(4.6)
+  reviewCount     Int      @default(180)
+  originalPrice   Int?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@map("mobiles")
+}
+
+model MobileProduct {
+  id                String      @id @default(uuid())
+  name              String
+  brand             String
+  series            String
+  tagline           String
+  basePrice         Int
+  originalPrice     Int
+  rating            Float       @default(4.8)
+  reviewCount       Int         @default(120)
+  imageUrl          String
+  galleryImages     String
+  colors            String
+  storageOptions    String
+  ram               String
+  display           String
+  processor         String
+  camera            String
+  battery           String
+  os                String
+  network5G         String
+  warrantyMonths    Int         @default(12)
+  inStock           Boolean     @default(true)
+  isFeatured        Boolean     @default(false)
+  highlightFeatures String
+  createdAt         DateTime    @default(now())
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  phone     String   @unique
+  password  String
+  role      String   @default("USER") // USER, ADMIN
+  createdAt DateTime @default(now())
+  orders    Order[]
+}
+
+model Order {
+  id                String         @id @default(uuid())
+  orderNumber       String         @unique
+  userId            String?
+  user              User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  customerName      String
+  customerPhone     String
+  phoneVerified     Boolean        @default(true)
+  customerEmail     String
+  address           String
+  city              String
+  pincode           String
+  state             String
+  totalAmount       Int
+  paymentMethod     String
+  paymentStatus     String         @default("PAID")
+  orderStatus       String         @default("CONFIRMED") // RECEIVED, CONFIRMED, PROCESSING, SHIPPED, OUT_FOR_DELIVERY, DELIVERED, CANCELLED
+  shippingCarrier   String?
+  trackingNumber    String?
+  estimatedDelivery DateTime?
+  shippedAt         DateTime?
+  deliveredAt       DateTime?
+  adminNotes        String?
+  createdAt         DateTime       @default(now())
+  items             OrderItem[]
+  smsAlerts         SmsAlert[]
+}
+
+model OrderItem {
+  id                 String        @id @default(uuid())
+  orderId            String
+  productId          String?
+  productName        String
+  productBrand       String
+  productImageUrl    String
+  selectedColor      String
+  selectedStorage    String
+  price              Int
+  quantity           Int            @default(1)
+  imeiNumber         String
+  warrantyMonths     Int            @default(12)
+  warrantyStartDate  DateTime       @default(now())
+  warrantyExpiryDate DateTime
+  warrantyStatus     String         @default("ACTIVE")
+  order              Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model SmsAlert {
+  id            String    @id @default(uuid())
+  orderId       String?
+  customerPhone String
+  alertType     String    // PURCHASE_CONFIRMATION, OTP_VERIFICATION, EXPIRY_WARNING_7D, EXPIRY_ALERT_24H, EXPIRED_NOTICE, CUSTOM_ALERT
+  title         String
+  messageBody   String
+  isRead        Boolean   @default(false)
+  sentAt        DateTime  @default(now())
+  order         Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+}
+
+model OtpVerification {
+  id        String   @id @default(uuid())
+  phone     String
+  code      String
+  verified  Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}

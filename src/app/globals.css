@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+:root {
+  --background: #eaeded;
+  --foreground: #0f1111;
+  --amazon-navy: #131921;
+  --amazon-subnavy: #232f3e;
+  --amazon-footer: #37475a;
+  --amazon-yellow: #ffd814;
+  --amazon-yellow-hover: #f7ca00;
+  --amazon-orange: #ffa41c;
+  --amazon-orange-hover: #fa8900;
+  --amazon-deal-red: #cc0c39;
+  --amazon-link: #007185;
+  --amazon-link-hover: #c7511f;
+}
+
+body {
+  background-color: #eaeded;
+  color: #0f1111;
+  font-family: "Amazon Ember", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  min-height: 100vh;
+}
+
+/* Amazon Style Utilities */
+.btn-amazon-yellow {
+  background-color: #ffd814;
+  border: 1px solid #fcd200;
+  border-radius: 9999px;
+  color: #0f1111;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 5px rgba(213, 217, 217, 0.5);
+}
+
+.btn-amazon-yellow:hover {
+  background-color: #f7ca00;
+  border-color: #f2c200;
+}
+
+.btn-amazon-orange {
+  background-color: #ffa41c;
+  border: 1px solid #ff8f00;
+  border-radius: 9999px;
+  color: #0f1111;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 5px rgba(213, 217, 217, 0.5);
+}
+
+.btn-amazon-orange:hover {
+  background-color: #fa8900;
+  border-color: #e67a00;
+}
+
+.badge-best-seller {
+  background-color: #e67a00;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  clip-path: polygon(0 0, 100% 0, 93% 100%, 0 100%);
+}
+
+.badge-vm-choice {
+  background-color: #232f3e;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+}
