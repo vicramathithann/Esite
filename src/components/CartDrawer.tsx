@@ -4,8 +4,7 @@ import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useApp } from "@/context/AppContext";
-import { X, Trash2, Plus, Minus, ShieldCheck, ArrowRight, ShoppingBag, AlertCircle } from "lucide-react";
-import { formatINR } from "@/lib/formatters";
+import { X, Trash2, Plus, Minus, ShieldCheck, ShoppingBag, AlertCircle } from "lucide-react";
 
 export default function CartDrawer() {
   const { 
@@ -26,42 +25,51 @@ export default function CartDrawer() {
   if (!isCartOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden bg-black/50 flex justify-end animate-fade-in">
-      <div className="w-full max-w-md bg-white h-full flex flex-col shadow-2xl border-l border-gray-300">
-        {/* Amazon Cart Header */}
-        <div className="p-4 bg-[#f0f2f2] border-b border-gray-300 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <ShoppingBag className="w-5 h-5 text-[#131921]" />
-            <h2 className="font-bold text-base text-[#0f1111]">
-              Shopping Cart ({cartCount} {cartCount === 1 ? "item" : "items"})
-            </h2>
+    <div className="fixed inset-0 z-50 overflow-hidden bg-black/50 backdrop-blur-xs flex justify-end animate-fade-in">
+      <div className="w-full max-w-md bg-card h-full flex flex-col shadow-2xl border-l border-border animate-scale-up text-foreground">
+        {/* Drawer Header */}
+        <div className="p-6 bg-card border-b border-border flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-tile flex items-center justify-center text-foreground">
+              <ShoppingBag className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="font-bold text-base text-foreground leading-tight">
+                Bag
+              </h2>
+              <span className="text-xs text-muted">
+                {cartCount} {cartCount === 1 ? "item" : "items"}
+              </span>
+            </div>
           </div>
           <button
             onClick={() => setIsCartOpen(false)}
-            className="p-1 text-gray-500 hover:text-black rounded-xs cursor-pointer"
+            className="p-2 text-muted hover:text-foreground hover:bg-tile rounded-full cursor-pointer transition-all duration-200"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Free Delivery Banner */}
-        <div className="px-4 py-2.5 bg-[#fef8f2] border-b border-[#fbd8b4] flex items-center gap-2 text-xs text-[#703800]">
-          <ShieldCheck className="w-4 h-4 text-[#e67a00] shrink-0" />
-          <span>Your order qualifies for <strong>FREE Delivery & Device Protection Alerts</strong>.</span>
+        {/* Free Delivery & Protection Banner */}
+        <div className="px-6 py-3 bg-tile border-b border-border flex items-center gap-2.5 text-xs text-foreground">
+          <ShieldCheck className="w-4 h-4 text-accent shrink-0" />
+          <span>Free express shipping & automated SMS warranty protection included.</span>
         </div>
 
         {/* Items List */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
           {cart.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center p-6 text-gray-500">
-              <ShoppingBag className="w-12 h-12 text-gray-300 mb-3" />
-              <h4 className="text-base font-bold text-[#0f1111] mb-1">Your VM Mobiles Cart is empty</h4>
-              <p className="text-xs text-gray-500 max-w-xs mb-4">
-                Explore our smartphone deals and add your favorite device to cart.
+            <div className="h-full flex flex-col items-center justify-center text-center p-8 text-muted">
+              <div className="w-16 h-16 rounded-full bg-tile flex items-center justify-center mb-4 text-muted">
+                <ShoppingBag className="w-7 h-7" />
+              </div>
+              <h4 className="text-lg font-bold text-foreground mb-1">Your bag is empty</h4>
+              <p className="text-xs text-muted max-w-xs mb-6">
+                Discover the latest flagship smartphones and choose your device.
               </p>
               <button
                 onClick={() => setIsCartOpen(false)}
-                className="btn-amazon-yellow py-2 px-6 text-xs font-bold"
+                className="py-2.5 px-6 rounded-full bg-accent hover:opacity-90 text-white dark:text-[#0B0B0C] font-semibold text-xs cursor-pointer transition-all duration-200 shadow-xs"
               >
                 Continue Shopping
               </button>
@@ -70,10 +78,10 @@ export default function CartDrawer() {
             cart.map((item) => (
               <div
                 key={item.id}
-                className="p-3 bg-white border border-gray-200 rounded-sm flex gap-3 relative"
+                className="p-4 bg-card border border-border rounded-[20px] shadow-xs flex gap-3.5 relative"
               >
                 {/* Thumbnail */}
-                <div className="w-20 h-20 bg-white border border-gray-100 p-1 relative shrink-0">
+                <div className="w-20 h-20 bg-tile border border-border/50 rounded-[16px] p-2 relative shrink-0 flex items-center justify-center overflow-hidden">
                   <Image
                     src={item.imageUrl}
                     alt={item.name}
@@ -87,50 +95,50 @@ export default function CartDrawer() {
                 <div className="flex-1 flex flex-col justify-between">
                   <div>
                     <div className="flex items-start justify-between gap-2">
-                      <h4 className="text-xs font-bold text-[#0f1111] line-clamp-1">{item.name}</h4>
+                      <h4 className="text-xs font-bold text-foreground line-clamp-1">{item.name}</h4>
                       <button
                         onClick={() => removeFromCart(item.id)}
-                        className="text-gray-400 hover:text-red-600 p-1 cursor-pointer"
-                        title="Delete item"
+                        className="text-muted hover:text-rose-500 p-1 cursor-pointer transition-all duration-200 rounded-full"
+                        title="Remove item"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
 
-                    <div className="text-[11px] text-gray-500 mt-0.5">
+                    <div className="text-[11px] text-muted mt-0.5">
                       <span>{item.selectedStorage.size} • {item.selectedColor.name}</span>
                     </div>
 
                     {item.inStock === false || (item.stock !== undefined && item.stock <= 0) ? (
-                      <div className="text-[11px] text-[#b12704] font-bold mt-0.5 flex items-center gap-1">
-                        <AlertCircle className="w-3 h-3 text-red-600 shrink-0" />
+                      <div className="text-[11px] text-rose-500 font-medium mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3 shrink-0" />
                         <span>Currently Out of Stock</span>
                       </div>
                     ) : (
-                      <div className="text-[11px] text-[#007600] font-medium mt-0.5 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#007600]"></span>
+                      <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium mt-1 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                         <span>In Stock</span>
                       </div>
                     )}
                   </div>
 
-                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
-                    <span className="text-sm font-bold text-[#0f1111]">
+                  <div className="flex items-center justify-between mt-3 pt-2 border-t border-border">
+                    <span className="text-sm font-bold text-foreground">
                       ₹{(item.price * item.quantity).toLocaleString("en-IN")}
                     </span>
 
                     {/* Quantity controls */}
-                    <div className="flex items-center gap-1.5 border border-gray-300 rounded-sm px-1.5 py-0.5 bg-[#f0f2f2]">
+                    <div className="flex items-center gap-1 border border-border rounded-full px-2 py-0.5 bg-tile">
                       <button
                         onClick={() => updateQuantity(item.id, -1)}
-                        className="text-gray-600 hover:text-black p-0.5 cursor-pointer"
+                        className="text-muted hover:text-foreground p-0.5 cursor-pointer rounded-full transition-colors"
                       >
                         <Minus className="w-3 h-3" />
                       </button>
-                      <span className="text-xs font-bold px-1 text-gray-900">{item.quantity}</span>
+                      <span className="text-xs font-semibold px-1 text-foreground">{item.quantity}</span>
                       <button
                         onClick={() => updateQuantity(item.id, 1)}
-                        className="text-gray-600 hover:text-black p-0.5 cursor-pointer"
+                        className="text-muted hover:text-foreground p-0.5 cursor-pointer rounded-full transition-colors"
                       >
                         <Plus className="w-3 h-3" />
                       </button>
@@ -144,20 +152,22 @@ export default function CartDrawer() {
 
         {/* Footer with Checkout button */}
         {cart.length > 0 && (
-          <div className="p-4 bg-[#f0f2f2] border-t border-gray-300 space-y-3">
-            <div className="space-y-1 text-xs">
-              <div className="flex justify-between text-base font-bold text-[#0f1111]">
-                <span>Subtotal ({cartCount} items):</span>
-                <span className="text-[#b12704]">₹{cartTotal.toLocaleString("en-IN")}</span>
+          <div className="p-6 bg-card border-t border-border space-y-4">
+            <div className="space-y-1">
+              <div className="flex justify-between text-base font-bold text-foreground">
+                <span>Total:</span>
+                <span className="text-accent">₹{cartTotal.toLocaleString("en-IN")}</span>
               </div>
-              <p className="text-[11px] text-gray-500">EMI starts at ₹{Math.round(cartTotal / 24).toLocaleString("en-IN")}/month</p>
+              <p className="text-[11px] text-muted">
+                EMI from ₹{Math.round(cartTotal / 24).toLocaleString("en-IN")}/mo. Free shipping & warranty protection.
+              </p>
             </div>
 
             {hasOutOfStockItems && (
-              <div className="p-2.5 bg-red-50 border border-red-200 rounded text-xs text-red-700 flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+              <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-[14px] text-xs text-rose-500 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                 <span>
-                  <strong>Alert:</strong> Some smartphones in your cart are currently out of stock. Please remove them before proceeding to buy.
+                  Some items in your bag are currently out of stock. Please remove them before checkout.
                 </span>
               </div>
             )}
@@ -167,25 +177,25 @@ export default function CartDrawer() {
                 <button
                   type="button"
                   onClick={() => alert("Please remove currently out-of-stock smartphones from your cart before proceeding to checkout.")}
-                  className="py-2.5 px-4 text-xs font-bold w-full text-center block rounded-sm bg-gray-200 hover:bg-gray-300 text-gray-600 border border-gray-300 cursor-pointer shadow-xs"
+                  className="py-3 px-6 text-xs font-medium w-full text-center block rounded-full bg-tile text-muted cursor-not-allowed"
                 >
-                  ⚠️ Proceed Blocked (Out of Stock Items in Cart)
+                  Checkout Unavailable (Out of Stock)
                 </button>
               ) : (
                 <Link
                   href="/checkout"
                   onClick={() => setIsCartOpen(false)}
-                  className="btn-amazon-yellow py-2.5 px-4 text-sm font-bold w-full text-center block cursor-pointer shadow-sm"
+                  className="py-3 px-6 text-xs font-semibold w-full text-center block rounded-full bg-accent hover:opacity-90 text-white dark:text-[#0B0B0C] cursor-pointer transition-all duration-200 shadow-sm"
                 >
-                  Proceed to Buy ({cartCount} {cartCount === 1 ? "item" : "items"})
+                  Review Bag and Checkout
                 </Link>
               )}
 
               <button
                 onClick={clearCart}
-                className="text-xs text-gray-500 hover:underline block mx-auto cursor-pointer"
+                className="text-xs text-muted hover:text-foreground block mx-auto cursor-pointer pt-1 transition-colors"
               >
-                Empty Cart
+                Remove all items
               </button>
             </div>
           </div>

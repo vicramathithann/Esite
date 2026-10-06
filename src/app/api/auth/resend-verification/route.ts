@@ -1,0 +1,97 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { sendUserVerificationEmail } from "@/lib/email";
+import { generateSecureOtp, hashOtp } from "@/lib/auth";
+import crypto from "crypto";
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const email = body.email?.trim().toLowerCase();
+
+    if (!email) {
+      return NextResponse.json(
+        { success: false, error: "Email address is required." },
+        { status: 400 }
+      );
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: "No account found with this email." },
+        { status: 404 }
+      );
+    }
+
+    if (user.emailVerified) {
+      return NextResponse.json({
+        success: true,
+        message: "Your email is already verified. You can log in directly.",
+        alreadyVerified: true,
+      });
+    }
+
+    // Rate-limiting: Enforce 60-second cooldown between OTP requests
+    if (user.lastOtpSentAt) {
+      const elapsedSeconds = Math.floor((Date.now() - new Date(user.lastOtpSentAt).getTime()) / 1000);
+      if (elapsedSeconds < 60) {
+        const remainingSeconds = 60 - elapsedSeconds;
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Please wait ${remainingSeconds} second${remainingSeconds === 1 ? "" : "s"} before requesting a new code.`,
+            cooldown: remainingSeconds,
+          },
+          { status: 429 }
+        );
+      }
+    }
+
+    // Invalidate previous OTP & token and generate fresh 10-minute code
+    const otp = generateSecureOtp();
+    const otpHash = hashOtp(otp);
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const newToken = crypto.randomBytes(32).toString("hex");
+    const newExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        otpHash,
+        otpExpires,
+        otpAttempts: 0, // Reset failed attempt counter
+        lastOtpSentAt: new Date(),
+        verificationToken: newToken,
+        tokenExpires: newExpires,
+      },
+    });
+
+    // Send verification email through MSG91
+    try {
+      await sendUserVerificationEmail(
+        { id: user.id, name: user.name, email: user.email },
+        newToken,
+        otp
+      );
+    } catch (emailErr) {
+      console.error("[EMAIL DISPATCH WARNING] Could not send verification email immediately:", emailErr);
+    }
+
+    // Do NOT return the OTP or token in the public JSON response
+    return NextResponse.json({
+      success: true,
+      message: `A new 6-digit verification code has been dispatched to ${email}.`,
+      cooldown: 60,
+    });
+  } catch (error) {
+    console.error("Resend verification error:", error);
+    return NextResponse.json(
+      { success: false, error: "Failed to resend verification email." },
+      { status: 500 }
+    );
+  }
+}

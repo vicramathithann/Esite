@@ -18,16 +18,12 @@ export async function POST(request: Request) {
     const query = targetIdentifier.trim();
     let cleanEmail = query.toLowerCase();
 
-    // Friendly username alias mapping (e.g. typing just "admin", "vicram", or "zara")
+    // Optional alias mapping for default system admin shortcut
     if (cleanEmail === "admin") {
       cleanEmail = "admin@vmmobiles.in";
-    } else if (cleanEmail === "vicram") {
-      cleanEmail = "vicram@example.com";
-    } else if (cleanEmail === "zara") {
-      cleanEmail = "zara@example.com";
     }
 
-    // Find user by email or phone or name
+    // Find user by email or phone
     const user = await prisma.user.findFirst({
       where: {
         OR: [
@@ -52,6 +48,20 @@ export async function POST(request: Request) {
       );
     }
 
+    // REAL EMAIL VERIFICATION GATE:
+    // Reject login if email is not verified
+    if (!user.emailVerified) {
+      return NextResponse.json(
+        {
+          success: false,
+          requiresVerification: true,
+          email: user.email,
+          error: "Please verify your email address before logging in.",
+        },
+        { status: 403 }
+      );
+    }
+
     if (requiredRole && user.role !== requiredRole) {
       return NextResponse.json(
         { success: false, error: `Access denied. This action requires ${requiredRole} privileges.` },
@@ -67,6 +77,7 @@ export async function POST(request: Request) {
         email: user.email,
         phone: user.phone,
         role: user.role,
+        emailVerified: user.emailVerified,
         createdAt: user.createdAt,
       },
       redirectUrl: user.role === "ADMIN" ? "/admin" : "/user",

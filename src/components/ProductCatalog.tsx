@@ -1,0 +1,665 @@
+"use client";
+
+import React, { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
+import MobileCard from "@/components/MobileCard";
+import { MobileProductData } from "@/lib/types";
+import { DEFAULT_PRODUCTS } from "@/lib/catalogData";
+import {
+  SlidersHorizontal,
+  Check,
+  X,
+  RotateCcw,
+  Smartphone,
+  Headphones,
+  Sparkles,
+} from "lucide-react";
+
+export const FAMOUS_BRANDS = [
+  "All Mobiles",
+  "Apple",
+  "Samsung",
+  "Google Pixel",
+  "OnePlus",
+  "Xiaomi",
+  "Redmi",
+  "Realme",
+  "Vivo",
+  "Oppo",
+  "Motorola",
+  "Nothing",
+  "Sony",
+  "Asus",
+  "iQOO",
+  "Nokia",
+];
+
+const RAM_OPTIONS = ["All", "4GB", "6GB", "8GB", "12GB", "16GB"];
+const STORAGE_OPTIONS = ["All", "128GB", "256GB", "512GB", "1TB"];
+const OS_OPTIONS = ["All", "iOS", "Android", "OxygenOS", "HyperOS", "Nothing OS", "ColorOS"];
+const BATTERY_OPTIONS = [
+  { label: "All", value: "All" },
+  { label: "< 4500 mAh", value: "under-4500" },
+  { label: "4500 - 5000 mAh", value: "4500-5000" },
+  { label: "5000+ mAh", value: "5000-plus" },
+];
+const NETWORK_OPTIONS = ["All", "5G Only"];
+
+export interface ProductCatalogProps {
+  initialBrand?: string;
+  initialCategory?: string;
+  initialSearch?: string;
+  showHeaderBanner?: boolean;
+  bannerTitle?: string;
+  bannerSubtitle?: string;
+  externalSelectedBrand?: string;
+  onBrandChange?: (brand: string) => void;
+}
+
+export default function ProductCatalog({
+  initialBrand,
+  initialCategory = "all",
+  initialSearch = "",
+  showHeaderBanner = false,
+  bannerTitle,
+  bannerSubtitle,
+  externalSelectedBrand,
+  onBrandChange,
+}: ProductCatalogProps) {
+  const searchParams = useSearchParams();
+
+  const urlBrand = searchParams.get("brand");
+  const urlSearch = searchParams.get("search");
+  const urlCategory = searchParams.get("category");
+
+  const [products, setProducts] = useState<MobileProductData[]>(DEFAULT_PRODUCTS);
+  const [loading, setLoading] = useState(true);
+
+  // Filter States
+  const [selectedBrand, setSelectedBrand] = useState<string>(
+    externalSelectedBrand || urlBrand || initialBrand || "All Mobiles"
+  );
+  const [selectedCategory, setSelectedCategory] = useState<string>(
+    urlCategory || initialCategory || "all"
+  );
+  const [searchQuery, setSearchQuery] = useState<string>(
+    urlSearch || initialSearch || ""
+  );
+  const [priceRange, setPriceRange] = useState<number>(200000);
+  const [selectedRam, setSelectedRam] = useState<string>("All");
+  const [selectedStorage, setSelectedStorage] = useState<string>("All");
+  const [selectedOS, setSelectedOS] = useState<string>("All");
+  const [selectedBattery, setSelectedBattery] = useState<string>("All");
+  const [selected5G, setSelected5G] = useState<string>("All");
+  const [inStockOnly, setInStockOnly] = useState<boolean>(false);
+  const [sortBy, setSortBy] = useState<string>("featured");
+  const [showMobileFilters, setShowMobileFilters] = useState<boolean>(false);
+
+  // Sync externalSelectedBrand when controlled by parent
+  useEffect(() => {
+    if (externalSelectedBrand && externalSelectedBrand !== selectedBrand) {
+      setSelectedBrand(externalSelectedBrand);
+    }
+  }, [externalSelectedBrand]);
+
+  // Sync with URL query parameters
+  useEffect(() => {
+    if (urlBrand && urlBrand !== selectedBrand) {
+      setSelectedBrand(urlBrand);
+    }
+  }, [urlBrand]);
+
+  useEffect(() => {
+    if (urlSearch !== null && urlSearch !== searchQuery) {
+      setSearchQuery(urlSearch);
+    }
+  }, [urlSearch]);
+
+  useEffect(() => {
+    if (urlCategory && urlCategory !== selectedCategory) {
+      setSelectedCategory(urlCategory);
+    }
+  }, [urlCategory]);
+
+  // Fetch products from database API
+  useEffect(() => {
+    async function fetchProducts() {
+      setLoading(true);
+      try {
+        const res = await fetch("/api/products");
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        const data = await res.json();
+        if (data.success && Array.isArray(data.products) && data.products.length > 0) {
+          setProducts(data.products);
+        } else {
+          setProducts(DEFAULT_PRODUCTS);
+        }
+      } catch {
+        setProducts(DEFAULT_PRODUCTS);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchProducts();
+  }, []);
+
+  const handleBrandSelect = (brand: string) => {
+    setSelectedBrand(brand);
+    if (onBrandChange) {
+      onBrandChange(brand);
+    }
+  };
+
+  const handleResetFilters = () => {
+    setSelectedBrand("All Mobiles");
+    setSelectedCategory("all");
+    setSearchQuery("");
+    setPriceRange(200000);
+    setSelectedRam("All");
+    setSelectedStorage("All");
+    setSelectedOS("All");
+    setSelectedBattery("All");
+    setSelected5G("All");
+    setInStockOnly(false);
+    setSortBy("featured");
+    if (onBrandChange) {
+      onBrandChange("All Mobiles");
+    }
+  };
+
+  // Filter and sort products
+  const filteredProducts = useMemo(() => {
+    return (products || [])
+      .filter((p) => {
+        if (!p) return false;
+
+        // 1. Category Filter
+        if (selectedCategory !== "all") {
+          const prodCat = ((p as any).category || "SMARTPHONE").toUpperCase();
+          if (prodCat !== selectedCategory.toUpperCase()) return false;
+        }
+
+        // 2. Brand Filter
+        if (selectedBrand !== "All Mobiles") {
+          const brandNormalized = (p.brand || "").toLowerCase();
+          const targetBrand = selectedBrand.toLowerCase();
+          if (targetBrand === "google pixel" || targetBrand === "google") {
+            if (!brandNormalized.includes("google") && !brandNormalized.includes("pixel")) return false;
+          } else if (brandNormalized !== targetBrand) {
+            return false;
+          }
+        }
+
+        // 3. Price Filter (up to priceRange)
+        if ((p.basePrice || 0) > priceRange) {
+          return false;
+        }
+
+        // 4. RAM Filter
+        if (selectedRam !== "All") {
+          if (!(p.ram || "").toLowerCase().includes(selectedRam.toLowerCase())) {
+            return false;
+          }
+        }
+
+        // 5. Storage Filter
+        if (selectedStorage !== "All") {
+          const storageList = Array.isArray(p.storageOptions) ? p.storageOptions : [];
+          const hasMatchingStorage = storageList.some((s) =>
+            (s?.size || "").toLowerCase().includes(selectedStorage.toLowerCase())
+          );
+          if (!hasMatchingStorage) return false;
+        }
+
+        // 6. OS Filter
+        if (selectedOS !== "All") {
+          if (!(p.os || "").toLowerCase().includes(selectedOS.toLowerCase())) {
+            return false;
+          }
+        }
+
+        // 7. Battery Filter
+        if (selectedBattery !== "All") {
+          const match = (p.battery || "").match(/(\d{4})/);
+          if (match) {
+            const capacity = parseInt(match[1]);
+            if (selectedBattery === "under-4500" && capacity >= 4500) return false;
+            if (selectedBattery === "4500-5000" && (capacity < 4500 || capacity > 5000)) return false;
+            if (selectedBattery === "5000-plus" && capacity < 5000) return false;
+          }
+        }
+
+        // 8. 5G Filter
+        if (selected5G === "5G Only") {
+          const is5G =
+            (p.network5G || "").includes("5G") ||
+            (p.name || "").includes("5G") ||
+            (p.tagline || "").includes("5G");
+          if (!is5G) return false;
+        }
+
+        // 9. In Stock Only Filter
+        if (inStockOnly && !p.inStock) {
+          return false;
+        }
+
+        // 10. Search Query Filter
+        if (searchQuery.trim()) {
+          const terms = searchQuery.toLowerCase().trim().split(/\s+/);
+          const searchableText = `${p.brand || ""} ${p.name || ""} ${p.series || ""} ${p.processor || ""} ${p.tagline || ""}`.toLowerCase();
+          const matchesAllTerms = terms.every((t) => searchableText.includes(t));
+          if (!matchesAllTerms) return false;
+        }
+
+        return true;
+      })
+      .sort((a, b) => {
+        if (sortBy === "price-asc") return (a.basePrice || 0) - (b.basePrice || 0);
+        if (sortBy === "price-desc") return (b.basePrice || 0) - (a.basePrice || 0);
+        if (sortBy === "rating") return (b.rating || 0) - (a.rating || 0);
+        if (sortBy === "newest") return (b.id || "") > (a.id || "") ? 1 : -1;
+        return (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0);
+      });
+  }, [
+    products,
+    selectedCategory,
+    selectedBrand,
+    priceRange,
+    selectedRam,
+    selectedStorage,
+    selectedOS,
+    selectedBattery,
+    selected5G,
+    inStockOnly,
+    searchQuery,
+    sortBy,
+  ]);
+
+  const activeFilterCount =
+    (selectedBrand !== "All Mobiles" ? 1 : 0) +
+    (selectedCategory !== "all" ? 1 : 0) +
+    (priceRange < 200000 ? 1 : 0) +
+    (selectedRam !== "All" ? 1 : 0) +
+    (selectedStorage !== "All" ? 1 : 0) +
+    (selectedOS !== "All" ? 1 : 0) +
+    (selectedBattery !== "All" ? 1 : 0) +
+    (selected5G !== "All" ? 1 : 0) +
+    (inStockOnly ? 1 : 0) +
+    (searchQuery ? 1 : 0);
+
+  return (
+    <div className="w-full text-foreground">
+      {/* 5. Header Banner: uses bg-card and border-border */}
+      {showHeaderBanner && (
+        <div className="bg-card border border-border rounded-[20px] p-6 sm:p-8 mb-8 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6 transition-colors duration-200">
+          <div className="space-y-1.5">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent/10 text-accent text-xs font-semibold">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>VM Mobiles Marketplace</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+              {bannerTitle || (selectedBrand !== "All Mobiles" ? `${selectedBrand} Flagships` : "Smartphones & Mobile Devices")}
+            </h1>
+            <p className="text-xs sm:text-sm text-muted max-w-xl">
+              {bannerSubtitle || "Explore authentic 5G smartphones and accessories with official 1-Year Device Shield warranty and PAN-India delivery."}
+            </p>
+          </div>
+
+          {/* Clean Pill Style Category Toggle */}
+          <div className="bg-tile p-1.5 rounded-full border border-border inline-flex items-center gap-1 self-start md:self-auto shrink-0 shadow-2xs">
+            <button
+              onClick={() => setSelectedCategory("all")}
+              className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-all duration-200 cursor-pointer ${
+                selectedCategory === "all"
+                  ? "bg-foreground text-background shadow-xs"
+                  : "text-muted hover:text-foreground hover:bg-card/40"
+              }`}
+            >
+              All Items
+            </button>
+            <button
+              onClick={() => setSelectedCategory("SMARTPHONE")}
+              className={`px-4 py-1.5 text-xs font-semibold rounded-full flex items-center gap-1.5 transition-all duration-200 cursor-pointer ${
+                selectedCategory === "SMARTPHONE"
+                  ? "bg-foreground text-background shadow-xs"
+                  : "text-muted hover:text-foreground hover:bg-card/40"
+              }`}
+            >
+              <Smartphone className="w-3.5 h-3.5" />
+              <span>Smartphones</span>
+            </button>
+            <button
+              onClick={() => setSelectedCategory("ACCESSORY")}
+              className={`px-4 py-1.5 text-xs font-semibold rounded-full flex items-center gap-1.5 transition-all duration-200 cursor-pointer ${
+                selectedCategory === "ACCESSORY"
+                  ? "bg-foreground text-background shadow-xs"
+                  : "text-muted hover:text-foreground hover:bg-card/40"
+              }`}
+            >
+              <Headphones className="w-3.5 h-3.5" />
+              <span>Accessories</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 3. Heading Bar: "Explore Smartphones (N devices)" with active brand chip & sort dropdown */}
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+        <div className="flex items-center gap-2 flex-wrap">
+          <h2 className="text-xl sm:text-2xl font-bold text-foreground">
+            Explore Smartphones
+          </h2>
+          <span className="text-xs text-muted ml-1">
+            ({filteredProducts.length} devices)
+          </span>
+
+          {/* Active Brand Chip: black with white text in light mode, white with black text in dark mode */}
+          {selectedBrand !== "All Mobiles" && (
+            <span className="bg-foreground text-background text-xs font-medium px-3 py-1 rounded-full flex items-center gap-1.5 ml-2 shadow-2xs animate-fade-in">
+              <span>{selectedBrand}</span>
+              <button
+                type="button"
+                onClick={() => handleBrandSelect("All Mobiles")}
+                className="cursor-pointer hover:opacity-80 p-0.5"
+                title="Clear brand filter"
+              >
+                <X className="w-3 h-3 text-background" />
+              </button>
+            </span>
+          )}
+
+          {/* Active Search Chip */}
+          {searchQuery && (
+            <span className="bg-card border border-border text-foreground text-xs font-medium px-3 py-1 rounded-full flex items-center gap-1.5 shadow-2xs animate-fade-in">
+              <span>&quot;{searchQuery}&quot;</span>
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="cursor-pointer hover:text-rose-500 p-0.5"
+                title="Clear search"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          )}
+
+          {/* Active Category Chip */}
+          {selectedCategory !== "all" && (
+            <span className="bg-card border border-border text-foreground text-xs font-medium px-3 py-1 rounded-full flex items-center gap-1.5 shadow-2xs animate-fade-in">
+              <span>Category: {selectedCategory === "SMARTPHONE" ? "Smartphones" : "Accessories"}</span>
+              <button
+                type="button"
+                onClick={() => setSelectedCategory("all")}
+                className="cursor-pointer hover:text-rose-500 p-0.5"
+                title="Clear category filter"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-3">
+          {/* Mobile Filter Toggle */}
+          <button
+            type="button"
+            onClick={() => setShowMobileFilters(!showMobileFilters)}
+            className="lg:hidden flex items-center gap-1.5 px-4 py-2 bg-card border border-border rounded-full text-xs font-medium text-foreground shadow-2xs cursor-pointer hover:bg-tile transition-colors"
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5 text-accent" />
+            <span>Filters ({activeFilterCount})</span>
+          </button>
+
+          {/* Sort Dropdown */}
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-muted hidden sm:inline">Sort:</span>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="bg-card border border-border rounded-full px-4 py-2 text-xs text-foreground font-medium focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent cursor-pointer shadow-2xs transition-colors"
+            >
+              <option value="featured">Featured First</option>
+              <option value="price-asc">Price: Low to High</option>
+              <option value="price-desc">Price: High to Low</option>
+              <option value="rating">Top Rated</option>
+              <option value="newest">New Releases</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Grid: Filters Sidebar (Col 3) + 4-Column Product Grid (Col 9) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Filter Sidebar */}
+        <aside
+          className={`lg:col-span-3 bg-card border border-border rounded-[20px] p-6 space-y-6 shadow-xs ${
+            showMobileFilters ? "block" : "hidden lg:block"
+          }`}
+        >
+          {/* Sidebar Header */}
+          <div className="flex items-center justify-between border-b border-border pb-3">
+            <div className="flex items-center gap-2 font-bold text-sm text-foreground">
+              <SlidersHorizontal className="w-4 h-4 text-accent" />
+              <span>Filters</span>
+            </div>
+            {activeFilterCount > 0 && (
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="text-xs text-accent hover:underline font-medium flex items-center gap-1 cursor-pointer"
+              >
+                <RotateCcw className="w-3 h-3" /> Reset
+              </button>
+            )}
+          </div>
+
+          {/* Brand Filter */}
+          <div className="space-y-2">
+            <span className="text-xs font-bold text-foreground block">Brand</span>
+            <div className="space-y-1 max-h-52 overflow-y-auto pr-1 scrollbar-thin">
+              {FAMOUS_BRANDS.map((brand) => (
+                <button
+                  key={brand}
+                  type="button"
+                  onClick={() => handleBrandSelect(brand)}
+                  className={`w-full text-left px-3 py-1.5 rounded-full text-xs transition-all duration-200 flex items-center justify-between cursor-pointer ${
+                    selectedBrand === brand
+                      ? "bg-foreground text-background font-semibold"
+                      : "text-muted hover:text-foreground hover:bg-tile"
+                  }`}
+                >
+                  <span>{brand}</span>
+                  {selectedBrand === brand && (
+                    <Check className="w-3 h-3 text-background shrink-0" />
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Price Slider */}
+          <div className="space-y-2 pt-2 border-t border-border">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-foreground">Max Price</span>
+              <span className="text-xs font-bold text-accent">
+                ₹{priceRange.toLocaleString("en-IN")}
+              </span>
+            </div>
+            <input
+              type="range"
+              min="10000"
+              max="200000"
+              step="5000"
+              value={priceRange}
+              onChange={(e) => setPriceRange(Number(e.target.value))}
+              className="w-full h-1.5 bg-tile rounded-lg appearance-none cursor-pointer accent-accent"
+            />
+            <div className="flex justify-between text-[11px] text-muted">
+              <span>₹10,000</span>
+              <span>₹1,00,000</span>
+              <span>₹2,00,000</span>
+            </div>
+          </div>
+
+          {/* RAM Filter */}
+          <div className="space-y-2 pt-2 border-t border-border">
+            <span className="text-xs font-bold text-foreground block">RAM</span>
+            <div className="flex flex-wrap gap-1.5">
+              {RAM_OPTIONS.map((ram) => (
+                <button
+                  key={ram}
+                  type="button"
+                  onClick={() => setSelectedRam(ram)}
+                  className={`px-3 py-1 text-xs rounded-full font-medium transition-all duration-200 cursor-pointer ${
+                    selectedRam === ram
+                      ? "bg-foreground text-background font-semibold"
+                      : "bg-tile text-muted hover:text-foreground border border-border/50"
+                  }`}
+                >
+                  {ram}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Storage Filter */}
+          <div className="space-y-2 pt-2 border-t border-border">
+            <span className="text-xs font-bold text-foreground block">Storage</span>
+            <div className="flex flex-wrap gap-1.5">
+              {STORAGE_OPTIONS.map((storage) => (
+                <button
+                  key={storage}
+                  type="button"
+                  onClick={() => setSelectedStorage(storage)}
+                  className={`px-3 py-1 text-xs rounded-full font-medium transition-all duration-200 cursor-pointer ${
+                    selectedStorage === storage
+                      ? "bg-foreground text-background font-semibold"
+                      : "bg-tile text-muted hover:text-foreground border border-border/50"
+                  }`}
+                >
+                  {storage}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* OS Filter */}
+          <div className="space-y-2 pt-2 border-t border-border">
+            <span className="text-xs font-bold text-foreground block">Operating System</span>
+            <div className="flex flex-wrap gap-1.5">
+              {OS_OPTIONS.map((os) => (
+                <button
+                  key={os}
+                  type="button"
+                  onClick={() => setSelectedOS(os)}
+                  className={`px-3 py-1 text-xs rounded-full font-medium transition-all duration-200 cursor-pointer ${
+                    selectedOS === os
+                      ? "bg-foreground text-background font-semibold"
+                      : "bg-tile text-muted hover:text-foreground border border-border/50"
+                  }`}
+                >
+                  {os}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Battery Filter */}
+          <div className="space-y-2 pt-2 border-t border-border">
+            <span className="text-xs font-bold text-foreground block">Battery Capacity</span>
+            <div className="space-y-1">
+              {BATTERY_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setSelectedBattery(opt.value)}
+                  className={`w-full text-left px-3 py-1.5 rounded-full text-xs transition-all duration-200 flex items-center justify-between cursor-pointer ${
+                    selectedBattery === opt.value
+                      ? "bg-foreground text-background font-semibold"
+                      : "text-muted hover:text-foreground hover:bg-tile"
+                  }`}
+                >
+                  <span>{opt.label}</span>
+                  {selectedBattery === opt.value && (
+                    <Check className="w-3 h-3 text-background shrink-0" />
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 5G Support Filter */}
+          <div className="space-y-2 pt-2 border-t border-border">
+            <span className="text-xs font-bold text-foreground block">Network</span>
+            <div className="flex gap-2">
+              {NETWORK_OPTIONS.map((opt) => (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => setSelected5G(opt)}
+                  className={`flex-1 py-1.5 text-xs rounded-full font-medium transition-all duration-200 cursor-pointer text-center ${
+                    selected5G === opt
+                      ? "bg-foreground text-background font-semibold"
+                      : "bg-tile text-muted hover:text-foreground border border-border/50"
+                  }`}
+                >
+                  {opt}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* In Stock Only Filter */}
+          <div className="pt-2 border-t border-border">
+            <label className="flex items-center gap-2 text-xs text-muted hover:text-foreground cursor-pointer">
+              <input
+                type="checkbox"
+                checked={inStockOnly}
+                onChange={(e) => setInStockOnly(e.target.checked)}
+                className="rounded border-border text-accent focus:ring-accent"
+              />
+              <span>In Stock Devices Only</span>
+            </label>
+          </div>
+        </aside>
+
+        {/* 6. Product Grid: 4 columns desktop / 2 mobile */}
+        <main className="lg:col-span-9 space-y-4">
+          {loading ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
+                <div
+                  key={n}
+                  className="h-80 bg-card border border-border rounded-[20px] animate-pulse p-4 shadow-xs"
+                />
+              ))}
+            </div>
+          ) : filteredProducts.length === 0 ? (
+            <div className="bg-card border border-border rounded-[20px] p-12 text-center text-muted space-y-3 shadow-xs">
+              <Smartphone className="w-12 h-12 mx-auto text-muted/60" />
+              <h3 className="text-lg font-bold text-foreground">
+                No Smartphones Match Your Filter
+              </h3>
+              <p className="text-xs text-muted max-w-sm mx-auto">
+                Try adjusting the price slider, battery capacity, or clearing brand filters.
+              </p>
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="py-2.5 px-6 rounded-full bg-foreground text-background text-xs font-semibold cursor-pointer transition-all duration-200 shadow-xs"
+              >
+                Clear All Filters
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 animate-fade-in">
+              {filteredProducts.map((product) => (
+                <MobileCard key={product.id} product={product} />
+              ))}
+            </div>
+          )}
+        </main>
+      </div>
+    </div>
+  );
+}

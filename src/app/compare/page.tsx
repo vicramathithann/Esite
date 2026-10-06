@@ -16,12 +16,13 @@ import {
   Smartphone, 
   ShieldCheck, 
   ChevronRight, 
-  Check 
+  Check,
+  ShoppingBag
 } from "lucide-react";
-import { formatINR } from "@/lib/formatters";
+import { formatINR, calculateEMI } from "@/lib/formatters";
 
 export default function ComparePage() {
-  const { compareList, removeFromCompare, clearCompare, addToCart } = useApp();
+  const { compareList, addToCompare, removeFromCompare, clearCompare, addToCart } = useApp();
   const [allProducts, setAllProducts] = useState<MobileProductData[]>(DEFAULT_PRODUCTS);
   const [showAddModal, setShowAddModal] = useState(false);
   const [addedItemMap, setAddedItemMap] = useState<Record<string, boolean>>({});
@@ -62,149 +63,204 @@ export default function ComparePage() {
   };
 
   return (
-    <div className="min-h-screen pb-20 bg-[#eaeded]">
+    <div className="min-h-screen pb-24 bg-background text-foreground transition-colors duration-200">
       {/* Breadcrumb */}
-      <div className="max-w-[1450px] mx-auto px-4 py-3 text-xs text-gray-500 flex items-center gap-1">
-        <Link href="/" className="text-[#007185] hover:underline">Mobiles</Link>
-        <ChevronRight className="w-3 h-3 text-gray-400" />
-        <span className="text-gray-900 font-medium">Compare Smartphones</span>
+      <div className="bg-card border-b border-border">
+        <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-3 text-xs text-muted flex items-center gap-1.5">
+          <Link href="/" className="hover:text-foreground transition-colors">Phones</Link>
+          <ChevronRight className="w-3 h-3 text-muted" />
+          <span className="text-foreground font-medium">Compare Models</span>
+        </div>
       </div>
 
-      <div className="max-w-[1450px] mx-auto px-4">
+      <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         {/* Header */}
-        <div className="bg-white border border-gray-200 rounded-sm p-5 mb-4 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-[#0f1111]">
-              Compare Smartphones Side-by-Side
+            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
+              Compare Smartphones
             </h1>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Review differences in processors, cameras, batteries, and prices on VM Mobiles.in
+            <p className="text-sm text-muted mt-1">
+              Select up to 3 phones and compare display, chip, camera, battery, and price.
             </p>
           </div>
 
           {compareList.length > 0 && (
             <button
               onClick={clearCompare}
-              className="text-xs text-gray-600 hover:text-[#c7511f] border border-gray-300 rounded-sm px-3 py-1.5 bg-white hover:bg-gray-50"
+              className="text-xs text-muted hover:text-foreground px-4 py-2 rounded-full border border-border bg-tile transition-all duration-200 cursor-pointer shadow-xs"
             >
-              Clear comparison
+              Clear all
             </button>
           )}
         </div>
 
         {compareList.length === 0 ? (
-          <div className="bg-white border border-gray-200 rounded-sm p-12 text-center text-gray-600 space-y-3">
-            <Layers className="w-12 h-12 mx-auto text-gray-400" />
-            <h3 className="text-lg font-bold text-[#0f1111]">No Smartphones in Comparison</h3>
-            <p className="text-xs text-gray-500">
-              Select &quot;Compare&quot; on any smartphone to view full specs side by side.
+          <div className="bg-card border border-border rounded-[20px] p-16 text-center text-muted space-y-4 shadow-xs">
+            <div className="w-16 h-16 rounded-full bg-tile flex items-center justify-center mx-auto text-muted">
+              <Layers className="w-8 h-8" />
+            </div>
+            <h3 className="text-xl font-bold text-foreground">No Smartphones in Comparison</h3>
+            <p className="text-sm text-muted max-w-sm mx-auto">
+              Select &quot;Compare&quot; on any flagship device card or browse the catalog.
             </p>
-            <Link href="/" className="btn-amazon-yellow py-2 px-6 text-xs font-bold inline-block">
-              Browse Latest Mobiles
-            </Link>
+            <div className="pt-2">
+              <Link href="/" className="px-6 py-3 rounded-full bg-accent hover:opacity-90 text-white dark:text-[#0B0B0C] text-xs font-semibold inline-block transition-all duration-200 shadow-sm">
+                Browse All Models
+              </Link>
+            </div>
           </div>
         ) : (
-          <div className="bg-white border border-gray-200 rounded-sm p-6 overflow-x-auto">
-            <div className="min-w-[700px]">
-              {/* Product Header Row */}
-              <div className="grid grid-cols-4 gap-4 pb-6 border-b border-gray-200">
+          <div className="bg-card border border-border rounded-[20px] p-6 sm:p-8 shadow-xs overflow-x-auto">
+            <div className="min-w-[760px]">
+              {/* Product Header Cards Row */}
+              <div className="grid grid-cols-4 gap-6 pb-8 border-b border-border">
                 <div className="flex flex-col justify-end">
-                  <span className="text-xs uppercase font-bold text-gray-500">
-                    Comparing {compareList.length} of 3 devices
+                  <span className="text-xs uppercase tracking-wider font-bold text-muted">
+                    Comparing {compareList.length} of 3
                   </span>
                 </div>
 
                 {compareList.map((item) => (
-                  <div key={item.id} className="relative space-y-2.5 p-2 text-center">
+                  <div key={item.id} className="relative space-y-3 p-4 rounded-[16px] bg-tile border border-border/50 text-center flex flex-col justify-between">
                     <button
                       onClick={() => removeFromCompare(item.id)}
-                      className="absolute top-0 right-0 p-1 text-gray-400 hover:text-gray-700"
+                      className="absolute top-2 right-2 p-1 text-muted hover:text-foreground rounded-full hover:bg-card transition-colors"
                       title="Remove"
                     >
                       <X className="w-4 h-4" />
                     </button>
 
-                    <div className="relative aspect-square w-full max-h-40 p-2">
+                    <div className="relative aspect-square w-full max-h-36 p-2 mx-auto">
                       <Image src={item.imageUrl} alt={item.name} fill unoptimized className="object-contain" />
                     </div>
 
-                    <div>
-                      <h4 className="font-bold text-sm text-[#0f1111] line-clamp-1">{item.name}</h4>
-                      <div className="text-base font-bold text-[#0f1111] mt-0.5">
+                    <div className="space-y-1">
+                      <span className="text-[10px] uppercase font-bold text-accent">{item.brand}</span>
+                      <h4 className="font-bold text-sm text-foreground line-clamp-1">{item.name}</h4>
+                      <div className="text-base font-bold text-foreground">
                         ₹{item.basePrice.toLocaleString("en-IN")}
+                      </div>
+                      <div className="text-[11px] text-muted">
+                        EMI from ₹{calculateEMI(item.basePrice).toLocaleString("en-IN")}/mo
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => handleAddToCart(item)}
-                      className={`btn-amazon-yellow py-1.5 px-3 text-xs w-full font-medium ${
-                        addedItemMap[item.id] ? "bg-emerald-600 text-white font-bold" : ""
-                      }`}
-                    >
-                      {addedItemMap[item.id] ? "Added ✓" : "Add to Cart"}
-                    </button>
+                    <div className="pt-2">
+                      <button
+                        onClick={() => handleAddToCart(item)}
+                        className={`py-2 px-3 text-xs w-full font-semibold rounded-full transition-all duration-200 cursor-pointer shadow-xs flex items-center justify-center gap-1.5 ${
+                          addedItemMap[item.id]
+                            ? "bg-emerald-600 text-white font-semibold"
+                            : "bg-accent hover:opacity-90 text-white dark:text-[#0B0B0C]"
+                        }`}
+                      >
+                        {addedItemMap[item.id] ? (
+                          <>
+                            <Check className="w-3.5 h-3.5" /> Added
+                          </>
+                        ) : (
+                          <>
+                            <ShoppingBag className="w-3.5 h-3.5" /> Add to Cart
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
                 ))}
 
                 {compareList.length < 3 && (
                   <div
                     onClick={() => setShowAddModal(true)}
-                    className="border-2 border-dashed border-gray-300 rounded-sm p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-gray-50"
+                    className="border-2 border-dashed border-border rounded-[16px] p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-tile transition-all duration-200 min-h-[220px]"
                   >
-                    <Plus className="w-6 h-6 text-gray-400 mb-1" />
-                    <span className="text-xs font-bold text-[#007185]">Add Smartphone</span>
-                    <span className="text-[11px] text-gray-500">Compare up to 3</span>
+                    <Plus className="w-6 h-6 text-accent mb-2" />
+                    <span className="text-xs font-bold text-foreground">Add Device</span>
+                    <span className="text-[11px] text-muted mt-0.5">Compare up to 3</span>
                   </div>
                 )}
               </div>
 
               {/* Spec Rows */}
-              <div className="divide-y divide-gray-100 text-xs">
-                {/* Processor */}
-                <div className="grid grid-cols-4 gap-4 py-3 items-center">
-                  <div className="font-bold text-gray-600">Processor</div>
+              <div className="divide-y divide-border text-xs">
+                {/* Display */}
+                <div className="grid grid-cols-4 gap-6 py-4 items-center">
+                  <div className="font-bold text-foreground flex items-center gap-2">
+                    <Smartphone className="w-4 h-4 text-accent" />
+                    <span>Display</span>
+                  </div>
                   {compareList.map((item) => (
-                    <div key={item.id} className="text-[#0f1111] font-mono">{item.processor}</div>
+                    <div key={item.id} className="text-foreground">{item.display}</div>
+                  ))}
+                </div>
+
+                {/* Processor */}
+                <div className="grid grid-cols-4 gap-6 py-4 items-center">
+                  <div className="font-bold text-foreground flex items-center gap-2">
+                    <Cpu className="w-4 h-4 text-accent" />
+                    <span>Processor</span>
+                  </div>
+                  {compareList.map((item) => (
+                    <div key={item.id} className="text-foreground">{item.processor}</div>
                   ))}
                 </div>
 
                 {/* Camera */}
-                <div className="grid grid-cols-4 gap-4 py-3 items-center">
-                  <div className="font-bold text-gray-600">Camera System</div>
+                <div className="grid grid-cols-4 gap-6 py-4 items-center">
+                  <div className="font-bold text-foreground flex items-center gap-2">
+                    <Camera className="w-4 h-4 text-accent" />
+                    <span>Camera System</span>
+                  </div>
                   {compareList.map((item) => (
-                    <div key={item.id} className="text-gray-800 leading-relaxed">{item.camera}</div>
-                  ))}
-                </div>
-
-                {/* Display */}
-                <div className="grid grid-cols-4 gap-4 py-3 items-center">
-                  <div className="font-bold text-gray-600">Display</div>
-                  {compareList.map((item) => (
-                    <div key={item.id} className="text-gray-800">{item.display}</div>
+                    <div key={item.id} className="text-foreground leading-relaxed">{item.camera}</div>
                   ))}
                 </div>
 
                 {/* Battery */}
-                <div className="grid grid-cols-4 gap-4 py-3 items-center">
-                  <div className="font-bold text-gray-600">Battery & Charging</div>
+                <div className="grid grid-cols-4 gap-6 py-4 items-center">
+                  <div className="font-bold text-foreground flex items-center gap-2">
+                    <Battery className="w-4 h-4 text-accent" />
+                    <span>Battery & Charging</span>
+                  </div>
                   {compareList.map((item) => (
-                    <div key={item.id} className="text-gray-800">{item.battery}</div>
+                    <div key={item.id} className="text-foreground">{item.battery}</div>
                   ))}
                 </div>
 
-                {/* OS */}
-                <div className="grid grid-cols-4 gap-4 py-3 items-center">
-                  <div className="font-bold text-gray-600">Operating System</div>
+                {/* RAM & Storage */}
+                <div className="grid grid-cols-4 gap-6 py-4 items-center">
+                  <div className="font-bold text-foreground">RAM & Storage</div>
                   {compareList.map((item) => (
-                    <div key={item.id} className="text-gray-800">{item.os}</div>
+                    <div key={item.id} className="text-foreground">
+                      {item.ram} | {item.storageOptions.map((s) => s.size).join(", ")}
+                    </div>
                   ))}
                 </div>
 
-                {/* Warranty & SMS */}
-                <div className="grid grid-cols-4 gap-4 py-3 items-center bg-[#fef8f2]">
-                  <div className="font-bold text-[#703800]">Warranty & SMS Alerts</div>
+                {/* Operating System */}
+                <div className="grid grid-cols-4 gap-6 py-4 items-center">
+                  <div className="font-bold text-foreground">Operating System</div>
                   {compareList.map((item) => (
-                    <div key={item.id} className="text-emerald-700 font-bold">
+                    <div key={item.id} className="text-foreground">{item.os}</div>
+                  ))}
+                </div>
+
+                {/* 5G Support */}
+                <div className="grid grid-cols-4 gap-6 py-4 items-center">
+                  <div className="font-bold text-foreground">Cellular</div>
+                  {compareList.map((item) => (
+                    <div key={item.id} className="text-foreground">{item.network5G}</div>
+                  ))}
+                </div>
+
+                {/* Warranty & SMS Protection */}
+                <div className="grid grid-cols-4 gap-6 py-4 items-center bg-tile rounded-[14px] px-3">
+                  <div className="font-bold text-foreground flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-accent" />
+                    <span>Warranty & SMS Protection</span>
+                  </div>
+                  {compareList.map((item) => (
+                    <div key={item.id} className="text-accent font-semibold">
                       {item.warrantyMonths} Months + Pre-Expiry SMS
                     </div>
                   ))}
@@ -217,35 +273,35 @@ export default function ComparePage() {
 
       {/* Add Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-white border border-gray-300 rounded-sm p-4 shadow-xl max-h-[80vh] flex flex-col">
-            <div className="flex justify-between items-center border-b pb-2">
-              <h3 className="font-bold text-sm text-[#0f1111]">Choose a Phone to Compare</h3>
-              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-black">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+          <div className="w-full max-w-md bg-card border border-border rounded-[20px] p-6 shadow-2xl max-h-[80vh] flex flex-col animate-scale-up text-foreground">
+            <div className="flex justify-between items-center border-b border-border pb-3">
+              <h3 className="font-bold text-base text-foreground">Choose Device to Compare</h3>
+              <button onClick={() => setShowAddModal(false)} className="text-muted hover:text-foreground p-1 cursor-pointer">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="overflow-y-auto py-2 space-y-2 flex-1">
+            <div className="overflow-y-auto py-3 space-y-2 flex-1 scrollbar-thin">
               {allProducts
                 .filter((p) => !compareList.some((c) => c.id === p.id))
                 .map((product) => (
                   <div
                     key={product.id}
                     onClick={() => {
-                      useApp().addToCompare(product);
+                      addToCompare(product);
                       setShowAddModal(false);
                     }}
-                    className="p-2 border rounded-xs hover:bg-gray-50 flex items-center gap-3 cursor-pointer"
+                    className="p-3 border border-border rounded-[14px] hover:bg-tile flex items-center gap-3.5 cursor-pointer transition-all duration-200"
                   >
-                    <div className="relative w-10 h-10 shrink-0">
+                    <div className="relative w-12 h-12 bg-tile rounded-[10px] p-1.5 shrink-0">
                       <Image src={product.imageUrl} alt={product.name} fill unoptimized className="object-contain" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-xs font-bold text-[#0f1111] truncate">{product.name}</div>
-                      <div className="text-[11px] text-gray-600">₹{product.basePrice.toLocaleString("en-IN")}</div>
+                      <div className="text-xs font-bold text-foreground truncate">{product.name}</div>
+                      <div className="text-[11px] text-muted">₹{product.basePrice.toLocaleString("en-IN")}</div>
                     </div>
-                    <span className="btn-amazon-yellow py-1 px-3 text-xs font-bold">
+                    <span className="px-3 py-1 rounded-full bg-accent text-white dark:text-[#0B0B0C] text-xs font-semibold">
                       Add
                     </span>
                   </div>

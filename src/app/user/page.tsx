@@ -148,9 +148,6 @@ export default function UserAccountPage() {
     );
   };
 
-  const isVicram = currentUser?.email?.toLowerCase().includes("vicram");
-  const isZara = currentUser?.email?.toLowerCase().includes("zara");
-
   return (
     <div className="min-h-screen pb-20 bg-[#eaeded]">
       {/* Breadcrumb */}
@@ -166,7 +163,7 @@ export default function UserAccountPage() {
           <div className="bg-gradient-to-r from-[#131921] via-[#232f3e] to-[#131921] rounded-lg p-6 text-white shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-[#febd69] to-[#f3a847] text-[#131921] flex items-center justify-center text-2xl font-black shadow-md">
-                {isVicram ? "👤" : isZara ? "🌸" : currentUser.name.charAt(0).toUpperCase()}
+                {currentUser.name.charAt(0).toUpperCase()}
               </div>
               <div>
                 <div className="flex items-center gap-2">
@@ -221,7 +218,7 @@ export default function UserAccountPage() {
               href="/login?redirect=/account"
               className="px-4 py-2 btn-amazon-yellow text-xs font-bold rounded-md"
             >
-              Sign In (Vicram / Zara / Admin)
+              Sign In to Your Account
             </Link>
           </div>
         )}

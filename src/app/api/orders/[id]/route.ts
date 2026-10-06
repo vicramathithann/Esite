@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { sendOrderStatusEmail, sendOrderConfirmationEmail } from "@/lib/email";
 
 export async function GET(
   _request: Request,
@@ -11,6 +12,13 @@ export async function GET(
       where: { id },
       include: {
         items: true,
+        warranties: true,
+        statusHistory: {
+          orderBy: { createdAt: "asc" },
+        },
+        emailNotifications: {
+          orderBy: { createdAt: "desc" },
+        },
         smsAlerts: {
           orderBy: { sentAt: "desc" },
         },
@@ -38,181 +46,165 @@ export async function PATCH(
 
     const existingOrder = await prisma.order.findUnique({
       where: { id },
-      include: { items: true },
+      include: {
+        items: true,
+        warranties: true,
+      },
     });
 
     if (!existingOrder) {
       return NextResponse.json({ success: false, error: "Order not found" }, { status: 404 });
     }
 
-    const updateData: Record<string, unknown> = {};
+    // Action 1: Resend confirmation email
+    if (body.action === "RESEND_EMAIL" || body.resendEmail) {
+      const emailRes = await sendOrderConfirmationEmail({
+        id: existingOrder.id,
+        orderNumber: existingOrder.orderNumber,
+        userId: existingOrder.userId,
+        customerName: existingOrder.customerName,
+        customerEmail: existingOrder.customerEmail,
+        totalAmount: existingOrder.totalAmount,
+        items: existingOrder.items.map((i) => ({
+          productName: i.productName,
+          quantity: i.quantity,
+          price: i.price,
+          selectedStorage: i.selectedStorage,
+        })),
+      });
 
-    // Lifecycle status updates
-    if (body.orderStatus) updateData.orderStatus = body.orderStatus;
+      return NextResponse.json({
+        success: true,
+        message: `Order confirmation email resent to ${existingOrder.customerEmail}.`,
+        emailStatus: emailRes.status,
+      });
+    }
+
+    const updateData: Record<string, unknown> = {};
+    const oldStatus = existingOrder.orderStatus;
+    const newStatus = body.orderStatus || (body.action === "CANCEL_ORDER" ? "Cancelled" : null);
+
+    const isCancelling = newStatus === "Cancelled" || newStatus === "CANCELLED" || body.action === "CANCEL_ORDER";
+
+    if (newStatus && newStatus !== oldStatus) {
+      updateData.orderStatus = newStatus;
+    }
+
     if (body.shippingCarrier !== undefined) updateData.shippingCarrier = body.shippingCarrier;
     if (body.trackingNumber !== undefined) updateData.trackingNumber = body.trackingNumber;
     if (body.estimatedDelivery !== undefined) {
       updateData.estimatedDelivery = body.estimatedDelivery ? new Date(body.estimatedDelivery) : null;
     }
+    if (body.paymentStatus !== undefined) updateData.paymentStatus = body.paymentStatus;
     if (body.adminNotes !== undefined) updateData.adminNotes = body.adminNotes;
-    if (body.paymentStatus) updateData.paymentStatus = body.paymentStatus;
-
-    if (body.orderStatus === "SHIPPED" && !existingOrder.shippedAt) {
-      updateData.shippedAt = new Date();
-    }
-    if (body.orderStatus === "DELIVERED" && !existingOrder.deliveredAt) {
-      updateData.deliveredAt = new Date();
-    }
-
-    // Alter customer / delivery details
-    if (body.customerName) updateData.customerName = body.customerName.trim();
-    if (body.customerPhone) updateData.customerPhone = body.customerPhone.trim();
-    if (body.customerEmail) updateData.customerEmail = body.customerEmail.trim();
-    if (body.address) updateData.address = body.address.trim();
-    if (body.city) updateData.city = body.city.trim();
-    if (body.pincode) updateData.pincode = body.pincode.trim();
-    if (body.state) updateData.state = body.state.trim();
-    if (body.totalAmount !== undefined) updateData.totalAmount = parseInt(String(body.totalAmount), 10);
-
-    // Detect all specific alterations made by Admin/Support or User
-    const changes: string[] = [];
-
-    const isCancelling = body.orderStatus === "CANCELLED" || body.action === "CANCEL_ORDER";
 
     if (isCancelling) {
-      updateData.orderStatus = "CANCELLED";
-      updateData.paymentStatus = "REFUNDED";
+      updateData.orderStatus = "Cancelled";
+      updateData.paymentStatus = "Refund Initiated";
 
-      const cancelReason = body.cancelReason || "Cancelled by customer request";
-      changes.push(`Order CANCELLED (Reason: ${cancelReason}). Full refund initiated and stock restored to inventory.`);
-
-      // Restock inventory for cancelled order
-      if (existingOrder.orderStatus !== "CANCELLED") {
+      // Restore inventory stock
+      if (oldStatus !== "Cancelled" && oldStatus !== "CANCELLED") {
         for (const item of existingOrder.items) {
           if (item.productId) {
             try {
-              const mobile = await prisma.mobile.findUnique({ where: { id: item.productId } });
-              if (mobile) {
-                const restoredStock = mobile.stock + (item.quantity || 1);
-                await prisma.mobile.update({
+              const product = await prisma.mobileProduct.findUnique({ where: { id: item.productId } });
+              if (product) {
+                await prisma.mobileProduct.update({
                   where: { id: item.productId },
-                  data: { stock: restoredStock },
-                });
-                await prisma.mobileProduct.updateMany({
-                  where: { id: item.productId },
-                  data: { inStock: true },
+                  data: {
+                    stock: product.stock + (item.quantity || 1),
+                    inStock: true,
+                  },
                 });
               }
-            } catch (restockErr) {
-              console.error("Failed to restore stock on cancellation:", restockErr);
+              const mobile = await prisma.mobile.findUnique({ where: { id: item.productId } });
+              if (mobile) {
+                await prisma.mobile.update({
+                  where: { id: item.productId },
+                  data: { stock: mobile.stock + (item.quantity || 1) },
+                });
+              }
+            } catch (stockErr) {
+              console.error("Failed to restore stock on cancellation:", stockErr);
             }
           }
         }
       }
-    } else {
-      if (body.orderStatus && body.orderStatus !== existingOrder.orderStatus) {
-        changes.push(`Status changed to ${body.orderStatus.replace(/_/g, " ")}`);
-      }
     }
 
-    if (body.shippingCarrier && body.shippingCarrier !== existingOrder.shippingCarrier) {
-      changes.push(`Carrier set to ${body.shippingCarrier}`);
-    }
-    if (body.trackingNumber && body.trackingNumber !== existingOrder.trackingNumber) {
-      changes.push(`Tracking AWB: ${body.trackingNumber}`);
-    }
-    if (body.estimatedDelivery) {
-      const formattedDate = new Date(body.estimatedDelivery).toLocaleDateString("en-IN", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      });
-      changes.push(`Estimated Delivery: ${formattedDate}`);
-    }
-    if (body.address && body.address !== existingOrder.address) {
-      changes.push(`Delivery Address updated to: ${body.address}, ${body.city || existingOrder.city}`);
-    }
-    if (body.totalAmount !== undefined && body.totalAmount !== existingOrder.totalAmount) {
-      changes.push(`Amount adjusted to Rs ${body.totalAmount.toLocaleString("en-IN")}`);
-    }
-    if (body.adminNotes && body.adminNotes !== existingOrder.adminNotes) {
-      changes.push(`Note: ${body.adminNotes}`);
-    }
-
-    const timestamp = new Date().toLocaleString("en-IN", {
-      day: "numeric",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-
-    if (changes.length > 0) {
-      const changeText = isCancelling
-        ? `[Cancellation Log ${timestamp}]: ${changes.join(" • ")}`
-        : `[Support Update ${timestamp}]: ${changes.join(" • ")}`;
-
-      updateData.adminNotes = existingOrder.adminNotes
-        ? `${existingOrder.adminNotes} | ${changeText}`
-        : changeText;
-    }
-
+    // Save order changes
     const updatedOrder = await prisma.order.update({
       where: { id },
       data: updateData,
       include: {
         items: true,
-        smsAlerts: { orderBy: { sentAt: "desc" } },
+        warranties: true,
+        statusHistory: true,
+        emailNotifications: { orderBy: { createdAt: "desc" } },
       },
     });
 
-    // Auto-dispatch SMS Alert on ANY change or cancellation
-    try {
-      let smsTitle = "Order Updated by Support";
-      let smsBody = "";
-      const alertType = isCancelling ? "ORDER_CANCELLED" : body.orderStatus || "ORDER_UPDATED";
+    // Record Status History & Send Status Email if status changed
+    if (newStatus && newStatus !== oldStatus) {
+      const changedBy = body.changedBy || (isCancelling ? "CUSTOMER" : "ADMIN");
+      const note = body.note || body.cancelReason || `Order status updated from ${oldStatus} to ${newStatus}.`;
 
-      if (isCancelling) {
-        smsTitle = "Order Cancelled & Refund Initiated";
-        smsBody = `[VM Mobiles] Order #${updatedOrder.orderNumber} has been successfully CANCELLED as per request. If paid, your refund of Rs ${updatedOrder.totalAmount.toLocaleString("en-IN")} is being processed back to your original payment method. Reserved smartphone stock has been restored to warehouse inventory. - VM Mobiles.in`;
-      } else if (body.orderStatus === "PROCESSING") {
-        smsTitle = "Order Processing Update";
-        smsBody = `[VM Mobiles] Order #${updatedOrder.orderNumber} is now being processed at our secure fulfillment center. Quality check & IMEI verification in progress. - VM Mobiles.in`;
-      } else if (body.orderStatus === "SHIPPED") {
-        smsTitle = "Shipment Dispatched";
-        const carrier = body.shippingCarrier || updatedOrder.shippingCarrier || "Express Logistics";
-        const tracking = body.trackingNumber || updatedOrder.trackingNumber || `TRK-${Math.floor(100000 + Math.random() * 900000)}`;
-        smsBody = `[VM Mobiles] Great news! Order #${updatedOrder.orderNumber} has SHIPPED via ${carrier}. Tracking Number: ${tracking}. Track live: https://vmmobiles.in/track/${updatedOrder.orderNumber} - VM Mobiles.in`;
-      } else if (body.orderStatus === "OUT_FOR_DELIVERY") {
-        smsTitle = "Out For Delivery";
-        smsBody = `[VM Mobiles] Order #${updatedOrder.orderNumber} is OUT FOR DELIVERY today to ${updatedOrder.city}! Please keep your phone reachable. - VM Mobiles.in`;
-      } else if (body.orderStatus === "DELIVERED") {
-        smsTitle = "Order Delivered & Warranty Active";
-        smsBody = `[VM Mobiles] Delivered! Your order #${updatedOrder.orderNumber} has been delivered. Official 1-Year Device Shield & Warranty is fully ACTIVE. Thank you for shopping with VM Mobiles.in!`;
-      } else if (changes.length > 0) {
-        smsTitle = "Order Details Updated by Support";
-        smsBody = `[VM Mobiles] Order #${updatedOrder.orderNumber} has been updated by VM Mobiles Support: ${changes.join(", ")}. Deliver to: ${updatedOrder.address}, ${updatedOrder.city}. - VM Mobiles.in`;
+      try {
+        await prisma.orderStatusHistory.create({
+          data: {
+            orderId: updatedOrder.id,
+            fromStatus: oldStatus,
+            toStatus: newStatus,
+            changedBy,
+            note,
+          },
+        });
+      } catch (histErr) {
+        console.error("Error creating status history:", histErr);
       }
 
-      if (smsTitle && smsBody) {
+      // Dispatch Order Status Email via MSG91
+      try {
+        await sendOrderStatusEmail(
+          {
+            id: updatedOrder.id,
+            orderNumber: updatedOrder.orderNumber,
+            userId: updatedOrder.userId,
+            customerName: updatedOrder.customerName,
+            customerEmail: updatedOrder.customerEmail,
+            totalAmount: updatedOrder.totalAmount,
+            orderStatus: newStatus,
+            shippingCarrier: updatedOrder.shippingCarrier,
+            trackingNumber: updatedOrder.trackingNumber,
+          },
+          newStatus,
+          note
+        );
+      } catch (emailErr) {
+        console.error("[STATUS EMAIL WARNING] Failed to send status update email:", emailErr);
+      }
+
+      // Dispatch SMS
+      try {
         await prisma.smsAlert.create({
           data: {
             orderId: updatedOrder.id,
             customerPhone: updatedOrder.customerPhone,
-            alertType,
-            title: smsTitle,
-            messageBody: smsBody,
+            alertType: newStatus,
+            title: `Order #${updatedOrder.orderNumber} Status: ${newStatus}`,
+            messageBody: `[VM Mobiles] Your order #${updatedOrder.orderNumber} status is now: ${newStatus}. Note: ${note} - VM Mobiles.in`,
             isRead: false,
           },
         });
+      } catch (smsErr) {
+        console.error("Error creating status SMS:", smsErr);
       }
-    } catch (smsErr) {
-      console.error("Failed to append status SMS:", smsErr);
     }
 
     return NextResponse.json({
       success: true,
       order: updatedOrder,
-      message: "Order updated successfully!",
+      message: `Order #${updatedOrder.orderNumber} updated successfully.`,
     });
   } catch (error) {
     console.error("Failed to update order:", error);
@@ -227,19 +219,18 @@ export async function DELETE(
   try {
     const { id } = await params;
 
-    // Delete associated alerts first
-    await prisma.smsAlert.deleteMany({
-      where: { orderId: id },
-    });
+    // Delete associated alerts, status history, warranties, email logs
+    await prisma.smsAlert.deleteMany({ where: { orderId: id } });
+    await prisma.orderStatusHistory.deleteMany({ where: { orderId: id } });
+    await prisma.warranty.deleteMany({ where: { orderId: id } });
+    await prisma.emailNotification.deleteMany({ where: { orderId: id } });
 
     // Delete order (cascades OrderItems)
-    await prisma.order.delete({
-      where: { id },
-    });
+    await prisma.order.delete({ where: { id } });
 
     return NextResponse.json({
       success: true,
-      message: "Order deleted successfully from database!",
+      message: "Order deleted successfully!",
     });
   } catch (error) {
     console.error("Failed to delete order:", error);

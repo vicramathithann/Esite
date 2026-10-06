@@ -1,0 +1,208 @@
+"use client";
+
+import React, { useState } from "react";
+import Link from "next/link";
+import { User, Mail, Phone, ShieldCheck, ArrowLeft, CheckCircle2, AlertCircle, Save, RefreshCw } from "lucide-react";
+import { useApp } from "@/context/AppContext";
+
+export default function ProfilePage() {
+  const { currentUser, login, refreshUser } = useApp();
+
+  const [name, setName] = useState(currentUser?.name || "");
+  const [phone, setPhone] = useState(currentUser?.phone || "");
+  const [saving, setSaving] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [savedSuccess, setSavedSuccess] = useState(false);
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser) return;
+
+    setSaving(true);
+    setSavedSuccess(false);
+
+    try {
+      const res = await fetch("/api/auth/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: currentUser.id,
+          name: name.trim(),
+          phone: phone.trim(),
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        login({ ...currentUser, name: name.trim(), phone: phone.trim() });
+        setSavedSuccess(true);
+        setTimeout(() => setSavedSuccess(false), 3000);
+      } else {
+        alert(data.error || "Failed to update profile.");
+      }
+    } catch {
+      alert("Error updating profile.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!currentUser?.email) return;
+
+    setResending(true);
+    try {
+      const res = await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: currentUser.email }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message || `Verification link resent to ${currentUser.email}!`);
+      } else {
+        alert(data.error || "Failed to resend verification email.");
+      }
+    } catch {
+      alert("Error contacting verification service.");
+    } finally {
+      setResending(false);
+    }
+  };
+
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center">
+          <p className="text-slate-300 text-sm mb-4">Please log in to manage your profile.</p>
+          <Link
+            href="/login"
+            className="inline-block px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold"
+          >
+            Sign In
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const isVerified = currentUser.emailVerified;
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 py-10 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-2xl mx-auto space-y-6">
+        <Link
+          href="/account"
+          className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white transition"
+        >
+          <ArrowLeft className="w-4 h-4" /> Back to Account Hub
+        </Link>
+
+        {/* Email Verification Banner */}
+        {!isVerified ? (
+          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-300">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold">Your email is unverified</p>
+                <p className="text-xs text-amber-300/80">
+                  Please verify your email ({currentUser.email}) to unlock all account capabilities.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleResendVerification}
+              disabled={resending}
+              className="px-3 py-1.5 bg-amber-500 text-slate-950 text-xs font-bold rounded-xl flex items-center gap-1.5 hover:bg-amber-400 transition"
+            >
+              {resending ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}
+              Send Verification Email
+            </button>
+          </div>
+        ) : (
+          <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-3 text-emerald-400">
+            <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
+            <div className="text-xs">
+              <span className="font-semibold text-sm block text-emerald-300">Verified Customer Account</span>
+              Your email ({currentUser.email}) is officially verified and secured with VM Mobiles.
+            </div>
+          </div>
+        )}
+
+        {/* Profile Card */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+          <div className="flex items-center gap-3 border-b border-slate-800/80 pb-5 mb-6">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+              <User className="w-6 h-6" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-white">Profile Information</h1>
+              <p className="text-xs text-slate-400">Manage your contact details and communication preferences.</p>
+            </div>
+          </div>
+
+          <form onSubmit={handleUpdateProfile} className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+                Full Name
+              </label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+                Email Address (Account Identifier)
+              </label>
+              <div className="relative">
+                <input
+                  type="email"
+                  value={currentUser.email}
+                  disabled
+                  className="w-full px-4 py-2.5 bg-slate-950/60 border border-slate-800 rounded-xl text-slate-400 text-sm cursor-not-allowed"
+                />
+                <span className="absolute right-3 top-2.5 text-[11px] font-semibold text-emerald-400 flex items-center gap-1">
+                  {isVerified ? <CheckCircle2 className="w-3.5 h-3.5" /> : null}
+                  {isVerified ? "Verified" : "Unverified"}
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+                Mobile Number
+              </label>
+              <input
+                type="text"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+91 XXXXX XXXXX"
+                className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500"
+              />
+            </div>
+
+            {savedSuccess && (
+              <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs rounded-xl flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4" /> Profile updated successfully!
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={saving}
+              className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm rounded-xl flex items-center justify-center gap-2 transition"
+            >
+              {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              Save Changes
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}

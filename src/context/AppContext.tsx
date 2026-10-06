@@ -9,12 +9,14 @@ export interface UserProfile {
   email: string;
   phone: string;
   role: "USER" | "ADMIN";
+  emailVerified?: boolean;
 }
 
 interface AppContextType {
   currentUser: UserProfile | null;
   login: (user: UserProfile) => void;
   logout: () => void;
+  refreshUser: () => Promise<void>;
 
   cart: CartItem[];
   addToCart: (item: CartItem) => void;
@@ -25,6 +27,11 @@ interface AppContextType {
   cartCount: number;
   isCartOpen: boolean;
   setIsCartOpen: (open: boolean) => void;
+
+  wishlist: string[];
+  toggleWishlist: (productId: string) => void;
+  isInWishlist: (productId: string) => boolean;
+  wishlistCount: number;
 
   compareList: MobileProductData[];
   addToCompare: (product: MobileProductData) => boolean;
@@ -47,6 +54,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [wishlist, setWishlist] = useState<string[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [compareList, setCompareList] = useState<MobileProductData[]>([]);
   const [isSmsDrawerOpen, setIsSmsDrawerOpen] = useState(false);
@@ -54,7 +62,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [unreadSmsCount, setUnreadSmsCount] = useState(0);
   const [lastIncomingSms, setLastIncomingSms] = useState<SmsAlertData | null>(null);
 
-  // Load user, cart and compare list from localStorage
+  // Load user, cart, wishlist, and compare list from localStorage
   useEffect(() => {
     try {
       const savedUser = localStorage.getItem("novamobile_user");
@@ -62,6 +70,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       const savedCart = localStorage.getItem("novamobile_cart");
       if (savedCart) setCart(JSON.parse(savedCart));
+
+      const savedWishlist = localStorage.getItem("novamobile_wishlist");
+      if (savedWishlist) setWishlist(JSON.parse(savedWishlist));
 
       const savedCompare = localStorage.getItem("novamobile_compare");
       if (savedCompare) setCompareList(JSON.parse(savedCompare));
@@ -79,6 +90,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [cart]);
 
+  // Save wishlist changes
+  useEffect(() => {
+    try {
+      localStorage.setItem("novamobile_wishlist", JSON.stringify(wishlist));
+    } catch (e) {
+      console.error("Failed to save wishlist to local storage", e);
+    }
+  }, [wishlist]);
+
   // Save compare list
   useEffect(() => {
     try {
@@ -87,6 +107,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       console.error("Failed to save compare to local storage", e);
     }
   }, [compareList]);
+
+  // Refresh current user info from backend
+  const refreshUser = useCallback(async () => {
+    if (!currentUser?.id) return;
+    try {
+      const res = await fetch(`/api/auth/me?userId=${currentUser.id}`);
+      const data = await res.json();
+      if (data.success && data.user) {
+        setCurrentUser(data.user);
+        localStorage.setItem("novamobile_user", JSON.stringify(data.user));
+      }
+    } catch (e) {
+      console.error("Failed to refresh user:", e);
+    }
+  }, [currentUser?.id]);
 
   // Fetch SMS alerts from backend
   const fetchSmsAlerts = useCallback(async () => {
@@ -118,7 +153,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     fetchSmsAlerts();
-    // Poll for any simulated background SMS alerts every 15 seconds
     const interval = setInterval(fetchSmsAlerts, 15000);
     return () => clearInterval(interval);
   }, [fetchSmsAlerts]);
@@ -158,8 +192,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setCart([]);
   };
 
+  const toggleWishlist = (productId: string) => {
+    setWishlist((prev) =>
+      prev.includes(productId) ? prev.filter((id) => id !== productId) : [...prev, productId]
+    );
+  };
+
+  const isInWishlist = (productId: string) => {
+    return wishlist.includes(productId);
+  };
+
   const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const wishlistCount = wishlist.length;
 
   const addToCompare = (product: MobileProductData): boolean => {
     if (compareList.some((p) => p.id === product.id)) return false;
@@ -233,6 +278,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         currentUser,
         login,
         logout,
+        refreshUser,
         cart,
         addToCart,
         removeFromCart,
@@ -242,6 +288,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         cartCount,
         isCartOpen,
         setIsCartOpen,
+        wishlist,
+        toggleWishlist,
+        isInWishlist,
+        wishlistCount,
         compareList,
         addToCompare,
         removeFromCompare,
@@ -261,7 +311,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     </AppContext.Provider>
   );
 }
-
 
 export function useApp() {
   const context = useContext(AppContext);

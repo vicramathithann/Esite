@@ -524,6 +524,22 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
+      {/* Dedicated Admin Route Quick Links */}
+      <div className="bg-slate-900 border-b border-slate-800 text-xs px-4 sm:px-8 py-2">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 overflow-x-auto scrollbar-none">
+          <div className="flex items-center gap-1.5 font-medium text-slate-300">
+            <span className="text-amber-400 font-bold uppercase tracking-wider text-[10px] mr-1">Admin Desks:</span>
+            <Link href="/admin/dashboard" className="px-2.5 py-1 rounded bg-slate-800 hover:bg-indigo-600 hover:text-white transition whitespace-nowrap">📊 Dashboard</Link>
+            <Link href="/admin/orders" className="px-2.5 py-1 rounded bg-slate-800 hover:bg-indigo-600 hover:text-white transition whitespace-nowrap">📦 Orders</Link>
+            <Link href="/admin/products" className="px-2.5 py-1 rounded bg-slate-800 hover:bg-indigo-600 hover:text-white transition whitespace-nowrap">📱 Products</Link>
+            <Link href="/admin/inventory" className="px-2.5 py-1 rounded bg-slate-800 hover:bg-indigo-600 hover:text-white transition whitespace-nowrap">📦 Inventory</Link>
+            <Link href="/admin/customers" className="px-2.5 py-1 rounded bg-slate-800 hover:bg-indigo-600 hover:text-white transition whitespace-nowrap">👥 Customers</Link>
+            <Link href="/admin/warranties" className="px-2.5 py-1 rounded bg-slate-800 hover:bg-indigo-600 hover:text-white transition whitespace-nowrap">🛡️ Warranties</Link>
+            <Link href="/admin/email-logs" className="px-2.5 py-1 rounded bg-slate-800 hover:bg-indigo-600 hover:text-white transition whitespace-nowrap">✉️ MSG91 Logs</Link>
+          </div>
+        </div>
+      </div>
+
       {/* Admin Navigation Tabs */}
       <div className="bg-[#232f3e] text-white px-4 sm:px-8 shadow-xs">
         <div className="max-w-7xl mx-auto flex items-center gap-2 overflow-x-auto text-xs font-bold scrollbar-none py-1.5">

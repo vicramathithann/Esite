@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { ThemeProvider } from "@/components/ThemeProvider";
 import { AppProvider } from "@/context/AppContext";
 import Navbar from "@/components/Navbar";
 import CartDrawer from "@/components/CartDrawer";
@@ -18,16 +19,23 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full" suppressHydrationWarning>
-      <body className="min-h-full flex flex-col bg-[#eaeded] text-[#0f1111] antialiased">
-        <AppProvider>
-          <Navbar />
-          <CartDrawer />
-          <SmsInboxDrawer />
-          <main className="flex-1">
-            {children}
-          </main>
-          <Footer />
-        </AppProvider>
+      <body className="min-h-full flex flex-col bg-background text-foreground antialiased selection:bg-accent selection:text-white">
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <AppProvider>
+            <Navbar />
+            <CartDrawer />
+            <SmsInboxDrawer />
+            <main className="flex-1">
+              {children}
+            </main>
+            <Footer />
+          </AppProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

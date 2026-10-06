@@ -1,71 +1,143 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-background: var(--background);
+  --color-card: var(--card);
+  --color-tile: var(--tile);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+}
+
 :root {
-  --background: #eaeded;
-  --foreground: #0f1111;
-  --amazon-navy: #131921;
-  --amazon-subnavy: #232f3e;
-  --amazon-footer: #37475a;
-  --amazon-yellow: #ffd814;
-  --amazon-yellow-hover: #f7ca00;
-  --amazon-orange: #ffa41c;
-  --amazon-orange-hover: #fa8900;
-  --amazon-deal-red: #cc0c39;
-  --amazon-link: #007185;
-  --amazon-link-hover: #c7511f;
+  --background: #F5F5F7;
+  --card: #FFFFFF;
+  --tile: #F0F0F2;
+  --foreground: #111111;
+  --muted: #6E6E73;
+  --border: #E5E5EA;
+  --accent: #0071E3;
+  --accent-hover: #0077ED;
+
+  /* Additional helper tokens */
+  --card-radius: 20px;
+  --card-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
+  --pill-active-bg: #111111;
+  --pill-active-text: #FFFFFF;
+}
+
+.dark {
+  --background: #0B0B0C;
+  --card: #161618;
+  --tile: #212124;
+  --foreground: #F5F5F7;
+  --muted: #A1A1A6;
+  --border: #2C2C2E;
+  --accent: #2997FF;
+  --accent-hover: #389eff;
+
+  /* Additional helper tokens */
+  --card-radius: 20px;
+  --card-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+  --pill-active-bg: #F5F5F7;
+  --pill-active-text: #111111;
+}
+
+/* 200ms color transition applied ONLY when the user toggles the theme */
+html.theme-transitioning,
+html.theme-transitioning *,
+html.theme-transitioning *::before,
+html.theme-transitioning *::after {
+  transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease !important;
+  transition-delay: 0s !important;
 }
 
 body {
-  background-color: #eaeded;
-  color: #0f1111;
-  font-family: "Amazon Ember", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: "Inter", "Manrope", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Amazon Style Utilities */
-.btn-amazon-yellow {
-  background-color: #ffd814;
-  border: 1px solid #fcd200;
+/* Apple & OnePlus Style Button Utilities */
+.btn-apple-primary,
+.btn-primary {
+  background-color: var(--accent);
+  border: 1px solid var(--accent);
   border-radius: 9999px;
-  color: #0f1111;
+  color: #FFFFFF;
   font-weight: 500;
-  transition: all 0.15s ease;
-  box-shadow: 0 2px 5px rgba(213, 217, 217, 0.5);
+  transition: all 200ms ease-out;
+  box-shadow: 0 2px 8px rgba(0, 113, 227, 0.2);
 }
 
-.btn-amazon-yellow:hover {
-  background-color: #f7ca00;
-  border-color: #f2c200;
+.btn-apple-primary:hover,
+.btn-primary:hover {
+  background-color: var(--accent-hover);
+  border-color: var(--accent-hover);
+  transform: translateY(-1px);
 }
 
-.btn-amazon-orange {
-  background-color: #ffa41c;
-  border: 1px solid #ff8f00;
+.dark .btn-apple-primary,
+.dark .btn-primary {
+  color: #0B0B0C;
+  font-weight: 600;
+  box-shadow: 0 2px 10px rgba(41, 151, 255, 0.3);
+}
+
+.btn-apple-secondary {
+  background-color: var(--tile);
+  border: 1px solid var(--border);
   border-radius: 9999px;
-  color: #0f1111;
+  color: var(--foreground);
   font-weight: 500;
-  transition: all 0.15s ease;
-  box-shadow: 0 2px 5px rgba(213, 217, 217, 0.5);
+  transition: all 200ms ease-out;
 }
 
-.btn-amazon-orange:hover {
-  background-color: #fa8900;
-  border-color: #e67a00;
+.btn-apple-secondary:hover {
+  filter: brightness(0.96);
+  transform: translateY(-1px);
 }
 
-.badge-best-seller {
-  background-color: #e67a00;
-  color: #ffffff;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 3px 8px;
-  clip-path: polygon(0 0, 100% 0, 93% 100%, 0 100%);
+.dark .btn-apple-secondary:hover {
+  filter: brightness(1.15);
 }
 
-.badge-vm-choice {
-  background-color: #232f3e;
-  color: #ffffff;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 3px 8px;
+/* Clean Tech Card */
+.card-tech {
+  background-color: var(--card);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  border: 1px solid var(--border);
+  transition: all 200ms ease-out;
+}
+
+.card-tech:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleUp {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 200ms ease-out forwards;
+}
+
+.animate-scale-up {
+  animation: scaleUp 200ms ease-out forwards;
 }

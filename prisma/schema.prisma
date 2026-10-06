@@ -32,74 +32,113 @@ model Mobile {
 }
 
 model MobileProduct {
-  id                String      @id @default(uuid())
+  id                String           @id @default(uuid())
   name              String
   brand             String
   series            String
   tagline           String
+  model             String?
+  category          String           @default("SMARTPHONE") // "SMARTPHONE" or "ACCESSORY"
   basePrice         Int
+  discountPrice     Int?
   originalPrice     Int
-  rating            Float       @default(4.8)
-  reviewCount       Int         @default(120)
+  rating            Float            @default(4.8)
+  reviewCount       Int              @default(120)
   imageUrl          String
-  galleryImages     String
-  colors            String
-  storageOptions    String
+  galleryImages     String           // JSON string array
+  colors            String           // JSON string array
+  storageOptions    String           // JSON string array
   ram               String
   display           String
+  displayType       String?
   processor         String
   camera            String
+  rearCamera        String?
+  frontCamera       String?
   battery           String
+  batteryCapacity   String?
   os                String
   network5G         String
-  warrantyMonths    Int         @default(12)
-  inStock           Boolean     @default(true)
-  isFeatured        Boolean     @default(false)
-  highlightFeatures String
-  createdAt         DateTime    @default(now())
+  warrantyMonths    Int              @default(12)
+  stock             Int              @default(20)
+  inStock           Boolean          @default(true)
+  isFeatured        Boolean          @default(false)
+  highlightFeatures String           // JSON string array
+  createdAt         DateTime         @default(now())
+  variants          ProductVariant[]
+  reviews           Review[]
+  wishlistItems     Wishlist[]
+}
+
+model ProductVariant {
+  id        String        @id @default(uuid())
+  productId String
+  product   MobileProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  ram       String?       // "8GB", "12GB", "16GB"
+  storage   String?       // "128GB", "256GB", "512GB", "1TB"
+  color     String?       // "Black", "White", "Blue", "Titanium", "Green"
+  colorHex  String?
+  price     Int
+  stock     Int           @default(10)
+  sku       String?
+  createdAt DateTime      @default(now())
 }
 
 model User {
-  id        String   @id @default(uuid())
-  name      String
-  email     String   @unique
-  phone     String   @unique
-  password  String
-  role      String   @default("USER") // USER, ADMIN
-  createdAt DateTime @default(now())
-  orders    Order[]
+  id                 String              @id @default(uuid())
+  name               String
+  email              String              @unique
+  phone              String              @unique
+  password           String
+  role               String              @default("USER") // USER, ADMIN
+  emailVerified      Boolean             @default(false)
+  verificationToken  String?
+  tokenExpires       DateTime?
+  otpHash            String?
+  otpExpires         DateTime?
+  otpAttempts        Int                 @default(0)
+  lastOtpSentAt      DateTime?
+  createdAt          DateTime            @default(now())
+  orders             Order[]
+  warranties         Warranty[]
+  wishlist           Wishlist[]
+  reviews            Review[]
+  emailNotifications EmailNotification[]
 }
 
 model Order {
-  id                String         @id @default(uuid())
-  orderNumber       String         @unique
-  userId            String?
-  user              User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
-  customerName      String
-  customerPhone     String
-  phoneVerified     Boolean        @default(true)
-  customerEmail     String
-  address           String
-  city              String
-  pincode           String
-  state             String
-  totalAmount       Int
-  paymentMethod     String
-  paymentStatus     String         @default("PAID")
-  orderStatus       String         @default("CONFIRMED") // RECEIVED, CONFIRMED, PROCESSING, SHIPPED, OUT_FOR_DELIVERY, DELIVERED, CANCELLED
-  shippingCarrier   String?
-  trackingNumber    String?
-  estimatedDelivery DateTime?
-  shippedAt         DateTime?
-  deliveredAt       DateTime?
-  adminNotes        String?
-  createdAt         DateTime       @default(now())
-  items             OrderItem[]
-  smsAlerts         SmsAlert[]
+  id                 String               @id @default(uuid())
+  orderNumber        String               @unique
+  userId             String?
+  user               User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+  customerName       String
+  customerPhone      String
+  phoneVerified      Boolean              @default(true)
+  customerEmail      String
+  address            String
+  city               String
+  pincode            String
+  state              String
+  totalAmount        Int
+  paymentMethod      String
+  paymentStatus      String               @default("PAID")
+  orderStatus        String               @default("CONFIRMED") // CONFIRMED, PROCESSING, PACKED, SHIPPED, OUT_FOR_DELIVERY, DELIVERED, CANCELLED, REFUND_INITIATED, REFUNDED
+  shippingCarrier    String?
+  trackingNumber     String?
+  estimatedDelivery  DateTime?
+  shippedAt          DateTime?
+  deliveredAt        DateTime?
+  adminNotes         String?
+  createdAt          DateTime             @default(now())
+  items              OrderItem[]
+  smsAlerts          SmsAlert[]
+  statusHistory      OrderStatusHistory[]
+  warranties         Warranty[]
+  emailNotifications EmailNotification[]
 }
 
 model OrderItem {
-  id                 String        @id @default(uuid())
+  id                 String    @id @default(uuid())
   orderId            String
   productId          String?
   productName        String
@@ -108,20 +147,96 @@ model OrderItem {
   selectedColor      String
   selectedStorage    String
   price              Int
-  quantity           Int            @default(1)
+  quantity           Int       @default(1)
   imeiNumber         String
-  warrantyMonths     Int            @default(12)
-  warrantyStartDate  DateTime       @default(now())
+  warrantyMonths     Int       @default(12)
+  warrantyStartDate  DateTime  @default(now())
   warrantyExpiryDate DateTime
-  warrantyStatus     String         @default("ACTIVE")
-  order              Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  warrantyStatus     String    @default("ACTIVE")
+  order              Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  warranty           Warranty?
+}
+
+model OrderStatusHistory {
+  id        String   @id @default(uuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  fromStatus String
+  toStatus  String
+  changedBy String?  // "ADMIN", "USER", "SYSTEM"
+  note      String?
+  createdAt DateTime @default(now())
+}
+
+model Warranty {
+  id                String    @id @default(uuid())
+  orderId           String
+  order             Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderItemId       String    @unique
+  orderItem         OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  userId            String?
+  user              User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  customerName      String
+  customerEmail     String
+  productName       String
+  imeiNumber        String
+  purchaseDate      DateTime  @default(now())
+  warrantyDuration  String    @default("1 Year")
+  warrantyStartDate DateTime  @default(now())
+  warrantyExpiryDate DateTime
+  warrantyStatus    String    @default("ACTIVE") // ACTIVE, EXPIRING_SOON, EXPIRED
+  emailSent         Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+}
+
+model EmailNotification {
+  id             String    @id @default(uuid())
+  userId         String?
+  user           User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  recipientEmail String
+  recipientName  String?
+  emailType      String    // EMAIL_VERIFICATION, ORDER_CONFIRMATION, ORDER_STATUS, WARRANTY_NOTIFICATION
+  orderId        String?
+  order          Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  productName    String?
+  templateId     String?
+  subject        String
+  contentSummary String?
+  status         String    // SENT, FAILED, PENDING
+  errorMessage   String?
+  retryCount     Int       @default(0)
+  sentAt         DateTime?
+  createdAt      DateTime  @default(now())
+}
+
+model Wishlist {
+  id        String        @id @default(uuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   MobileProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime      @default(now())
+
+  @@unique([userId, productId])
+}
+
+model Review {
+  id        String        @id @default(uuid())
+  productId String
+  product   MobileProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userName  String
+  rating    Int
+  comment   String
+  createdAt DateTime      @default(now())
 }
 
 model SmsAlert {
   id            String    @id @default(uuid())
   orderId       String?
   customerPhone String
-  alertType     String    // PURCHASE_CONFIRMATION, OTP_VERIFICATION, EXPIRY_WARNING_7D, EXPIRY_ALERT_24H, EXPIRED_NOTICE, CUSTOM_ALERT
+  alertType     String
   title         String
   messageBody   String
   isRead        Boolean   @default(false)

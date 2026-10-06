@@ -5,16 +5,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { 
-  MapPin, 
   Search, 
   ShoppingBag, 
-  Menu, 
   Layers, 
   MessageSquareText, 
   ShieldCheck, 
-  ChevronDown 
+  ChevronDown,
+  Heart,
+  Menu
 } from "lucide-react";
-import { formatINR } from "@/lib/formatters";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function Navbar() {
   const router = useRouter();
@@ -25,11 +25,11 @@ export default function Navbar() {
     setIsCartOpen, 
     unreadSmsCount, 
     setIsSmsDrawerOpen, 
-    compareList 
+    compareList,
+    wishlistCount 
   } = useApp();
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All Mobiles");
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,103 +40,92 @@ export default function Navbar() {
     }
   };
 
+  const BRANDS = [
+    "Apple", "Samsung", "Google Pixel", "OnePlus", "Xiaomi", 
+    "Nothing", "Vivo", "Oppo", "Motorola", "Realme", "iQOO", "Sony"
+  ];
+
   return (
-    <header className="sticky top-0 z-50 w-full text-white">
-      {/* Primary Top Bar (Amazon Dark Navy #131921) */}
-      <div className="bg-[#131921] px-3 sm:px-4 py-2 flex items-center justify-between gap-3 text-sm">
-        {/* VM Mobiles Logo */}
+    <header className="sticky top-0 z-50 w-full backdrop-blur-md bg-card/85 border-b border-border transition-all duration-200">
+      {/* Primary Top Bar */}
+      <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+        {/* Brand Logo */}
         <Link 
           href="/" 
-          className="flex items-center gap-1 p-1 hover:outline hover:outline-1 hover:outline-white rounded-xs shrink-0"
+          className="flex items-center gap-2 group shrink-0 focus:outline-none"
         >
-          <div className="flex flex-col items-start leading-none">
-            <div className="flex items-baseline">
-              <span className="text-2xl font-black tracking-tight text-white">
-                vm<span className="text-[#febd69]">mobiles</span>
-              </span>
-              <span className="text-[11px] text-[#febd69] font-bold">.in</span>
-            </div>
-            {/* Amazon-style smile line */}
-            <div className="w-16 h-1 bg-gradient-to-r from-transparent via-[#febd69] to-transparent rounded-full -mt-0.5" />
+          <div className="w-8 h-8 rounded-full bg-foreground text-background flex items-center justify-center font-bold text-xs tracking-tighter transition-all duration-250 group-hover:scale-105">
+            VM
           </div>
+          <span className="text-base font-bold tracking-tight text-foreground">
+            VM <span className="text-muted font-normal">Mobiles</span>
+          </span>
         </Link>
 
-        {/* Deliver to Location (Amazon Pin) */}
-        <div className="hidden lg:flex items-center gap-1.5 p-1 hover:outline hover:outline-1 hover:outline-white rounded-xs cursor-pointer text-xs">
-          <MapPin className="w-4 h-4 text-white mt-1 shrink-0" />
-          <div className="leading-tight">
-            <span className="text-[11px] text-gray-300 block">
-              Deliver to {currentUser?.name ? currentUser.name.split(" ")[0] : "Vicram"}
-            </span>
-            <span className="font-bold text-white block">Bengaluru 560038</span>
-          </div>
-        </div>
-
-        {/* Amazon-Style Search Bar */}
+        {/* Minimalist Search Bar with Pill Styling */}
         <form 
           onSubmit={handleSearchSubmit} 
-          className="flex-1 max-w-3xl flex items-center h-10 rounded-md overflow-hidden focus-within:ring-3 focus-within:ring-[#f3a847]"
+          className="flex-1 max-w-md relative hidden sm:flex items-center"
         >
-          {/* Category Dropdown */}
-          <div className="hidden sm:flex items-center bg-[#f3f3f3] hover:bg-[#dadada] text-[#0f1111] px-2.5 h-full text-xs font-normal border-r border-gray-300 cursor-pointer">
-            <span>{selectedCategory}</span>
-            <ChevronDown className="w-3 h-3 ml-1 text-gray-600" />
+          <div className="relative w-full">
+            <Search className="w-3.5 h-3.5 text-muted absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search iPhone, Galaxy, OnePlus, Pixel..."
+              className="w-full pl-9 pr-4 py-2 text-xs bg-tile hover:bg-tile/80 focus:bg-card text-foreground placeholder:text-muted rounded-full border border-border focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none transition-all duration-200"
+            />
           </div>
-
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search brand + model: iPhone 16 Pro, Samsung S24 Ultra, OnePlus 13..."
-            className="flex-1 h-full px-3 text-sm text-[#0f1111] bg-white placeholder-gray-500 focus:outline-none"
-          />
-
-          <button
-            type="submit"
-            className="bg-[#febd69] hover:bg-[#f3a847] h-full px-4.5 flex items-center justify-center text-[#131921] transition-colors"
-          >
-            <Search className="w-5 h-5 stroke-[2.5]" />
-          </button>
         </form>
 
-        {/* Right Section: Language, Account, Orders, SMS Alerts, Cart */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        {/* Right Navigation Section */}
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           {/* User Account / Sign In */}
           <div className="relative group">
             {currentUser ? (
               <div className="relative">
                 <Link
                   href="/account"
-                  className="flex flex-col p-1 hover:outline hover:outline-1 hover:outline-white rounded-xs text-left leading-tight cursor-pointer block"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-foreground hover:text-accent hover:bg-tile rounded-full transition-all duration-200 font-medium"
                 >
-                  <span className="text-[11px] text-gray-300">Hello, {currentUser.name.split(" ")[0]}</span>
-                  <span className="text-xs font-bold text-white flex items-center gap-0.5">
-                    Account <ChevronDown className="w-3 h-3 text-gray-400" />
+                  <div className="w-5 h-5 rounded-full bg-foreground text-background flex items-center justify-center text-[10px] font-semibold">
+                    {currentUser.name ? currentUser.name[0].toUpperCase() : "U"}
+                  </div>
+                  <span className="hidden md:inline max-w-[80px] truncate">
+                    {currentUser.name.split(" ")[0]}
                   </span>
+                  <ChevronDown className="w-3 h-3 text-muted" />
                 </Link>
 
                 {/* Dropdown Menu */}
-                <div className="hidden group-hover:block absolute right-0 top-full mt-1 w-48 bg-white text-[#0f1111] shadow-xl border border-gray-200 rounded-sm py-2 z-50 text-xs">
-                  <div className="px-3 py-1.5 border-b border-gray-100 font-bold text-gray-700">
-                    Signed in as <span className="text-[#007185] block truncate">{currentUser.email}</span>
+                <div className="hidden group-hover:block absolute right-0 top-full mt-1 w-56 bg-card text-foreground shadow-2xl border border-border rounded-2xl py-2 z-50 text-xs">
+                  <div className="px-4 py-2 border-b border-border text-muted">
+                    Signed in as <span className="text-foreground block truncate font-medium">{currentUser.email}</span>
                   </div>
-                  <Link href="/account" className="block px-3 py-1.5 hover:bg-gray-100 font-bold text-[#007185]">
-                    👤 My Account & Profile
+                  <Link href="/account" className="block px-4 py-2 hover:bg-tile text-foreground hover:text-accent transition-colors">
+                    Account & Profile
+                  </Link>
+                  <Link href="/account/warranties" className="block px-4 py-2 hover:bg-tile text-foreground hover:text-accent transition-colors">
+                    Device Warranties
+                  </Link>
+                  <Link href="/account/wishlist" className="block px-4 py-2 hover:bg-tile text-foreground hover:text-accent transition-colors">
+                    Wishlist {wishlistCount > 0 && `(${wishlistCount})`}
+                  </Link>
+                  <Link href="/orders" className="block px-4 py-2 hover:bg-tile text-foreground hover:text-accent transition-colors">
+                    Orders & Tracking
                   </Link>
                   {currentUser.role === "ADMIN" && (
                     <Link
                       href="/admin"
-                      className="block px-3 py-2 font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 flex items-center gap-1.5"
+                      className="block px-4 py-2 text-accent bg-accent/5 hover:bg-accent/10 font-medium flex items-center gap-1.5 border-t border-border"
                     >
-                      <ShieldCheck className="w-3.5 h-3.5 text-amber-600" /> Admin Control Center
+                      <ShieldCheck className="w-3.5 h-3.5" /> Admin Portal
                     </Link>
                   )}
-                  <Link href="/orders" className="block px-3 py-1.5 hover:bg-gray-100">
-                    Your Orders & Tracking
-                  </Link>
                   <button
                     onClick={logout}
-                    className="w-full text-left px-3 py-1.5 hover:bg-gray-100 text-red-600 font-medium border-t border-gray-100 mt-1 cursor-pointer"
+                    className="w-full text-left px-4 py-2 hover:bg-red-500/10 text-red-500 font-medium border-t border-border mt-1 cursor-pointer transition-colors"
                   >
                     Sign Out
                   </button>
@@ -145,154 +134,105 @@ export default function Navbar() {
             ) : (
               <Link
                 href="/login"
-                className="flex flex-col p-1 hover:outline hover:outline-1 hover:outline-white rounded-xs text-left leading-tight"
+                className="px-3 py-1.5 text-xs font-medium text-foreground hover:text-accent hover:bg-tile rounded-full transition-all duration-200"
               >
-                <span className="text-[11px] text-gray-300">Hello, sign in</span>
-                <span className="text-xs font-bold text-white flex items-center gap-0.5">
-                  Account & Lists <ChevronDown className="w-3 h-3 text-gray-400" />
-                </span>
+                Sign In
               </Link>
             )}
           </div>
 
-          {/* Returns & Orders */}
-          <Link
-            href="/orders"
-            className="flex flex-col p-1 hover:outline hover:outline-1 hover:outline-white rounded-xs text-left leading-tight"
-          >
-            <span className="text-[11px] text-gray-300">Returns</span>
-            <span className="text-xs font-bold text-white">& Orders</span>
-          </Link>
-
-          {/* Admin Portal Direct Link */}
-          <Link
-            href="/admin"
-            className="hidden md:flex items-center gap-1 px-2 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-[#febd69] border border-[#febd69]/40 rounded-xs text-xs font-bold transition-colors"
-            title="Open Admin Control Center"
-          >
-            <ShieldCheck className="w-3.5 h-3.5 text-[#febd69]" />
-            <span>Admin</span>
-          </Link>
-
-          {/* Compare Mobiles */}
+          {/* Compare Link */}
           <Link
             href="/compare"
-            className="hidden sm:flex items-center gap-1 p-1 hover:outline hover:outline-1 hover:outline-white rounded-xs text-xs font-bold text-gray-200"
+            className="relative p-2 text-muted hover:text-foreground hover:bg-tile rounded-full transition-all duration-200"
+            title="Compare Mobiles"
           >
-            <Layers className="w-4 h-4 text-[#febd69]" />
-            <span>Compare</span>
+            <Layers className="w-4 h-4" />
             {compareList.length > 0 && (
-              <span className="bg-[#febd69] text-[#131921] text-[10px] font-black px-1.5 rounded-full">
+              <span className="absolute top-0.5 right-0.5 bg-accent text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center ring-2 ring-card">
                 {compareList.length}
               </span>
             )}
           </Link>
 
-          {/* Buyer SMS Alerts Drawer */}
+          {/* Wishlist Link */}
+          <Link
+            href="/account/wishlist"
+            className="relative p-2 text-muted hover:text-foreground hover:bg-tile rounded-full transition-all duration-200"
+            title="Wishlist"
+          >
+            <Heart className="w-4 h-4" />
+            {wishlistCount > 0 && (
+              <span className="absolute top-0.5 right-0.5 bg-rose-500 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center ring-2 ring-card">
+                {wishlistCount}
+              </span>
+            )}
+          </Link>
+
+          {/* SMS Alerts Drawer Button */}
           <button
             onClick={() => setIsSmsDrawerOpen(true)}
-            className="relative flex items-center gap-1 p-1 hover:outline hover:outline-1 hover:outline-white rounded-xs text-left cursor-pointer"
-            title="Open Buyer SMS Alerts"
+            className="relative p-2 text-muted hover:text-foreground hover:bg-tile rounded-full transition-all duration-200 cursor-pointer"
+            title="SMS Alerts"
           >
-            <div className="relative">
-              <MessageSquareText className="w-6 h-6 text-[#febd69]" />
-              {unreadSmsCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-[#cc0c39] text-white text-[10px] font-black px-1 rounded-full animate-pulse">
-                  {unreadSmsCount}
-                </span>
-              )}
-            </div>
-            <div className="hidden xl:flex flex-col leading-tight">
-              <span className="text-[11px] text-gray-300">Buyer SMS</span>
-              <span className="text-xs font-bold text-white">Alerts</span>
-            </div>
+            <MessageSquareText className="w-4 h-4" />
+            {unreadSmsCount > 0 && (
+              <span className="absolute top-0.5 right-0.5 bg-accent text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center ring-2 ring-card">
+                {unreadSmsCount}
+              </span>
+            )}
           </button>
 
-          {/* Cart Icon */}
+          {/* Slide-in Mini Cart Trigger */}
           <button
             onClick={() => setIsCartOpen(true)}
-            className="flex items-center gap-1 p-1 hover:outline hover:outline-1 hover:outline-white rounded-xs cursor-pointer text-white"
+            className="relative p-2 text-foreground hover:text-accent hover:bg-tile rounded-full transition-all duration-200 cursor-pointer flex items-center gap-1.5"
+            title="Shopping Cart"
           >
-            <div className="relative flex items-center">
-              <ShoppingBag className="w-7 h-7 text-[#febd69]" />
-              <span className="absolute top-1 left-2.5 text-[#131921] font-black text-xs">
+            <ShoppingBag className="w-4 h-4" />
+            {cartCount > 0 && (
+              <span className="bg-accent text-white text-[10px] font-semibold px-1.5 py-0.2 rounded-full min-w-4 text-center">
                 {cartCount}
               </span>
-            </div>
-            <span className="font-bold text-xs hidden sm:inline text-[#febd69]">Cart</span>
+            )}
           </button>
+
+          {/* Theme Toggle (Light / Dark / System 3-segment switcher) */}
+          <div className="ml-1 shrink-0">
+            <ThemeToggle />
+          </div>
         </div>
       </div>
 
-      {/* Sub-Navigation Bar (Amazon Sub-Navy #232f3e) */}
-      <div className="bg-[#232f3e] px-4 py-1.5 flex items-center justify-between text-xs font-medium overflow-x-auto scrollbar-none">
-        <div className="flex items-center gap-4 shrink-0">
-          <Link 
-            href="/" 
-            prefetch={false}
-            onClick={() => {
-              setSelectedCategory("All Mobiles");
-              if (typeof window !== "undefined") {
-                window.scrollTo({ top: 0, behavior: "smooth" });
-              }
-            }}
-            className="flex items-center gap-1 p-1 hover:outline hover:outline-1 hover:outline-white rounded-xs font-bold"
-          >
-            <Menu className="w-4 h-4" />
-            <span>All Mobiles</span>
-          </Link>
-          <Link href="/?brand=Apple" prefetch={false} className="p-1 hover:outline hover:outline-1 hover:outline-white rounded-xs">
-            Apple
-          </Link>
-          <Link href="/?brand=Samsung" prefetch={false} className="p-1 hover:outline hover:outline-1 hover:outline-white rounded-xs">
-            Samsung
-          </Link>
-          <Link href="/?brand=Google+Pixel" prefetch={false} className="p-1 hover:outline hover:outline-1 hover:outline-white rounded-xs">
-            Google Pixel
-          </Link>
-          <Link href="/?brand=OnePlus" prefetch={false} className="p-1 hover:outline hover:outline-1 hover:outline-white rounded-xs">
-            OnePlus
-          </Link>
-          <Link href="/?brand=Xiaomi" prefetch={false} className="p-1 hover:outline hover:outline-1 hover:outline-white rounded-xs">
-            Xiaomi
-          </Link>
-          <Link href="/?brand=Redmi" prefetch={false} className="p-1 hover:outline hover:outline-1 hover:outline-white rounded-xs">
-            Redmi
-          </Link>
-          <Link href="/?brand=Realme" prefetch={false} className="p-1 hover:outline hover:outline-1 hover:outline-white rounded-xs">
-            Realme
-          </Link>
-          <Link href="/?brand=Vivo" prefetch={false} className="p-1 hover:outline hover:outline-1 hover:outline-white rounded-xs">
-            Vivo
-          </Link>
-          <Link href="/?brand=Oppo" prefetch={false} className="p-1 hover:outline hover:outline-1 hover:outline-white rounded-xs">
-            Oppo
-          </Link>
-          <Link href="/?brand=Motorola" prefetch={false} className="p-1 hover:outline hover:outline-1 hover:outline-white rounded-xs">
-            Motorola
-          </Link>
-          <Link href="/?brand=Nothing" prefetch={false} className="p-1 hover:outline hover:outline-1 hover:outline-white rounded-xs">
-            Nothing
-          </Link>
-          <Link href="/?brand=iQOO" prefetch={false} className="p-1 hover:outline hover:outline-1 hover:outline-white rounded-xs">
-            iQOO
-          </Link>
-          <Link href="/?brand=Sony" prefetch={false} className="p-1 hover:outline hover:outline-1 hover:outline-white rounded-xs">
-            Sony
-          </Link>
-          <Link href="/?brand=Asus" prefetch={false} className="p-1 hover:outline hover:outline-1 hover:outline-white rounded-xs">
-            Asus
-          </Link>
-          <Link href="/?brand=Nokia" prefetch={false} className="p-1 hover:outline hover:outline-1 hover:outline-white rounded-xs">
-            Nokia
-          </Link>
-          <Link href="/orders" prefetch={false} className="p-1 hover:outline hover:outline-1 hover:outline-white rounded-xs text-[#febd69] font-bold flex items-center gap-1">
-            <ShieldCheck className="w-3.5 h-3.5" /> Warranty & SMS Tracker
-          </Link>
-        </div>
+      {/* Sub-Navigation Brand Strip */}
+      <div className="bg-card/90 border-t border-border px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between text-xs overflow-x-auto scrollbar-none">
+        <div className="max-w-[1280px] mx-auto w-full flex items-center justify-between gap-3">
+          <div className="flex items-center gap-1 shrink-0">
+            <Link 
+              href="/products" 
+              prefetch={false}
+              className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium text-foreground hover:text-accent transition-colors"
+            >
+              <Menu className="w-3 h-3" />
+              <span>All Phones</span>
+            </Link>
+            
+            {BRANDS.map((b) => (
+              <Link
+                key={b}
+                href={`/?brand=${encodeURIComponent(b)}`}
+                prefetch={false}
+                className="px-2.5 py-1 rounded-full text-muted hover:text-foreground hover:bg-tile transition-all duration-200 font-normal whitespace-nowrap"
+              >
+                {b}
+              </Link>
+            ))}
+          </div>
 
-        <div className="hidden lg:flex items-center gap-1 text-[11px] text-gray-300 shrink-0">
-          <span className="text-[#febd69] font-bold">VM Prime:</span> Free Delivery & SMS Alerts on All Orders
+          <div className="hidden lg:flex items-center gap-1.5 text-[11px] text-muted shrink-0">
+            <ShieldCheck className="w-3.5 h-3.5 text-accent" />
+            <span>Authorized Hardware & 1-Year Brand Warranty</span>
+          </div>
         </div>
       </div>
     </header>

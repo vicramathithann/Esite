@@ -2,22 +2,17 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import MobileImage from "@/components/MobileImage";
 import { MobileProductData, ProductColor, StorageOption } from "@/lib/types";
 import { useApp } from "@/context/AppContext";
 import { 
-  Star, 
   Check, 
-  ShieldCheck, 
   Layers, 
-  Cpu, 
-  Camera, 
-  Battery,
   AlertCircle,
-  X
+  X,
+  ShoppingBag
 } from "lucide-react";
-import { formatINR, calculateEMI } from "@/lib/formatters";
+import { calculateEMI } from "@/lib/formatters";
 
 interface MobileCardProps {
   product: MobileProductData;
@@ -49,7 +44,7 @@ export default function MobileCard({ product }: MobileCardProps) {
 
   const currentPrice = selectedStorage?.price || product.basePrice || 49999;
   const originalPrice = product.originalPrice || currentPrice + 10000;
-  const discountPercent = Math.max(0, Math.round(((originalPrice - currentPrice) / originalPrice) * 100));
+  const emiAmount = calculateEMI(currentPrice);
   const isCompared = compareList.some((p) => p.id === product.id);
 
   const handleAddToCart = (e: React.MouseEvent) => {
@@ -85,49 +80,46 @@ export default function MobileCard({ product }: MobileCardProps) {
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-sm p-4 flex flex-col justify-between hover:shadow-md transition-shadow relative">
-      {/* Top Amazon Badge Ribbon */}
-      <div className="absolute top-0 left-0 z-10">
-        {product.isFeatured ? (
-          <div className="badge-best-seller flex items-center gap-1 shadow-xs">
-            <span>#1 Best Seller</span>
-            <span className="text-[10px] font-normal opacity-90">in {product.brand}</span>
-          </div>
-        ) : (
-          <div className="badge-vm-choice flex items-center gap-1">
-            <span className="text-[#febd69]">VM&apos;s</span>
-            <span>Choice</span>
-          </div>
-        )}
-      </div>
-
+    <div className="bg-card border border-border rounded-[20px] p-4 sm:p-5 flex flex-col justify-between shadow-xs hover:-translate-y-1 hover:shadow-md transition-all duration-200 group relative">
       <div>
-        {/* Product Image Frame */}
+        {/* Top Minimalist Tag */}
+        <div className="flex items-center justify-between w-full mb-2.5">
+          <span className="text-[11px] font-semibold tracking-tight text-accent uppercase">
+            {product.brand}
+          </span>
+          {product.isFeatured && (
+            <span className="text-[10px] font-medium text-muted bg-tile px-2 py-0.5 rounded-full border border-border/40">
+              Featured
+            </span>
+          )}
+        </div>
+
+        {/* Product Image Frame: in dark mode, tile is slightly lighter than card */}
         <Link 
           href={`/mobile/${product.id}`}
-          className="block relative aspect-square w-full mt-4 mb-3 p-3 overflow-hidden bg-white"
+          className="block relative aspect-square w-full mb-3.5 p-4 rounded-[16px] bg-tile border border-border/50 group-hover:border-border transition-colors duration-200 flex items-center justify-center overflow-hidden"
         >
           <MobileImage
             src={product.imageUrl}
             alt={product.name}
             phoneId={product.id}
             brand={product.brand}
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            className="object-contain hover:scale-105 transition-transform duration-300"
+            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
+            className="object-contain group-hover:scale-105 transition-transform duration-200 ease-out"
           />
         </Link>
 
         {/* Color Swatch Dots */}
-        <div className="flex items-center justify-center gap-1.5 mb-2.5">
-          {(product.colors || safeColorsList).slice(0, 4).map((color) => (
+        <div className="flex items-center justify-center gap-1.5 mb-3">
+          {(product.colors || safeColorsList).slice(0, 5).map((color) => (
             <button
               key={color.name}
               type="button"
               onClick={() => setSelectedColor(color)}
-              className={`w-3.5 h-3.5 rounded-full border transition-all ${
+              className={`w-3.5 h-3.5 rounded-full transition-all duration-200 cursor-pointer ${
                 selectedColor?.name === color.name
-                  ? "ring-2 ring-offset-1 ring-[#e77600] scale-110"
-                  : "border-gray-300 opacity-80"
+                  ? "ring-2 ring-offset-2 ring-accent scale-110"
+                  : "opacity-75 hover:opacity-100"
               }`}
               style={{ backgroundColor: color.hex }}
               title={color.name}
@@ -135,193 +127,103 @@ export default function MobileCard({ product }: MobileCardProps) {
           ))}
         </div>
 
-        {/* Product Title */}
+        {/* Product Name & Details */}
         <div className="space-y-1">
-          {/* Brand Tag */}
-          <div className="text-[11px] font-semibold tracking-wide uppercase text-[#007185]">
-            {product.brand}
-          </div>
-
           <Link 
             href={`/mobile/${product.id}`}
-            className="text-sm font-semibold text-[#0f1111] hover:text-[#c7511f] line-clamp-2 leading-snug"
+            className="text-sm sm:text-base font-bold text-foreground hover:text-accent transition-colors duration-200 line-clamp-1 block leading-snug"
           >
-            {product.name} ({selectedColor?.name || "Default"})
+            {product.name}
           </Link>
 
-          {/* RAM & Storage Badges */}
-          <div className="flex items-center gap-1.5 pt-0.5 text-xs text-gray-700">
-            <span className="font-medium bg-gray-100 px-1.5 py-0.5 rounded text-[11px] border border-gray-200">
-              {product.ram || "8GB"}
+          {/* Price */}
+          <div className="pt-0.5 flex items-baseline gap-2">
+            <span className="text-base sm:text-lg font-bold text-foreground">
+              ₹{currentPrice.toLocaleString("en-IN")}
             </span>
-            <span className="text-gray-400">|</span>
-            <span className="font-medium bg-gray-100 px-1.5 py-0.5 rounded text-[11px] border border-gray-200">
-              {selectedStorage?.size || "256GB"}
-            </span>
+            {originalPrice > currentPrice && (
+              <span className="text-xs text-muted line-through font-normal">
+                ₹{originalPrice.toLocaleString("en-IN")}
+              </span>
+            )}
           </div>
 
-          {/* Amazon Star Ratings */}
-          <div className="flex items-center gap-1.5 text-xs pt-1">
-            <div className="flex text-[#ffa41c]">
-              {[...Array(5)].map((_, i) => (
-                <Star
-                  key={i}
-                  className={`w-3.5 h-3.5 ${
-                    i < Math.floor(product.rating || 4.5) ? "fill-[#ffa41c]" : "fill-gray-200 text-gray-200"
-                  }`}
-                />
-              ))}
-            </div>
-            <span className="text-[#007185] hover:underline cursor-pointer font-medium text-xs">
-              {product.reviewCount || 100}
-            </span>
+          {/* EMI from ₹X/month */}
+          <div className="text-xs text-muted">
+            EMI from ₹{emiAmount.toLocaleString("en-IN")}/mo
           </div>
 
-          {/* Storage Variant Selectors (Amazon-Style Pill Options) */}
-          <div className="pt-1.5 flex flex-wrap gap-1">
+          {/* Storage selector pills */}
+          <div className="pt-2 flex flex-wrap gap-1">
             {(product.storageOptions || safeStorageList).map((storage) => (
               <button
                 key={storage.size}
                 type="button"
                 onClick={() => setSelectedStorage(storage)}
-                className={`px-2 py-0.5 text-[11px] rounded-xs border font-medium transition-all ${
+                className={`px-2.5 py-0.5 text-[10px] sm:text-[11px] rounded-full font-medium transition-all duration-200 cursor-pointer ${
                   selectedStorage?.size === storage.size
-                    ? "border-[#e77600] bg-[#fef8f2] text-[#0f1111] font-bold ring-1 ring-[#e77600]"
-                    : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                    ? "bg-foreground text-background font-semibold"
+                    : "bg-tile text-muted hover:text-foreground border border-border/50"
                 }`}
               >
                 {(storage.size || "").split(" ")[0]}
               </button>
             ))}
           </div>
-
-          {/* Deal Tag */}
-          <div className="pt-2 flex items-center gap-2">
-            <span className="bg-[#cc0c39] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-xs uppercase">
-              Limited time deal
-            </span>
-            {discountPercent > 0 && (
-              <span className="text-[#cc0c39] text-xs font-bold">
-                -{discountPercent}%
-              </span>
-            )}
-          </div>
-
-          {/* Price Block */}
-          <div className="pt-0.5">
-            <div className="flex items-baseline">
-              <span className="text-xs align-top font-normal mr-0.5">₹</span>
-              <span className="text-2xl font-bold text-[#0f1111]">
-                {currentPrice.toLocaleString("en-IN")}
-              </span>
-            </div>
-            <div className="text-xs text-gray-500">
-              M.R.P.: <span className="line-through">₹{originalPrice.toLocaleString("en-IN")}</span>
-            </div>
-            <div className="text-[11px] text-gray-600 mt-0.5">
-              EMI starts from ₹{calculateEMI(currentPrice).toLocaleString("en-IN")}/mo
-            </div>
-          </div>
-
-          {/* Stock Availability Indicator */}
-          <div className="pt-1 text-xs">
-            {isOutOfStock ? (
-              <span className="text-[#b12704] font-bold flex items-center gap-1">
-                <AlertCircle className="w-3.5 h-3.5 text-red-600 shrink-0" />
-                Currently Out of Stock
-              </span>
-            ) : (
-              <span className="text-[#007600] font-semibold flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#007600]"></span>
-                In Stock &bull; Ready to Ship
-              </span>
-            )}
-          </div>
-
-          {/* Key Hardware Specs */}
-          <div className="pt-2 border-t border-gray-100 text-[11px] text-gray-600 space-y-1">
-            <div className="flex items-center gap-1.5 truncate">
-              <Cpu className="w-3 h-3 text-gray-400 shrink-0" />
-              <span className="truncate">{(product.processor || "Flagship Octa-Core").split("(")[0]}</span>
-            </div>
-            <div className="flex items-center gap-1.5 truncate">
-              <Camera className="w-3 h-3 text-gray-400 shrink-0" />
-              <span className="truncate">{(product.camera || "50MP Main").split("+")[0]}</span>
-            </div>
-            <div className="flex items-center gap-1.5 truncate">
-              <Battery className="w-3 h-3 text-gray-400 shrink-0" />
-              <span className="truncate">{(product.battery || "5000 mAh").split(",")[0]}</span>
-            </div>
-          </div>
         </div>
       </div>
 
       {/* Action Buttons */}
-      <div className="pt-4 space-y-1.5">
-        <Link
-          href={`/mobile/${product.id}`}
-          className="w-full py-1.5 px-4 text-xs font-semibold text-center block rounded-full border border-gray-300 bg-[#f0f2f2] hover:bg-[#e3e6e6] text-[#0f1111] transition-all shadow-xs"
-        >
-          View Details
-        </Link>
-
-        {isOutOfStock ? (
-          <button
-            type="button"
-            onClick={handleAddToCart}
-            className="w-full py-1.5 px-4 text-xs font-bold rounded-full shadow-xs transition-all bg-gray-100 hover:bg-red-50 text-red-700 border border-red-200 cursor-pointer flex items-center justify-center gap-1.5"
-            title="Item is out of stock - click to view alert"
-          >
-            <AlertCircle className="w-3.5 h-3.5 text-red-600" />
-            <span>Currently Out of Stock</span>
-          </button>
-        ) : (
-          <button
-            onClick={handleAddToCart}
-            className={`w-full py-1.5 px-4 text-xs font-medium rounded-full shadow-xs transition-all ${
-              isAdded
-                ? "bg-emerald-600 text-white font-bold"
-                : "btn-amazon-yellow"
-            }`}
-          >
-            {isAdded ? (
-              <span className="flex items-center justify-center gap-1">
-                <Check className="w-3.5 h-3.5" /> Added to Cart
-              </span>
-            ) : (
-              "Add to Cart"
-            )}
-          </button>
-        )}
-
-        <div className="grid grid-cols-2 gap-1.5">
+      <div className="pt-3.5 space-y-2">
+        {/* Add to Cart Button */}
+        <div>
           {isOutOfStock ? (
             <button
               type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setOutOfStockAlert(true);
-              }}
-              className="py-1 px-2 text-xs rounded-full border border-gray-300 bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-red-700 text-center font-bold cursor-pointer"
+              onClick={handleAddToCart}
+              className="w-full py-2 px-3 text-xs font-medium rounded-full bg-tile text-muted border border-border cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
+              title="Out of stock"
             >
-              Unavailable
+              <AlertCircle className="w-3.5 h-3.5 text-rose-500" />
+              <span>Out of Stock</span>
             </button>
           ) : (
-            <Link
-              href={`/mobile/${product.id}`}
-              className="btn-amazon-orange py-1 px-2 text-xs text-center block"
+            <button
+              onClick={handleAddToCart}
+              className={`w-full py-2 px-3 text-xs font-semibold rounded-full transition-all duration-200 cursor-pointer shadow-xs flex items-center justify-center gap-1.5 ${
+                isAdded
+                  ? "bg-emerald-600 text-white"
+                  : "bg-accent hover:opacity-90 text-white dark:text-[#0B0B0C]"
+              }`}
             >
-              Buy Now
-            </Link>
+              {isAdded ? (
+                <>
+                  <Check className="w-3.5 h-3.5" /> Added to Bag
+                </>
+              ) : (
+                <>
+                  <ShoppingBag className="w-3.5 h-3.5" /> Add to Cart
+                </>
+              )}
+            </button>
           )}
+        </div>
+
+        {/* Secondary Row: Buy Now & Compare */}
+        <div className="grid grid-cols-2 gap-1.5 pt-0.5">
+          <Link
+            href={`/mobile/${product.id}`}
+            className="py-1.5 px-2 text-[11px] rounded-full text-center font-medium bg-tile hover:bg-tile/80 text-foreground border border-border transition-all duration-200 block"
+          >
+            Buy Now
+          </Link>
 
           <button
             onClick={handleToggleCompare}
-            className={`py-1 px-2 text-xs rounded-full border text-center font-medium transition-colors ${
+            className={`py-1.5 px-2 text-[11px] rounded-full text-center font-medium transition-all duration-200 cursor-pointer border ${
               isCompared
-                ? "bg-gray-200 border-gray-400 text-gray-900"
-                : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+                ? "bg-accent/15 text-accent border-accent/30 font-semibold"
+                : "bg-tile hover:bg-tile/80 text-muted hover:text-foreground border-border"
             }`}
           >
             {isCompared ? "In Compare" : "Compare"}
@@ -329,49 +231,49 @@ export default function MobileCard({ product }: MobileCardProps) {
         </div>
       </div>
 
-      {/* Out of Stock Interactive Modal Alert */}
+      {/* Out of Stock Alert Modal */}
       {outOfStockAlert && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 animate-fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in"
           onClick={(e) => {
             e.stopPropagation();
             setOutOfStockAlert(false);
           }}
         >
           <div 
-            className="bg-white rounded-lg shadow-2xl max-w-sm w-full p-5 border border-red-200 relative animate-scale-up"
+            className="bg-card rounded-[20px] shadow-2xl max-w-sm w-full p-6 border border-border relative animate-scale-up text-foreground"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               onClick={() => setOutOfStockAlert(false)}
-              className="absolute top-3 right-3 text-gray-400 hover:text-black p-1"
+              className="absolute top-4 right-4 text-muted hover:text-foreground p-1 cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
 
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0">
-                <AlertCircle className="w-6 h-6" />
+            <div className="flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">
+                <AlertCircle className="w-5 h-5" />
               </div>
-              <div className="space-y-1">
-                <h3 className="font-bold text-sm text-[#0f1111]">
+              <div className="space-y-1.5">
+                <h3 className="font-bold text-base text-foreground">
                   Currently Out of Stock
                 </h3>
-                <p className="text-xs text-gray-600 leading-relaxed">
-                  We&apos;re sorry, <strong>{product.name}</strong> is currently out of stock and cannot be purchased right now.
+                <p className="text-xs text-muted leading-relaxed">
+                  We&apos;re sorry, <strong>{product.name}</strong> is currently out of stock.
                 </p>
-                <p className="text-[11px] text-amber-700 bg-amber-50 p-2 rounded border border-amber-200 mt-2">
-                  📢 We will alert you once fresh stock arrives at the fulfillment center.
+                <p className="text-xs text-accent bg-accent/10 p-2.5 rounded-[12px] border border-accent/20 mt-2">
+                  📢 We will notify you once fresh stock is replenished.
                 </p>
               </div>
             </div>
 
-            <div className="mt-4 pt-3 border-t border-gray-100 flex justify-end">
+            <div className="mt-5 pt-3 border-t border-border flex justify-end">
               <button
                 onClick={() => setOutOfStockAlert(false)}
-                className="btn-amazon-yellow py-1.5 px-4 text-xs font-bold rounded-sm shadow-xs cursor-pointer"
+                className="py-2 px-5 text-xs font-semibold rounded-full bg-foreground text-background cursor-pointer transition-colors"
               >
-                Understood, Got It
+                Understood
               </button>
             </div>
           </div>

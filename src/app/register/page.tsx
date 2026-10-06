@@ -8,26 +8,31 @@ import { ArrowRight, AlertCircle, CheckCircle2, ShieldCheck } from "lucide-react
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { login } = useApp();
 
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
     email: "",
     password: "",
+    confirmPassword: "",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.phone || !formData.email || !formData.password) {
+    if (!formData.name || !formData.email || !formData.password || !formData.confirmPassword) {
       setError("Please fill in all required fields.");
       return;
     }
 
     if (formData.password.length < 6) {
       setError("Password must be at least 6 characters long.");
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match. Please retype your password.");
       return;
     }
 
@@ -43,77 +48,85 @@ export default function RegisterPage() {
 
       const data = await res.json();
       if (data.success) {
-        login(data.user);
-        router.push("/");
+        // Redirection to verification page with email query param
+        router.push(`/verify-email?email=${encodeURIComponent(formData.email.trim())}`);
       } else {
-        setError(data.error || "Registration failed.");
+        setError(data.error || "Registration failed. Please check your details.");
       }
     } catch (err) {
       console.error(err);
-      setError("An unexpected error occurred during account creation.");
+      setError("An unexpected error occurred during account creation. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#eaeded] flex flex-col items-center pt-8 pb-16 px-4">
+    <div className="min-h-screen bg-background text-foreground flex flex-col items-center pt-8 pb-16 px-4">
       {/* Brand Header */}
-      <Link href="/" className="mb-6 flex items-baseline">
-        <span className="text-3xl font-black text-[#131921]">vm<span className="text-[#febd69]">mobiles</span></span>
-        <span className="text-sm text-[#febd69] font-bold">.in</span>
+      <Link href="/" className="mb-6 flex flex-col items-center group">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-foreground text-background flex items-center justify-center font-bold text-xs tracking-tight transition-transform duration-200 group-hover:scale-105">
+            VM
+          </div>
+          <span className="text-xl font-bold tracking-tight text-foreground">
+            VM <span className="text-muted font-normal">Mobiles</span>
+          </span>
+        </div>
       </Link>
 
       {/* Registration Box */}
-      <div className="w-full max-w-sm bg-white border border-gray-300 rounded-md p-6 sm:p-7 shadow-xs">
-        <h1 className="text-2xl font-normal text-[#0f1111] mb-4">Create Account</h1>
+      <div className="w-full max-w-sm bg-card border border-border rounded-2xl p-6 sm:p-8 shadow-sm">
+        <h1 className="text-2xl font-bold text-foreground mb-1.5">Create Account</h1>
+        <p className="text-xs text-muted mb-5 leading-relaxed">
+          A 6-digit verification code will be dispatched to your email address via MSG91.
+        </p>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-xs text-red-700 flex items-start gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          <div className="mb-4 p-3.5 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-500 flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
             <span>{error}</span>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
-          <div className="space-y-1">
-            <label className="font-bold text-[#0f1111]">Your name</label>
+        <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+          <div className="space-y-1.5">
+            <label className="font-semibold text-foreground">Your name</label>
             <input
               type="text"
               required
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="First and last name"
-              className="w-full border border-gray-400 rounded-xs px-2.5 py-1.5 text-sm focus:outline-none focus:border-[#e77600] focus:ring-1 focus:ring-[#e77600]"
+              className="w-full bg-tile border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all placeholder:text-muted"
             />
           </div>
 
-          <div className="space-y-1">
-            <label className="font-bold text-[#0f1111]">Mobile number</label>
-            <input
-              type="tel"
-              required
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              placeholder="10-digit mobile number"
-              className="w-full border border-gray-400 rounded-xs px-2.5 py-1.5 text-sm focus:outline-none focus:border-[#e77600] focus:ring-1 focus:ring-[#e77600]"
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="font-bold text-[#0f1111]">Email</label>
+          <div className="space-y-1.5">
+            <label className="font-semibold text-foreground">Email</label>
             <input
               type="email"
               required
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               placeholder="name@example.com"
-              className="w-full border border-gray-400 rounded-xs px-2.5 py-1.5 text-sm focus:outline-none focus:border-[#e77600] focus:ring-1 focus:ring-[#e77600]"
+              className="w-full bg-tile border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all placeholder:text-muted"
             />
           </div>
 
-          <div className="space-y-1">
-            <label className="font-bold text-[#0f1111]">Password</label>
+          <div className="space-y-1.5">
+            <label className="font-semibold text-foreground">Mobile number (optional)</label>
+            <input
+              type="tel"
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              placeholder="10-digit mobile number"
+              className="w-full bg-tile border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all placeholder:text-muted"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="font-semibold text-foreground">Password</label>
             <input
               type="password"
               required
@@ -121,29 +134,42 @@ export default function RegisterPage() {
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               placeholder="At least 6 characters"
-              className="w-full border border-gray-400 rounded-xs px-2.5 py-1.5 text-sm focus:outline-none focus:border-[#e77600] focus:ring-1 focus:ring-[#e77600]"
+              className="w-full bg-tile border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all placeholder:text-muted"
             />
-            <span className="text-[10px] text-gray-500 block">Passwords must be at least 6 characters.</span>
+            <span className="text-[10px] text-muted block">Passwords must be at least 6 characters.</span>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="font-semibold text-foreground">Confirm password</label>
+            <input
+              type="password"
+              required
+              minLength={6}
+              value={formData.confirmPassword}
+              onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+              placeholder="Re-enter your password"
+              className="w-full bg-tile border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all placeholder:text-muted"
+            />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full btn-amazon-yellow py-2 text-xs font-bold rounded-sm mt-3 flex items-center justify-center gap-1"
+            className="w-full bg-accent text-white hover:opacity-95 py-3 text-xs font-semibold rounded-xl mt-3 flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50"
           >
-            {loading ? "Creating Account..." : "Verify mobile & Create Account"}
+            {loading ? "Creating Account..." : "Continue to Email Verification"}
             {!loading && <ArrowRight className="w-3.5 h-3.5" />}
           </button>
         </form>
 
-        <p className="text-[11px] text-gray-600 mt-4 leading-relaxed">
-          By enrolling your mobile phone number, you consent to receive automated warranty & order alerts from VM Mobiles.
+        <p className="text-[11px] text-muted mt-4 leading-relaxed">
+          By creating an account, you agree to VM Mobiles Conditions of Use and Privacy Notice.
         </p>
 
-        <div className="mt-5 pt-4 border-t border-gray-200 text-xs">
-          <p className="text-gray-700">
+        <div className="mt-5 pt-4 border-t border-border text-xs">
+          <p className="text-muted">
             Already have an account?{" "}
-            <Link href="/login" className="text-[#007185] hover:underline font-bold">
+            <Link href="/login" className="text-accent hover:underline font-semibold">
               Sign in →
             </Link>
           </p>

@@ -8,21 +8,21 @@ import { MobileProductData, ProductColor, StorageOption } from "@/lib/types";
 import { DEFAULT_PRODUCTS } from "@/lib/catalogData";
 import { useApp } from "@/context/AppContext";
 import { 
-  Star, 
   Check, 
   ShieldCheck, 
-  Lock, 
-  MapPin, 
-  RotateCcw, 
-  Truck, 
-  CreditCard, 
+  ChevronRight, 
+  Layers, 
+  AlertCircle, 
+  X, 
+  Camera, 
+  Battery, 
+  Smartphone, 
+  Cpu, 
+  ChevronDown, 
   Tag, 
-  ChevronRight,
-  Layers,
-  Sparkles,
-  BellRing,
-  AlertCircle,
-  X
+  CreditCard, 
+  RefreshCw, 
+  ShoppingBag 
 } from "lucide-react";
 import { formatINR, calculateEMI } from "@/lib/formatters";
 
@@ -33,7 +33,7 @@ export default function MobileDetailPage({
 }) {
   const resolvedParams = use(params);
   const router = useRouter();
-  const { addToCart, addToCompare, compareList, currentUser } = useApp();
+  const { addToCart, addToCompare, compareList } = useApp();
 
   const defaultMatch = DEFAULT_PRODUCTS.find((p) => p.id === resolvedParams.id) || null;
 
@@ -42,9 +42,24 @@ export default function MobileDetailPage({
   const [selectedImage, setSelectedImage] = useState<string>(defaultMatch?.imageUrl || "");
   const [selectedColor, setSelectedColor] = useState<ProductColor | null>(defaultMatch?.colors[0] || null);
   const [selectedStorage, setSelectedStorage] = useState<StorageOption | null>(defaultMatch?.storageOptions[0] || null);
+  const [selectedRam, setSelectedRam] = useState<string>(defaultMatch?.ram || "8GB");
   const [quantity, setQuantity] = useState(1);
   const [isAdded, setIsAdded] = useState(false);
   const [outOfStockAlert, setOutOfStockAlert] = useState(false);
+  const [isZoomed, setIsZoomed] = useState(false);
+  const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
+
+  // Accordion open states
+  const [openAccordions, setOpenAccordions] = useState<Record<string, boolean>>({
+    offers: true,
+    emi: false,
+    exchange: false,
+    warranty: false,
+  });
+
+  const toggleAccordion = (key: string) => {
+    setOpenAccordions((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   useEffect(() => {
     async function fetchProduct() {
@@ -60,9 +75,12 @@ export default function MobileDetailPage({
           if (data.product.storageOptions && data.product.storageOptions.length > 0) {
             setSelectedStorage(data.product.storageOptions[0]);
           }
+          if (data.product.ram) {
+            setSelectedRam(data.product.ram);
+          }
         }
-      } catch (e) {
-        console.error("Failed to load product from API, using default", e);
+      } catch (err) {
+        console.error("Failed to fetch product:", err);
       } finally {
         setLoading(false);
       }
@@ -70,38 +88,34 @@ export default function MobileDetailPage({
     fetchProduct();
   }, [resolvedParams.id]);
 
-  if (loading) {
+  if (loading || !product || !selectedColor || !selectedStorage) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#eaeded] text-gray-700">
-        <div className="space-y-3 text-center">
-          <div className="w-10 h-10 border-4 border-[#e77600] border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="font-medium text-xs">Loading smartphone specs from VM Mobiles...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!product || !selectedStorage || !selectedColor) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center text-center p-6 bg-[#eaeded]">
-        <h2 className="text-xl font-bold text-[#0f1111] mb-2">Smartphone Not Found</h2>
-        <p className="text-gray-600 text-sm mb-6">
-          The requested device does not exist in our catalog.
-        </p>
-        <Link href="/" className="btn-amazon-yellow py-2 px-6 text-xs font-bold">
-          Back to VM Mobiles Store
-        </Link>
+      <div className="min-h-screen bg-background flex items-center justify-center text-foreground font-medium">
+        Loading flagship details...
       </div>
     );
   }
 
   const currentPrice = selectedStorage.price;
   const originalPrice = product.originalPrice || currentPrice + 10000;
-  const savings = Math.max(0, originalPrice - currentPrice);
-  const discountPercent = Math.round((savings / originalPrice) * 100);
   const isCompared = compareList.some((p) => p.id === product.id);
-
   const isOutOfStock = !product.inStock || ((product as any).stock !== undefined && (product as any).stock <= 0);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - left) / width) * 100;
+    const y = ((e.clientY - top) / height) * 100;
+    setZoomPos({ x, y });
+  };
+
+  const handleColorChange = (color: ProductColor) => {
+    setSelectedColor(color);
+    if (product.galleryImages && product.galleryImages.length > 0) {
+      setSelectedImage(product.galleryImages[0]);
+    } else {
+      setSelectedImage(product.imageUrl);
+    }
+  };
 
   const handleAddToCart = () => {
     if (isOutOfStock) {
@@ -147,177 +161,123 @@ export default function MobileDetailPage({
   };
 
   return (
-    <div className="min-h-screen pb-20 bg-white">
-      {/* Amazon Breadcrumb */}
-      <div className="max-w-[1450px] mx-auto px-4 py-2 text-xs text-gray-500 border-b border-gray-100 flex items-center gap-1.5 overflow-x-auto">
-        <Link href="/" className="text-[#007185] hover:underline">Mobiles</Link>
-        <ChevronRight className="w-3 h-3 text-gray-400" />
-        <Link href={`/?brand=${product.brand}`} className="text-[#007185] hover:underline">{product.brand}</Link>
-        <ChevronRight className="w-3 h-3 text-gray-400" />
-        <span className="text-gray-800 truncate">{product.name}</span>
+    <div className="min-h-screen pb-28 lg:pb-20 bg-background text-foreground transition-colors duration-200">
+      {/* Breadcrumbs */}
+      <div className="bg-card border-b border-border">
+        <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-3 text-xs text-muted flex items-center gap-1.5 overflow-x-auto">
+          <Link href="/" className="hover:text-foreground transition-colors">Phones</Link>
+          <ChevronRight className="w-3 h-3 text-muted" />
+          <Link href={`/?brand=${product.brand}`} className="hover:text-foreground transition-colors">{product.brand}</Link>
+          <ChevronRight className="w-3 h-3 text-muted" />
+          <span className="text-foreground font-medium truncate">{product.name}</span>
+        </div>
       </div>
 
-      {/* Main 3-Column Amazon Layout */}
-      <div className="max-w-[1450px] mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Column 1: Image Gallery (4 cols) */}
-          <div className="lg:col-span-4 flex flex-col-reverse sm:flex-row gap-3">
+      <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+          
+          {/* Column 1: Image Gallery with Interactive Zoom */}
+          <div className="lg:col-span-6 flex flex-col-reverse sm:flex-row gap-4 sticky top-24">
             {/* Thumbnail Strip */}
             {product.galleryImages && product.galleryImages.length > 1 && (
-              <div className="flex sm:flex-col gap-2 overflow-x-auto sm:overflow-y-auto max-h-[450px] scrollbar-none shrink-0">
+              <div className="flex sm:flex-col gap-2.5 overflow-x-auto sm:overflow-y-auto max-h-[520px] scrollbar-none shrink-0">
                 {product.galleryImages.map((imgUrl, idx) => (
                   <button
                     key={idx}
                     onClick={() => setSelectedImage(imgUrl)}
-                    className={`relative w-14 h-14 rounded-xs border p-1 bg-white shrink-0 cursor-pointer ${
+                    className={`relative w-16 h-16 rounded-[14px] p-2 bg-tile border transition-all duration-200 cursor-pointer ${
                       selectedImage === imgUrl
-                        ? "border-[#e77600] ring-1 ring-[#e77600] shadow-xs"
-                        : "border-gray-300 hover:border-gray-500 opacity-80"
+                        ? "border-accent ring-2 ring-accent/20 shadow-xs"
+                        : "border-border hover:border-foreground/30"
                     }`}
                   >
-                    <Image src={imgUrl} alt="Thumb" fill unoptimized className="object-contain" />
+                    <Image src={imgUrl} alt="Thumbnail" fill unoptimized className="object-contain" />
                   </button>
                 ))}
               </div>
             )}
 
-            {/* Main Stage Image */}
-            <div className="relative aspect-square w-full max-h-[500px] border border-gray-100 rounded-sm p-4 flex items-center justify-center bg-white">
-              <Image
-                src={selectedImage || product.imageUrl}
-                alt={product.name}
-                fill
-                priority
-                unoptimized
-                className="object-contain hover:scale-105 transition-transform duration-300"
-              />
+            {/* Main Stage with Zoom Lens Effect */}
+            <div 
+              onMouseEnter={() => setIsZoomed(true)}
+              onMouseLeave={() => setIsZoomed(false)}
+              onMouseMove={handleMouseMove}
+              className="relative aspect-square w-full rounded-[20px] bg-card border border-border shadow-xs p-8 flex items-center justify-center overflow-hidden cursor-crosshair group"
+            >
+              <div 
+                className="relative w-full h-full transition-transform duration-200 ease-out"
+                style={{
+                  transform: isZoomed ? `scale(1.4)` : "scale(1)",
+                  transformOrigin: `${zoomPos.x}% ${zoomPos.y}%`
+                }}
+              >
+                <Image
+                  src={selectedImage || product.imageUrl}
+                  alt={product.name}
+                  fill
+                  priority
+                  unoptimized
+                  className="object-contain"
+                />
+              </div>
+
+              {/* Zoom hint pill */}
+              <div className="absolute bottom-4 right-4 bg-black/60 backdrop-blur-xs text-white text-[10px] px-2.5 py-1 rounded-full pointer-events-none opacity-80 group-hover:opacity-0 transition-opacity">
+                Hover to Zoom
+              </div>
             </div>
           </div>
 
-          {/* Column 2: Product Details & Spec Matrix (5 cols) */}
-          <div className="lg:col-span-5 space-y-3.5">
-            {/* Brand Store Link */}
-            <div>
-              <Link 
-                href={`/?brand=${product.brand}`}
-                className="text-xs font-semibold text-[#007185] hover:text-[#c7511f] hover:underline"
-              >
-                Brand: {product.brand} | Visit the {product.brand} Store
-              </Link>
-              <h1 className="text-xl sm:text-2xl font-medium text-[#0f1111] leading-snug mt-1">
-                {product.name} ({selectedColor.name}, {selectedStorage.size})
+          {/* Column 2: Product Specifications & Selectors */}
+          <div className="lg:col-span-6 space-y-6">
+            {/* Header info */}
+            <div className="space-y-1.5">
+              <span className="text-xs uppercase font-semibold tracking-wider text-accent">
+                {product.brand}
+              </span>
+              <h1 className="text-2xl sm:text-4xl font-bold tracking-tight text-foreground">
+                {product.name}
               </h1>
-              <p className="text-xs text-gray-500 mt-0.5">{product.tagline}</p>
+              <p className="text-sm text-muted leading-relaxed">
+                {product.tagline}
+              </p>
             </div>
 
-            {/* Amazon Rating & Badge Row */}
-            <div className="flex flex-wrap items-center gap-2 text-xs border-b border-gray-200 pb-3">
-              <div className="flex items-center gap-1 text-[#ffa41c]">
-                <span className="font-bold text-[#0f1111]">{product.rating}</span>
-                <div className="flex">
-                  {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={i}
-                      className={`w-3.5 h-3.5 ${
-                        i < Math.floor(product.rating) ? "fill-[#ffa41c]" : "fill-gray-200 text-gray-200"
-                      }`}
-                    />
-                  ))}
-                </div>
-              </div>
-              <span className="text-gray-300">|</span>
-              <span className="text-[#007185] hover:underline cursor-pointer">
-                {product.reviewCount} ratings
-              </span>
-              <span className="text-gray-300">|</span>
-              <span className="text-[#007185] hover:underline cursor-pointer">
-                100+ answered questions
-              </span>
-
-              {product.isFeatured && (
-                <div className="badge-best-seller ml-auto shadow-xs">
-                  #1 Best Seller
-                </div>
-              )}
-            </div>
-
-            {/* Deal Badge & Price Block */}
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="bg-[#cc0c39] text-white text-[11px] font-bold px-2 py-0.5 rounded-xs uppercase">
-                  Limited time deal
+            {/* Price Block */}
+            <div className="bg-card rounded-[20px] p-6 border border-border shadow-xs space-y-2">
+              <div className="flex items-baseline gap-3">
+                <span className="text-3xl font-bold text-foreground">
+                  ₹{currentPrice.toLocaleString("en-IN")}
                 </span>
-                {discountPercent > 0 && (
-                  <span className="text-[#cc0c39] text-base font-normal">
-                    -{discountPercent}%
+                {originalPrice > currentPrice && (
+                  <span className="text-base text-muted line-through font-normal">
+                    ₹{originalPrice.toLocaleString("en-IN")}
                   </span>
                 )}
               </div>
-
-              <div className="flex items-baseline">
-                <span className="text-sm align-top font-normal text-[#0f1111] mr-1">₹</span>
-                <span className="text-3xl font-medium text-[#0f1111]">
-                  {currentPrice.toLocaleString("en-IN")}
-                </span>
-              </div>
-
-              <div className="text-xs text-gray-500">
-                M.R.P.: <span className="line-through">₹{originalPrice.toLocaleString("en-IN")}</span>
-              </div>
-              <div className="text-xs text-gray-700">
-                Inclusive of all taxes
-              </div>
-              <div className="text-xs text-gray-700 pt-1 font-medium">
-                <strong>EMI</strong> starts at ₹{calculateEMI(currentPrice).toLocaleString("en-IN")}/month. No Cost EMI available.
-              </div>
+              <p className="text-xs text-muted">
+                Inclusive of all taxes. EMI starts from ₹{calculateEMI(currentPrice).toLocaleString("en-IN")}/mo with No Cost EMI.
+              </p>
             </div>
 
-            {/* Bank & Partner Offers Carousel */}
-            <div className="border-t border-b border-gray-200 py-3 space-y-2">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-[#0f1111]">
-                <Tag className="w-4 h-4 text-[#e67a00]" />
-                <span>Offers</span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                <div className="border border-gray-300 rounded-md p-2.5 bg-gray-50/50 space-y-1">
-                  <span className="font-bold text-[#0f1111] block">Bank Offer</span>
-                  <p className="text-gray-600 text-[11px]">
-                    Upto ₹3,000 Instant Discount on select Credit Cards.
-                  </p>
-                  <span className="text-[#007185] font-medium text-[11px] block cursor-pointer">
-                    1 offer &gt;
-                  </span>
-                </div>
-
-                <div className="border border-gray-300 rounded-md p-2.5 bg-gray-50/50 space-y-1">
-                  <span className="font-bold text-[#0f1111] block">No Cost EMI</span>
-                  <p className="text-gray-600 text-[11px]">
-                    Avail 0% interest EMI options on major bank credit cards.
-                  </p>
-                  <span className="text-[#007185] font-medium text-[11px] block cursor-pointer">
-                    1 offer &gt;
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Color Selector */}
-            <div className="space-y-1.5 text-xs">
-              <span className="text-gray-600">Colour: <strong className="text-[#0f1111]">{selectedColor.name}</strong></span>
-              <div className="flex flex-wrap gap-2">
+            {/* Color Swatches */}
+            <div className="space-y-2.5">
+              <span className="text-xs font-bold text-foreground block">
+                Finish: <span className="font-normal text-muted">{selectedColor.name}</span>
+              </span>
+              <div className="flex flex-wrap gap-2.5">
                 {product.colors.map((color) => (
                   <button
                     key={color.name}
-                    onClick={() => setSelectedColor(color)}
-                    className={`px-3 py-1.5 rounded-sm border flex items-center gap-2 cursor-pointer transition-all ${
+                    onClick={() => handleColorChange(color)}
+                    className={`px-3.5 py-2 rounded-full border text-xs font-medium flex items-center gap-2 cursor-pointer transition-all duration-200 ${
                       selectedColor.name === color.name
-                        ? "border-[#e77600] ring-1 ring-[#e77600] bg-[#fef8f2] font-bold"
-                        : "border-gray-300 hover:border-gray-500 bg-white"
+                        ? "border-foreground bg-card ring-2 ring-foreground/20 shadow-xs text-foreground font-semibold"
+                        : "border-border bg-tile text-muted hover:text-foreground"
                     }`}
                   >
                     <span 
-                      className="w-3.5 h-3.5 rounded-full border border-gray-400" 
+                      className="w-3.5 h-3.5 rounded-full border border-black/10"
                       style={{ backgroundColor: color.hex }}
                     />
                     <span>{color.name}</span>
@@ -326,260 +286,278 @@ export default function MobileDetailPage({
               </div>
             </div>
 
-            {/* Storage Size Selector */}
-            <div className="space-y-1.5 text-xs">
-              <span className="text-gray-600">Size / Storage: <strong className="text-[#0f1111]">{selectedStorage.size}</strong></span>
+            {/* Storage Pills */}
+            <div className="space-y-2.5">
+              <span className="text-xs font-bold text-foreground block">
+                Storage Capacity: <span className="font-normal text-muted">{selectedStorage.size}</span>
+              </span>
               <div className="flex flex-wrap gap-2">
                 {product.storageOptions.map((storage) => (
                   <button
                     key={storage.size}
                     onClick={() => setSelectedStorage(storage)}
-                    className={`px-3 py-2 rounded-sm border text-left cursor-pointer transition-all ${
+                    className={`px-4 py-2 rounded-full border text-xs font-medium cursor-pointer transition-all duration-200 ${
                       selectedStorage.size === storage.size
-                        ? "border-[#e77600] ring-1 ring-[#e77600] bg-[#fef8f2]"
-                        : "border-gray-300 hover:border-gray-500 bg-white"
+                        ? "border-foreground bg-foreground text-background shadow-xs font-semibold"
+                        : "border-border bg-tile text-foreground hover:border-foreground/40"
                     }`}
                   >
-                    <div className="font-bold text-[#0f1111]">{storage.size}</div>
-                    <div className="text-[11px] text-[#565959] font-medium">₹{storage.price.toLocaleString("en-IN")}</div>
+                    <span>{storage.size}</span>
+                    <span className="ml-1.5 opacity-70">₹{storage.price.toLocaleString("en-IN")}</span>
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Technical Specifications Table */}
-            <div className="pt-2 border-t border-gray-200">
-              <h3 className="font-bold text-sm text-[#0f1111] mb-2">Technical Details</h3>
-              <table className="w-full text-xs text-left border-collapse">
-                <tbody>
-                  <tr className="border-b border-gray-100">
-                    <td className="py-1.5 font-bold text-gray-600 w-1/3">Processor</td>
-                    <td className="py-1.5 text-gray-900">{product.processor}</td>
-                  </tr>
-                  <tr className="border-b border-gray-100">
-                    <td className="py-1.5 font-bold text-gray-600">Camera</td>
-                    <td className="py-1.5 text-gray-900">{product.camera}</td>
-                  </tr>
-                  <tr className="border-b border-gray-100">
-                    <td className="py-1.5 font-bold text-gray-600">Display</td>
-                    <td className="py-1.5 text-gray-900">{product.display}</td>
-                  </tr>
-                  <tr className="border-b border-gray-100">
-                    <td className="py-1.5 font-bold text-gray-600">Battery</td>
-                    <td className="py-1.5 text-gray-900">{product.battery}</td>
-                  </tr>
-                  <tr className="border-b border-gray-100">
-                    <td className="py-1.5 font-bold text-gray-600">Operating System</td>
-                    <td className="py-1.5 text-gray-900">{product.os}</td>
-                  </tr>
-                  <tr>
-                    <td className="py-1.5 font-bold text-gray-600">Warranty & SMS</td>
-                    <td className="py-1.5 text-emerald-700 font-bold">12 Months + Pre-Expiry SMS Alerts</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            {/* About this item Bullets */}
-            <div className="pt-2 border-t border-gray-200 space-y-1.5 text-xs text-gray-800">
-              <h3 className="font-bold text-sm text-[#0f1111] mb-1">About this item</h3>
-              <ul className="list-disc pl-5 space-y-1">
-                {product.highlightFeatures.map((f, i) => (
-                  <li key={i} className="leading-relaxed">{f}</li>
+            {/* RAM Pills */}
+            <div className="space-y-2.5">
+              <span className="text-xs font-bold text-foreground block">
+                Memory (RAM): <span className="font-normal text-muted">{selectedRam}</span>
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {[product.ram || "8GB", "12GB"].filter((v, i, a) => a.indexOf(v) === i).map((ram) => (
+                  <button
+                    key={ram}
+                    onClick={() => setSelectedRam(ram)}
+                    className={`px-4 py-2 rounded-full border text-xs font-medium cursor-pointer transition-all duration-200 ${
+                      selectedRam === ram
+                        ? "border-foreground bg-foreground text-background font-semibold"
+                        : "border-border bg-tile text-foreground hover:border-foreground/40"
+                    }`}
+                  >
+                    {ram} Unified Memory
+                  </button>
                 ))}
-              </ul>
+              </div>
             </div>
-          </div>
 
-          {/* Column 3: Amazon Buy Box (3 cols) */}
-          <div className="lg:col-span-3">
-            <div className="border border-[#d5d9d9] rounded-lg p-4 bg-white shadow-xs space-y-3 sticky top-24">
-              {/* Buy box price */}
-              <div>
-                <div className="flex items-baseline">
-                  <span className="text-xs align-top font-normal mr-0.5">₹</span>
-                  <span className="text-2xl font-medium text-[#0f1111]">
-                    {currentPrice.toLocaleString("en-IN")}
-                  </span>
-                </div>
-                <div className="text-xs text-[#007185] hover:underline cursor-pointer">
-                  FREE Delivery on your first order
-                </div>
+            {/* Spec Icons (Camera, Battery, Display, Chip) */}
+            <div className="bg-card rounded-[20px] p-5 border border-border shadow-xs grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+              <div className="space-y-1.5 flex flex-col items-center">
+                <Camera className="w-5 h-5 text-accent" />
+                <span className="text-[10px] uppercase font-bold text-muted tracking-wider">Camera</span>
+                <p className="text-xs font-semibold text-foreground line-clamp-1">{(product.camera || "50MP").split("+")[0]}</p>
               </div>
 
-              {/* Delivery ETA with Prime */}
-              <div className="text-xs space-y-0.5 text-gray-800">
-                <div className="flex items-center gap-1">
-                  <span className="text-[#00a8e1] font-black text-xs italic">prime</span>
-                  <span>FREE delivery <strong>Tomorrow, 8 AM - 12 PM</strong></span>
-                </div>
-                <div className="text-gray-500 text-[11px] flex items-center gap-1">
-                  <MapPin className="w-3.5 h-3.5 text-gray-500" />
-                  <span>Deliver to {currentUser?.name ? currentUser.name.split(" ")[0] : "Vicram"} - Bengaluru 560038</span>
-                </div>
+              <div className="space-y-1.5 flex flex-col items-center">
+                <Battery className="w-5 h-5 text-accent" />
+                <span className="text-[10px] uppercase font-bold text-muted tracking-wider">Battery</span>
+                <p className="text-xs font-semibold text-foreground line-clamp-1">{(product.battery || "5000 mAh").split(",")[0]}</p>
               </div>
 
-              {/* Stock Status */}
-              <div className="pt-1">
-                {isOutOfStock ? (
-                  <div className="space-y-1">
-                    <div className="text-lg font-bold text-[#b12704] flex items-center gap-1.5">
-                      <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
-                      <span>Currently Out of Stock</span>
-                    </div>
-                    <p className="text-xs text-gray-500">
-                      We don&apos;t know when or if this item will be back in stock.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="text-base font-bold text-[#007600] flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-[#007600]"></span>
-                    <span>In Stock &bull; Ready to Ship</span>
-                  </div>
-                )}
+              <div className="space-y-1.5 flex flex-col items-center">
+                <Smartphone className="w-5 h-5 text-accent" />
+                <span className="text-[10px] uppercase font-bold text-muted tracking-wider">Display</span>
+                <p className="text-xs font-semibold text-foreground line-clamp-1">{(product.display || "OLED").split("OLED")[0]} OLED</p>
               </div>
 
-              {/* Quantity Selector */}
-              <div className={`flex items-center gap-2 text-xs text-gray-700 ${isOutOfStock ? "opacity-50" : ""}`}>
-                <span>Quantity:</span>
-                <select
-                  disabled={isOutOfStock}
-                  value={quantity}
-                  onChange={(e) => setQuantity(Number(e.target.value))}
-                  className="border border-gray-300 rounded-md px-2 py-1 bg-[#f0f2f2] text-xs focus:outline-none cursor-pointer disabled:cursor-not-allowed"
-                >
-                  {[1, 2, 3, 4, 5].map((q) => (
-                    <option key={q} value={q}>{q}</option>
-                  ))}
-                </select>
+              <div className="space-y-1.5 flex flex-col items-center">
+                <Cpu className="w-5 h-5 text-accent" />
+                <span className="text-[10px] uppercase font-bold text-muted tracking-wider">Chip</span>
+                <p className="text-xs font-semibold text-foreground line-clamp-1">{(product.processor || "Flagship").split("(")[0]}</p>
               </div>
+            </div>
 
-              {/* Action Buttons */}
-              <div className="space-y-2 pt-1">
-                {isOutOfStock ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => setOutOfStockAlert(true)}
-                      className="w-full py-2.5 px-4 text-xs font-bold rounded-md bg-gray-100 hover:bg-red-50 text-red-700 border border-red-300 transition-all shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
-                      title="Item is out of stock - click to view alert"
-                    >
-                      <AlertCircle className="w-4 h-4 text-red-600" />
-                      <span>Currently Out of Stock</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setOutOfStockAlert(true)}
-                      className="w-full py-2 px-4 text-xs font-bold rounded-md bg-gray-200 text-gray-500 border border-gray-300 hover:bg-gray-300 hover:text-red-700 transition-colors cursor-pointer text-center block"
-                    >
-                      Buy Now (Unavailable)
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      onClick={handleAddToCart}
-                      className={`btn-amazon-yellow py-2 px-4 text-xs font-medium w-full text-center block ${
-                        isAdded ? "bg-emerald-600 text-white font-bold" : ""
-                      }`}
-                    >
-                      {isAdded ? "Added to Cart ✓" : "Add to Cart"}
-                    </button>
-
-                    <button
-                      onClick={handleBuyNow}
-                      className="btn-amazon-orange py-2 px-4 text-xs font-medium w-full text-center block cursor-pointer"
-                    >
-                      Buy Now
-                    </button>
-                  </>
-                )}
-              </div>
-
-              {/* Metadata table */}
-              <div className="pt-2 text-xs text-gray-600 space-y-1 border-t border-gray-200">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Ships from</span>
-                  <span className="text-[#0f1111] font-medium">VM Mobiles</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Sold by</span>
-                  <span className="text-[#007185] font-medium">VM Mobiles Retail India</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Payment</span>
-                  <span className="text-[#007185] font-medium">Secure transaction</span>
-                </div>
-              </div>
-
-              {/* Signature Feature: Expiry SMS Alert Included */}
-              <div className="p-2.5 bg-[#fef8f2] border border-[#fbd8b4] rounded-sm text-xs text-[#703800] space-y-1">
-                <div className="font-bold flex items-center gap-1 text-[#e67a00]">
-                  <BellRing className="w-3.5 h-3.5" />
-                  <span>Pre-Expiry SMS Alert Included</span>
-                </div>
-                <p className="text-[11px] leading-relaxed">
-                  Your registered mobile number receives instant IMEI registration and automated SMS alerts 7 days & 24h before warranty ends.
-                </p>
-              </div>
-
-              {/* Add to Compare button */}
+            {/* Desktop Actions Row */}
+            <div className="hidden lg:flex items-center gap-3 pt-2">
               <button
-                onClick={() => addToCompare(product)}
-                className={`w-full py-1.5 px-3 text-xs border rounded-sm font-medium transition-colors cursor-pointer ${
-                  isCompared
-                    ? "bg-gray-100 border-gray-400 text-gray-900"
-                    : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+                onClick={handleAddToCart}
+                disabled={isOutOfStock}
+                className={`flex-1 py-3.5 px-6 rounded-full text-xs font-semibold transition-all duration-200 cursor-pointer shadow-sm flex items-center justify-center gap-2 ${
+                  isOutOfStock
+                    ? "bg-tile text-muted cursor-not-allowed border border-border"
+                    : isAdded
+                    ? "bg-emerald-600 text-white"
+                    : "bg-accent hover:opacity-90 text-white dark:text-[#0B0B0C]"
                 }`}
               >
-                {isCompared ? "✓ In Comparison Tray" : "Add to Compare List"}
+                {isAdded ? (
+                  <>
+                    <Check className="w-4 h-4" /> Added to Bag
+                  </>
+                ) : (
+                  <>
+                    <ShoppingBag className="w-4 h-4" /> Add to Cart
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={handleBuyNow}
+                disabled={isOutOfStock}
+                className="py-3.5 px-8 rounded-full text-xs font-semibold bg-foreground hover:opacity-90 text-background transition-all duration-200 cursor-pointer disabled:opacity-50"
+              >
+                Buy Now
+              </button>
+
+              <button
+                onClick={() => addToCompare(product)}
+                className={`p-3.5 rounded-full border transition-all duration-200 cursor-pointer ${
+                  isCompared
+                    ? "bg-accent/15 border-accent text-accent font-semibold"
+                    : "border-border bg-tile text-foreground hover:bg-tile/80"
+                }`}
+                title="Compare"
+              >
+                <Layers className="w-4 h-4" />
               </button>
             </div>
+
+            {/* Accordion for Offers / EMI / Exchange / Warranty */}
+            <div className="bg-card rounded-[20px] border border-border shadow-xs divide-y divide-border overflow-hidden">
+              {/* Accordion 1: Offers */}
+              <div>
+                <button
+                  type="button"
+                  onClick={() => toggleAccordion("offers")}
+                  className="w-full p-4 flex items-center justify-between text-left text-xs font-bold text-foreground cursor-pointer hover:bg-tile/40 transition-colors"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Tag className="w-4 h-4 text-accent" />
+                    <span>Special Offers & Bank Discounts</span>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 text-muted transition-transform duration-200 ${openAccordions.offers ? "rotate-180" : ""}`} />
+                </button>
+                {openAccordions.offers && (
+                  <div className="px-4 pb-4 pt-1 text-xs text-muted space-y-2">
+                    <p>• Up to ₹3,000 instant discount with ICICI, HDFC, and SBI Bank Credit Cards.</p>
+                    <p>• Complimentary express insured delivery to all pincodes across India.</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Accordion 2: EMI */}
+              <div>
+                <button
+                  type="button"
+                  onClick={() => toggleAccordion("emi")}
+                  className="w-full p-4 flex items-center justify-between text-left text-xs font-bold text-foreground cursor-pointer hover:bg-tile/40 transition-colors"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <CreditCard className="w-4 h-4 text-accent" />
+                    <span>No Cost EMI Plans</span>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 text-muted transition-transform duration-200 ${openAccordions.emi ? "rotate-180" : ""}`} />
+                </button>
+                {openAccordions.emi && (
+                  <div className="px-4 pb-4 pt-1 text-xs text-muted space-y-2">
+                    <p>• 0% Interest EMI for up to 12 months with all leading bank cards.</p>
+                    <p>• Cardless EMI available with Bajaj Finserv & ZestMoney at checkout.</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Accordion 3: Exchange */}
+              <div>
+                <button
+                  type="button"
+                  onClick={() => toggleAccordion("exchange")}
+                  className="w-full p-4 flex items-center justify-between text-left text-xs font-bold text-foreground cursor-pointer hover:bg-tile/40 transition-colors"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <RefreshCw className="w-4 h-4 text-accent" />
+                    <span>Device Exchange Program</span>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 text-muted transition-transform duration-200 ${openAccordions.exchange ? "rotate-180" : ""}`} />
+                </button>
+                {openAccordions.exchange && (
+                  <div className="px-4 pb-4 pt-1 text-xs text-muted space-y-2">
+                    <p>• Exchange your old smartphone and get up to ₹25,000 trade-in bonus value.</p>
+                    <p>• Doorstep evaluation with immediate cash credit upon verification.</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Accordion 4: Warranty */}
+              <div>
+                <button
+                  type="button"
+                  onClick={() => toggleAccordion("warranty")}
+                  className="w-full p-4 flex items-center justify-between text-left text-xs font-bold text-foreground cursor-pointer hover:bg-tile/40 transition-colors"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <ShieldCheck className="w-4 h-4 text-accent" />
+                    <span>1-Year Brand Warranty & SMS Protection</span>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 text-muted transition-transform duration-200 ${openAccordions.warranty ? "rotate-180" : ""}`} />
+                </button>
+                {openAccordions.warranty && (
+                  <div className="px-4 pb-4 pt-1 text-xs text-muted space-y-2">
+                    <p>• 1-Year official manufacturer warranty honored at all brand service centers.</p>
+                    <p>• Automated SMS alert dispatched 7 days and 24 hours prior to warranty expiry.</p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
+        </div>
+      </div>
+
+      {/* Sticky Bottom Buy Now Bar on Mobile */}
+      <div className="fixed bottom-0 left-0 right-0 lg:hidden bg-card/95 backdrop-blur-md border-t border-border p-3.5 z-40 flex items-center justify-between gap-4 shadow-lg text-foreground">
+        <div className="min-w-0">
+          <div className="text-xs font-bold text-foreground truncate">{product.name}</div>
+          <div className="text-sm font-bold text-accent">₹{currentPrice.toLocaleString("en-IN")}</div>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={handleAddToCart}
+            disabled={isOutOfStock}
+            className="px-4 py-2.5 rounded-full bg-tile text-foreground text-xs font-semibold cursor-pointer border border-border"
+          >
+            {isAdded ? "Added ✓" : "Add to Cart"}
+          </button>
+          <button
+            onClick={handleBuyNow}
+            disabled={isOutOfStock}
+            className="px-6 py-2.5 rounded-full bg-accent hover:opacity-90 text-white dark:text-[#0B0B0C] text-xs font-semibold cursor-pointer shadow-sm"
+          >
+            Buy Now
+          </button>
         </div>
       </div>
 
       {/* Out of Stock Interactive Modal Alert */}
       {outOfStockAlert && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 animate-fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in"
           onClick={() => setOutOfStockAlert(false)}
         >
           <div 
-            className="bg-white rounded-lg shadow-2xl max-w-sm w-full p-5 border border-red-200 relative animate-scale-up"
+            className="bg-card rounded-[20px] shadow-2xl max-w-sm w-full p-6 border border-border relative animate-scale-up text-foreground"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               onClick={() => setOutOfStockAlert(false)}
-              className="absolute top-3 right-3 text-gray-400 hover:text-black p-1"
+              className="absolute top-4 right-4 text-muted hover:text-foreground p-1 cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
 
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0">
-                <AlertCircle className="w-6 h-6" />
+            <div className="flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">
+                <AlertCircle className="w-5 h-5" />
               </div>
-              <div className="space-y-1">
-                <h3 className="font-bold text-sm text-[#0f1111]">
+              <div className="space-y-1.5">
+                <h3 className="font-bold text-base text-foreground">
                   Currently Out of Stock
                 </h3>
-                <p className="text-xs text-gray-600 leading-relaxed">
-                  Sorry, <strong>{product.name}</strong> is currently out of stock and cannot be purchased right now.
+                <p className="text-xs text-muted leading-relaxed">
+                  We apologize, <strong>{product.name}</strong> is currently out of stock.
                 </p>
-                <p className="text-[11px] text-amber-700 bg-amber-50 p-2 rounded border border-amber-200 mt-2">
-                  📢 We will alert you via SMS once new inventory arrives at the fulfillment center.
+                <p className="text-xs text-accent bg-accent/10 p-2.5 rounded-[12px] border border-accent/20 mt-2">
+                  📢 We will alert you via SMS once restocked.
                 </p>
               </div>
             </div>
 
-            <div className="mt-4 pt-3 border-t border-gray-100 flex justify-end">
+            <div className="mt-5 pt-3 border-t border-border flex justify-end">
               <button
                 onClick={() => setOutOfStockAlert(false)}
-                className="btn-amazon-yellow py-1.5 px-4 text-xs font-bold rounded-sm shadow-xs cursor-pointer"
+                className="py-2 px-5 text-xs font-semibold rounded-full bg-foreground text-background cursor-pointer transition-colors"
               >
-                Understood, Got It
+                Understood
               </button>
             </div>
           </div>
