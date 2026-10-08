@@ -5726,3 +5726,59 @@ Argument `productName` is missing.
 [2026-10-06 04:21:08] Updated shortcuts in Z:\Web_Site\Shortcuts folder.
 [2026-10-06 04:21:08] [Tunnel] 2026-10-06T04:21:08Z INF |  Your quick Tunnel has been created! Visit it at (it may take some time to be reachable):  |
 [2026-10-06 04:21:10] [Tunnel] 2026-10-06T04:21:10Z INF Registered tunnel connection connIndex=0 connection=c53042a3-e0ea-466a-9bad-b0ed6200ce67 event=0 ip=198.41.192.67 location=bom03 protocol=http2
+[2026-10-07 04:15:08] ================================================================
+[2026-10-07 04:15:08]    VM Mobiles Standalone Background Service Starting
+[2026-10-07 04:15:08] ================================================================
+[2026-10-07 04:15:08] Starting Next.js production server on 0.0.0.0:3000 (IPv4)...
+[2026-10-07 04:15:08] Waiting for Next.js to be ready at http://127.0.0.1:3000 ...
+[2026-10-07 04:15:09] [Next.js] ▲ Next.js 16.3.4
+[2026-10-07 04:15:09] [Next.js] - Local:         http://localhost:3000
+- Network:       http://0.0.0.0:3000
+✓ Ready in 432ms
+[2026-10-07 04:15:09] [Next.js] ✓ Running next.config.ts took 170ms
+[2026-10-07 04:15:10] Next.js server is confirmed HEALTHY and responding on port 3000.
+[2026-10-07 04:15:10] Starting Cloudflare Tunnel (http2 protocol)...
+[2026-10-07 04:15:15] ================================================================
+[2026-10-07 04:15:15] >>> PUBLIC INTERNET URL: https://participated-proven-inherited-properly.trycloudflare.com <<<
+[2026-10-07 04:15:15] ================================================================
+[2026-10-07 04:15:15] Updated shortcuts in Z:\Web_Site\Shortcuts folder.
+[2026-10-07 04:15:15] [Tunnel] 2026-10-07T04:15:15Z INF |  Your quick Tunnel has been created! Visit it at (it may take some time to be reachable):  |
+[2026-10-07 04:15:17] [Tunnel] 2026-10-07T04:15:17Z INF Registered tunnel connection connIndex=0 connection=1880468f-cad3-4369-a2fe-8889ac8365b4 event=0 ip=198.41.200.53 location=bom10 protocol=http2
+[2026-10-07 05:55:01] [Tunnel] 2026-10-07T05:55:01Z INF Registered tunnel connection connIndex=0 connection=69b1be8a-f69b-462b-956d-3d70986f8da5 event=0 ip=198.41.200.53 location=bom12 protocol=http2
+[2026-10-07 10:44:47] ================================================================
+[2026-10-07 10:44:47]    VM Mobiles Standalone Background Service Starting
+[2026-10-07 10:44:47] ================================================================
+[2026-10-07 10:44:47] Starting Next.js production server on 0.0.0.0:3000 (IPv4)...
+[2026-10-07 10:44:47] Waiting for Next.js to be ready at http://127.0.0.1:3000 ...
+[2026-10-07 10:44:49] [Next.js] ▲ Next.js 16.3.4
+[2026-10-07 10:44:49] [Next.js] - Local:         http://localhost:3000
+- Network:       http://0.0.0.0:3000
+✓ Ready in 417ms
+[2026-10-07 10:44:49] [Next.js] ✓ Running next.config.ts took 132ms
+[2026-10-07 10:44:49] Next.js server is confirmed HEALTHY and responding on port 3000.
+[2026-10-07 10:44:49] Starting Cloudflare Tunnel (http2 protocol)...
+[2026-10-07 10:44:55] ================================================================
+[2026-10-07 10:44:55] >>> PUBLIC INTERNET URL: https://associations-export-italia-strengthening.trycloudflare.com <<<
+[2026-10-07 10:44:55] ================================================================
+[2026-10-07 10:44:55] Updated shortcuts in Z:\Web_Site\Shortcuts folder.
+[2026-10-07 10:44:55] [Tunnel] 2026-10-07T10:44:55Z INF |  Your quick Tunnel has been created! Visit it at (it may take some time to be reachable):  |
+[2026-10-07 10:44:56] [Tunnel] 2026-10-07T10:44:56Z INF Registered tunnel connection connIndex=0 connection=b4a78ff8-8222-44d6-8310-37fde9771eed event=0 ip=198.41.192.167 location=bom03 protocol=http2
+[2026-10-08 03:54:10] ================================================================
+[2026-10-08 03:54:10]    VM Mobiles Standalone Background Service Starting
+[2026-10-08 03:54:10] ================================================================
+[2026-10-08 03:54:10] Starting Next.js production server on 0.0.0.0:3000 (IPv4)...
+[2026-10-08 03:54:10] Waiting for Next.js to be ready at http://127.0.0.1:3000 ...
+[2026-10-08 03:54:11] [Next.js] ▲ Next.js 16.3.4
+[2026-10-08 03:54:11] [Next.js] - Local:         http://localhost:3000
+- Network:       http://0.0.0.0:3000
+✓ Ready in 428ms
+[2026-10-08 03:54:11] [Next.js] ✓ Running next.config.ts took 194ms
+[2026-10-08 03:54:12] Next.js server is confirmed HEALTHY and responding on port 3000.
+[2026-10-08 03:54:12] Starting Cloudflare Tunnel (http2 protocol)...
+[2026-10-08 03:54:18] ================================================================
+[2026-10-08 03:54:18] >>> PUBLIC INTERNET URL: https://vancouver-experiencing-organizer-gilbert.trycloudflare.com <<<
+[2026-10-08 03:54:18] ================================================================
+[2026-10-08 03:54:18] Updated shortcuts in Z:\Web_Site\Shortcuts folder.
+[2026-10-08 03:54:18] [Tunnel] 2026-10-08T03:54:18Z INF |  Your quick Tunnel has been created! Visit it at (it may take some time to be reachable):  |
+[2026-10-08 03:54:19] [Tunnel] 2026-10-08T03:54:19Z INF Registered tunnel connection connIndex=0 connection=26fa8380-3ea9-4896-82cf-f68eee09c1bf event=0 ip=198.41.200.33 location=bom08 protocol=http2
+[2026-10-08 04:27:12] [Tunnel] 2026-10-08T04:27:12Z INF Registered tunnel connection connIndex=0 connection=2728e6f6-b84b-4968-bda0-b9bcbfd9d12a event=0 ip=198.41.200.33 location=bom10 protocol=http2

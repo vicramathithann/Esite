@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
+import { flushSync } from "react-dom";
 import { Sun, Moon, Monitor } from "lucide-react";
 
 interface ThemeToggleProps {
@@ -18,48 +19,65 @@ export default function ThemeToggle({ className = "", showLabels = false }: Them
   }, []);
 
   const handleThemeChange = (newTheme: string) => {
-    if (typeof document !== "undefined") {
-      document.documentElement.classList.add("theme-transitioning");
-      setTheme(newTheme);
-      setTimeout(() => {
-        document.documentElement.classList.remove("theme-transitioning");
-      }, 250);
-    } else {
-      setTheme(newTheme);
+    if (theme === newTheme) return;
+
+    // Utilize View Transitions API if supported for a buttery cross-fade
+    if (
+      typeof document !== "undefined" &&
+      "startViewTransition" in document &&
+      !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      try {
+        (document as any).startViewTransition(() => {
+          flushSync(() => {
+            setTheme(newTheme);
+          });
+        });
+        return;
+      } catch {
+        // Fallback if startViewTransition throws
+      }
     }
+
+    setTheme(newTheme);
   };
 
+  const options = [
+    { value: "light", label: "Light", icon: Sun, title: "Switch to light theme" },
+    { value: "dark", label: "Dark", icon: Moon, title: "Switch to dark theme" },
+    { value: "system", label: "System", icon: Monitor, title: "Follow system preference" },
+  ] as const;
+
+  // Hydration-safe placeholder with identical dimensions to prevent layout shifts (CLS = 0)
   if (!mounted) {
     return (
-      <div className={`inline-flex items-center p-0.5 rounded-full bg-tile border border-border opacity-70 ${className}`}>
-        <div className="w-7 h-7 rounded-full flex items-center justify-center p-1.5 text-muted">
+      <div
+        className={`inline-flex items-center p-0.5 sm:p-1 rounded-full bg-[#E5E5EA] dark:bg-[#18181B] border border-black/[0.08] dark:border-white/[0.12] h-[34px] w-[104px] sm:w-[112px] opacity-80 ${className}`}
+        aria-hidden="true"
+      >
+        <div className="w-7 h-7 sm:w-8 sm:h-7 rounded-full flex items-center justify-center p-1 text-muted">
           <Sun className="w-3.5 h-3.5" />
         </div>
-        <div className="w-7 h-7 rounded-full flex items-center justify-center p-1.5 text-muted">
+        <div className="w-7 h-7 sm:w-8 sm:h-7 rounded-full flex items-center justify-center p-1 text-muted">
           <Moon className="w-3.5 h-3.5" />
         </div>
-        <div className="w-7 h-7 rounded-full flex items-center justify-center p-1.5 text-muted">
+        <div className="w-7 h-7 sm:w-8 sm:h-7 rounded-full flex items-center justify-center p-1 text-muted">
           <Monitor className="w-3.5 h-3.5" />
         </div>
       </div>
     );
   }
 
-  const options = [
-    { value: "light", label: "Light", icon: Sun },
-    { value: "dark", label: "Dark", icon: Moon },
-    { value: "system", label: "System", icon: Monitor },
-  ];
-
   return (
     <div
       role="radiogroup"
-      aria-label="Theme selector"
-      className={`inline-flex items-center p-0.5 rounded-full bg-tile border border-border shadow-2xs ${className}`}
+      aria-label="Select color theme"
+      className={`inline-flex items-center p-0.5 sm:p-1 rounded-full bg-[#E5E5EA] dark:bg-[#18181B] border border-black/[0.08] dark:border-white/[0.14] shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] dark:shadow-[inset_0_1px_3px_rgba(0,0,0,0.5)] transition-colors duration-250 ${className}`}
     >
       {options.map((opt) => {
         const Icon = opt.icon;
         const isActive = theme === opt.value;
+
         return (
           <button
             key={opt.value}
@@ -67,16 +85,16 @@ export default function ThemeToggle({ className = "", showLabels = false }: Them
             role="radio"
             aria-checked={isActive}
             onClick={() => handleThemeChange(opt.value)}
-            className={`flex items-center gap-1.5 px-2 py-1.5 rounded-full text-xs transition-all duration-200 cursor-pointer ${
+            className={`group relative flex items-center justify-center h-7 px-2.5 sm:px-3 rounded-full text-xs font-medium transition-all duration-200 ease-out cursor-pointer select-none ${
               isActive
-                ? "bg-card text-foreground font-semibold shadow-xs"
-                : "text-muted hover:text-foreground hover:bg-card/40"
+                ? "bg-white text-[#0071E3] shadow-[0_2px_6px_rgba(0,0,0,0.1),0_1px_2px_rgba(0,0,0,0.06)] ring-1 ring-black/[0.04] dark:bg-[#27272A] dark:text-[#2997FF] dark:shadow-[0_2px_8px_rgba(0,0,0,0.6)] dark:border dark:border-white/[0.14] dark:ring-1 dark:ring-[#2997FF]/30 font-semibold"
+                : "text-muted hover:text-foreground hover:bg-black/[0.04] dark:hover:bg-white/[0.08] dark:text-[#9E9EA4] dark:hover:text-white"
             }`}
-            title={`${opt.label} mode`}
-            aria-label={`${opt.label} theme`}
+            title={opt.title}
+            aria-label={opt.title}
           >
-            <Icon className="w-3.5 h-3.5 shrink-0" />
-            {showLabels && <span className="text-[11px] font-medium">{opt.label}</span>}
+            <Icon className="w-3.5 h-3.5 shrink-0 stroke-[2.2] transition-transform duration-200 group-hover:scale-110 group-active:scale-95" />
+            {showLabels && <span className="text-[11px] ml-1">{opt.label}</span>}
           </button>
         );
       })}

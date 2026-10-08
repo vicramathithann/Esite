@@ -47,15 +47,54 @@
   --pill-active-text: #111111;
 }
 
-/* 200ms color transition applied ONLY when the user toggles the theme */
-html.theme-transitioning,
-html.theme-transitioning *,
-html.theme-transitioning *::before,
-html.theme-transitioning *::after {
-  transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease !important;
-  transition-delay: 0s !important;
+/* ========================================================
+   View Transitions API (Chrome / Edge / Safari 18+)
+   Hardware-accelerated, buttery smooth cross-fade without DOM freeze
+   ======================================================== */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 280ms;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+::view-transition-old(root) {
+  animation-name: vt-fade-out;
+}
+
+::view-transition-new(root) {
+  animation-name: vt-fade-in;
+}
+
+@keyframes vt-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes vt-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(root),
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
+  }
+}
+
+/* ========================================================
+   Buttery Smooth Surface Transitions (Targeted Elements)
+   Targeting semantic tags avoids layout thrashing and freezing
+   ======================================================== */
 body {
   background-color: var(--background);
   color: var(--foreground);
@@ -63,6 +102,32 @@ body {
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 280ms cubic-bezier(0.4, 0, 0.2, 1),
+              color 280ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+header,
+nav,
+footer,
+aside,
+main,
+section,
+dialog,
+.card-tech {
+  transition: background-color 280ms cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 280ms cubic-bezier(0.4, 0, 0.2, 1),
+              color 280ms cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+input,
+select,
+textarea,
+button,
+a {
+  transition-property: background-color, border-color, color, box-shadow, fill;
+  transition-duration: 200ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Apple & OnePlus Style Button Utilities */
