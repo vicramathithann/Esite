@@ -97,7 +97,7 @@ export default function WishlistPage() {
             </p>
             <Link
               href="/"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl transition"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] text-xs font-semibold rounded-xl transition-all shadow-sm"
             >
               <Smartphone className="w-4 h-4" /> Explore Smartphones
             </Link>
@@ -119,7 +119,7 @@ export default function WishlistPage() {
                     />
                   </div>
                   <div className="flex-1">
-                    <span className="text-[10px] uppercase font-bold text-indigo-400 tracking-wider">
+                    <span className="text-[10px] uppercase font-bold text-[#C9A66B] dark:text-[#D4B483] tracking-wider">
                       {product.brand}
                     </span>
                     <h3 className="text-sm font-semibold text-white line-clamp-1">{product.name}</h3>
@@ -133,13 +133,13 @@ export default function WishlistPage() {
                 <div className="flex items-center gap-2 mt-4 pt-3 border-t border-slate-800/80">
                   <button
                     onClick={() => handleAddToCart(product)}
-                    className="flex-1 py-2 px-3 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition"
+                    className="flex-1 py-2 px-3 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-xs"
                   >
                     <ShoppingBag className="w-3.5 h-3.5" /> Move to Cart
                   </button>
                   <button
                     onClick={() => toggleWishlist(product.id)}
-                    className="p-2 bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 rounded-xl transition"
+                    className="p-2 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 dark:hover:bg-[#D4B483]/20 text-[#8C6226] dark:text-[#E5CBA2] rounded-xl transition-all"
                     title="Remove from wishlist"
                   >
                     <Trash2 className="w-4 h-4" />

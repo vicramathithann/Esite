@@ -98,7 +98,7 @@ export default function RegisterPage() {
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="First and last name"
-              className="w-full bg-tile border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all placeholder:text-muted"
+              className="w-full bg-tile border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20 transition-all placeholder:text-muted"
             />
           </div>
 
@@ -110,7 +110,7 @@ export default function RegisterPage() {
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               placeholder="name@example.com"
-              className="w-full bg-tile border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all placeholder:text-muted"
+              className="w-full bg-tile border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20 transition-all placeholder:text-muted"
             />
           </div>
 
@@ -121,7 +121,7 @@ export default function RegisterPage() {
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               placeholder="10-digit mobile number"
-              className="w-full bg-tile border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all placeholder:text-muted"
+              className="w-full bg-tile border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20 transition-all placeholder:text-muted"
             />
           </div>
 
@@ -134,7 +134,7 @@ export default function RegisterPage() {
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               placeholder="At least 6 characters"
-              className="w-full bg-tile border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all placeholder:text-muted"
+              className="w-full bg-tile border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20 transition-all placeholder:text-muted"
             />
             <span className="text-[10px] text-muted block">Passwords must be at least 6 characters.</span>
           </div>
@@ -148,14 +148,14 @@ export default function RegisterPage() {
               value={formData.confirmPassword}
               onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
               placeholder="Re-enter your password"
-              className="w-full bg-tile border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all placeholder:text-muted"
+              className="w-full bg-tile border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20 transition-all placeholder:text-muted"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-accent text-white hover:opacity-95 py-3 text-xs font-semibold rounded-xl mt-3 flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+            className="w-full bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] py-3 text-xs font-semibold rounded-xl mt-3 flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50"
           >
             {loading ? "Creating Account..." : "Continue to Email Verification"}
             {!loading && <ArrowRight className="w-3.5 h-3.5" />}
@@ -169,7 +169,7 @@ export default function RegisterPage() {
         <div className="mt-5 pt-4 border-t border-border text-xs">
           <p className="text-muted">
             Already have an account?{" "}
-            <Link href="/login" className="text-accent hover:underline font-semibold">
+            <Link href="/login" className="text-[#8C6226] dark:text-[#E5CBA2] hover:underline font-semibold">
               Sign in →
             </Link>
           </p>

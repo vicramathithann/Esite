@@ -183,7 +183,7 @@ export default function UserAccountPage() {
               {currentUser.role === "ADMIN" && (
                 <Link
                   href="/admin"
-                  className="px-3 py-1.5 bg-[#febd69] hover:bg-[#f3a847] text-[#131921] text-xs font-bold rounded-md flex items-center gap-1.5 shadow"
+                  className="px-3 py-1.5 bg-[#C9A66B] hover:bg-[#B8914A] active:bg-[#A67C3D] text-[#FFFCFA] text-xs font-bold rounded-md flex items-center gap-1.5 shadow"
                 >
                   <ShieldCheck className="w-4 h-4" />
                   <span>Admin Control Center</span>
@@ -191,14 +191,14 @@ export default function UserAccountPage() {
               )}
               <Link
                 href="/"
-                className="px-3.5 py-1.5 bg-[#febd69] hover:bg-[#f3a847] text-[#131921] text-xs font-bold rounded-md flex items-center gap-1.5 shadow-sm"
+                className="px-3.5 py-1.5 bg-[#C9A66B] hover:bg-[#B8914A] active:bg-[#A67C3D] text-[#FFFCFA] text-xs font-bold rounded-md flex items-center gap-1.5 shadow-sm"
               >
                 <ShoppingBag className="w-4 h-4" />
                 <span>Browse All Mobiles</span>
               </Link>
               <button
                 onClick={logout}
-                className="px-3 py-1.5 bg-red-600/80 hover:bg-red-600 text-white text-xs font-semibold rounded-md flex items-center gap-1 cursor-pointer"
+                className="px-3 py-1.5 bg-[#C9A66B]/15 hover:bg-[#C9A66B]/25 active:bg-[#A67C3D] text-[#FFF8F0] border border-[#C9A66B]/30 text-xs font-semibold rounded-md flex items-center gap-1 cursor-pointer transition-colors"
               >
                 <LogOut className="w-3.5 h-3.5" />
                 <span>Sign Out</span>
@@ -237,7 +237,7 @@ export default function UserAccountPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={loadOrders}
-              className="p-1.5 bg-white border border-gray-300 rounded-sm hover:bg-gray-50 text-gray-700 text-xs flex items-center gap-1"
+              className="p-1.5 bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 border border-[#C9A66B]/30 rounded-sm text-[#8C6226] dark:text-[#E5CBA2] text-xs flex items-center gap-1 transition-colors cursor-pointer"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
               <span>Refresh</span>
@@ -258,7 +258,7 @@ export default function UserAccountPage() {
             onClick={() => setActiveOrderTab("all")}
             className={`pb-2 font-bold cursor-pointer transition-all ${
               activeOrderTab === "all"
-                ? "text-[#0f1111] border-b-2 border-[#e77600]"
+                ? "text-[#8C6226] dark:text-[#E5CBA2] border-b-2 border-[#C9A66B]"
                 : "text-gray-600 hover:text-[#0f1111]"
             }`}
           >
@@ -268,7 +268,7 @@ export default function UserAccountPage() {
             onClick={() => setActiveOrderTab("active")}
             className={`pb-2 font-bold cursor-pointer transition-all ${
               activeOrderTab === "active"
-                ? "text-[#0f1111] border-b-2 border-[#e77600]"
+                ? "text-[#8C6226] dark:text-[#E5CBA2] border-b-2 border-[#C9A66B]"
                 : "text-gray-600 hover:text-[#0f1111]"
             }`}
           >
@@ -278,7 +278,7 @@ export default function UserAccountPage() {
             onClick={() => setActiveOrderTab("cancelled")}
             className={`pb-2 font-bold cursor-pointer transition-all ${
               activeOrderTab === "cancelled"
-                ? "text-[#0f1111] border-b-2 border-[#e77600]"
+                ? "text-[#8C6226] dark:text-[#E5CBA2] border-b-2 border-[#C9A66B]"
                 : "text-gray-600 hover:text-[#0f1111]"
             }`}
           >
@@ -368,10 +368,10 @@ export default function UserAccountPage() {
                             setCancelModalOrder(order);
                             setCancelReason("Order created by mistake");
                           }}
-                          className="py-1 px-2.5 text-xs font-bold rounded-sm bg-white hover:bg-red-50 text-red-700 border border-gray-300 hover:border-red-300 flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                          className="py-1 px-2.5 text-xs font-bold rounded-sm bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 text-[#8C6226] dark:text-[#E5CBA2] border border-[#C9A66B]/30 flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
                           title="Cancel this order and receive full refund"
                         >
-                          <X className="w-3.5 h-3.5 text-red-600" />
+                          <X className="w-3.5 h-3.5 text-[#C9A66B]" />
                           <span>Cancel Order</span>
                         </button>
                       ) : null}
@@ -515,10 +515,10 @@ export default function UserAccountPage() {
                             <button
                               onClick={() => handleSimulateExpiry(item.id, "SET_NEAR_EXPIRY")}
                               disabled={actionLoading !== null}
-                              className="w-full py-1.5 px-3 bg-white hover:bg-gray-50 border border-gray-300 rounded-sm font-medium text-left transition-colors cursor-pointer text-gray-800 disabled:opacity-50"
+                              className="w-full py-1.5 px-3 bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 border border-[#C9A66B]/30 rounded-sm font-medium text-left transition-colors cursor-pointer text-gray-800 disabled:opacity-50"
                             >
-                              <div className="flex items-center gap-1 text-[#b12704] font-bold">
-                                <AlertTriangle className="w-3 h-3 text-[#e67a00]" /> Set 5-Day Expiry
+                              <div className="flex items-center gap-1 text-[#8C6226] dark:text-[#E5CBA2] font-bold">
+                                <AlertTriangle className="w-3 h-3 text-[#C9A66B]" /> Set 5-Day Expiry
                               </div>
                               <span className="text-[10px] text-gray-500">Triggers 7-Day Warning SMS</span>
                             </button>
@@ -526,10 +526,10 @@ export default function UserAccountPage() {
                             <button
                               onClick={() => handleSimulateExpiry(item.id, "SET_URGENT_EXPIRY")}
                               disabled={actionLoading !== null}
-                              className="w-full py-1.5 px-3 bg-white hover:bg-gray-50 border border-gray-300 rounded-sm font-medium text-left transition-colors cursor-pointer text-gray-800 disabled:opacity-50"
+                              className="w-full py-1.5 px-3 bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 border border-[#C9A66B]/30 rounded-sm font-medium text-left transition-colors cursor-pointer text-gray-800 disabled:opacity-50"
                             >
-                              <div className="flex items-center gap-1 text-[#cc0c39] font-bold">
-                                <ShieldAlert className="w-3 h-3 text-[#cc0c39]" /> Set 24H Expiry
+                              <div className="flex items-center gap-1 text-[#8C6226] dark:text-[#E5CBA2] font-bold">
+                                <ShieldAlert className="w-3 h-3 text-[#C9A66B]" /> Set 24H Expiry
                               </div>
                               <span className="text-[10px] text-gray-500">Triggers Final Alert SMS</span>
                             </button>
@@ -537,10 +537,10 @@ export default function UserAccountPage() {
                             <button
                               onClick={() => handleSimulateExpiry(item.id, "EXTEND_WARRANTY")}
                               disabled={actionLoading !== null}
-                              className="w-full py-1.5 px-3 bg-white hover:bg-gray-50 border border-gray-300 rounded-sm font-medium text-left transition-colors cursor-pointer text-gray-800 disabled:opacity-50"
+                              className="w-full py-1.5 px-3 bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 border border-[#C9A66B]/30 rounded-sm font-medium text-left transition-colors cursor-pointer text-gray-800 disabled:opacity-50"
                             >
-                              <div className="flex items-center gap-1 text-[#007600] font-bold">
-                                <Plus className="w-3 h-3 text-[#007600]" /> Extend +1 Year
+                              <div className="flex items-center gap-1 text-[#8C6226] dark:text-[#E5CBA2] font-bold">
+                                <Plus className="w-3 h-3 text-[#C9A66B]" /> Extend +1 Year
                               </div>
                               <span className="text-[10px] text-gray-500">Renew warranty & SMS</span>
                             </button>
@@ -644,7 +644,7 @@ export default function UserAccountPage() {
                 type="button"
                 onClick={() => setCancelModalOrder(null)}
                 disabled={cancelling}
-                className="py-2 px-4 text-xs font-semibold rounded-md border border-gray-300 bg-white hover:bg-gray-100 text-gray-700 cursor-pointer"
+                className="py-2 px-4 text-xs font-semibold rounded-md border border-[#C9A66B]/30 bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 text-[#8C6226] dark:text-[#E5CBA2] cursor-pointer"
               >
                 Keep Order
               </button>
@@ -652,7 +652,7 @@ export default function UserAccountPage() {
                 type="button"
                 onClick={handleConfirmCancel}
                 disabled={cancelling}
-                className="py-2 px-4 text-xs font-bold rounded-md bg-red-600 hover:bg-red-700 text-white shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                className="py-2 px-4 text-xs font-bold rounded-md bg-[#C9A66B] hover:bg-[#B8914A] active:bg-[#A67C3D] text-[#FFFCFA] shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
               >
                 {cancelling ? (
                   <>

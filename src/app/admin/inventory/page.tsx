@@ -109,7 +109,7 @@ export default function AdminInventoryPage() {
 
           <button
             onClick={loadInventory}
-            className="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition self-start sm:self-auto"
+            className="p-2.5 bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 text-[#8C6226] dark:text-[#E5CBA2] rounded-xl transition-all self-start sm:self-auto cursor-pointer"
             title="Refresh"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
@@ -229,7 +229,7 @@ export default function AdminInventoryPage() {
                           <div className="flex items-center justify-center gap-1.5">
                             <button
                               onClick={() => handleStockChange(item.id, -1)}
-                              className="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300"
+                              className="w-6 h-6 rounded-lg border border-[#C9A66B]/30 dark:border-[#D4B483]/30 bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 text-[#8C6226] dark:text-[#E5CBA2] flex items-center justify-center cursor-pointer transition-all"
                               title="Decrement"
                             >
                               <Minus className="w-3 h-3" />
@@ -248,7 +248,7 @@ export default function AdminInventoryPage() {
                             />
                             <button
                               onClick={() => handleStockChange(item.id, 1)}
-                              className="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300"
+                              className="w-6 h-6 rounded-lg border border-[#C9A66B]/30 dark:border-[#D4B483]/30 bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 text-[#8C6226] dark:text-[#E5CBA2] flex items-center justify-center cursor-pointer transition-all"
                               title="Increment"
                             >
                               <Plus className="w-3 h-3" />
@@ -261,7 +261,7 @@ export default function AdminInventoryPage() {
                               <button
                                 onClick={() => handleSaveStock(item.id)}
                                 disabled={updatingId === item.id}
-                                className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg text-[11px] flex items-center gap-1 transition"
+                                className="px-2.5 py-1 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] font-semibold rounded-lg text-[11px] flex items-center gap-1 transition-all shadow-xs cursor-pointer"
                               >
                                 <Save className="w-3 h-3" />
                                 {updatingId === item.id ? "Saving..." : "Save"}

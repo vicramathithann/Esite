@@ -311,8 +311,8 @@ export default function ProductCatalog({
               onClick={() => setSelectedCategory("all")}
               className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-all duration-200 cursor-pointer ${
                 selectedCategory === "all"
-                  ? "bg-foreground text-background shadow-xs"
-                  : "text-muted hover:text-foreground hover:bg-card/40"
+                  ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] shadow-xs font-semibold"
+                  : "text-[#8C6226] dark:text-[#E2C799] hover:bg-[#C9A66B]/15 hover:text-foreground"
               }`}
             >
               All Items
@@ -321,8 +321,8 @@ export default function ProductCatalog({
               onClick={() => setSelectedCategory("SMARTPHONE")}
               className={`px-4 py-1.5 text-xs font-semibold rounded-full flex items-center gap-1.5 transition-all duration-200 cursor-pointer ${
                 selectedCategory === "SMARTPHONE"
-                  ? "bg-foreground text-background shadow-xs"
-                  : "text-muted hover:text-foreground hover:bg-card/40"
+                  ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] shadow-xs font-semibold"
+                  : "text-[#8C6226] dark:text-[#E2C799] hover:bg-[#C9A66B]/15 hover:text-foreground"
               }`}
             >
               <Smartphone className="w-3.5 h-3.5" />
@@ -332,8 +332,8 @@ export default function ProductCatalog({
               onClick={() => setSelectedCategory("ACCESSORY")}
               className={`px-4 py-1.5 text-xs font-semibold rounded-full flex items-center gap-1.5 transition-all duration-200 cursor-pointer ${
                 selectedCategory === "ACCESSORY"
-                  ? "bg-foreground text-background shadow-xs"
-                  : "text-muted hover:text-foreground hover:bg-card/40"
+                  ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] shadow-xs font-semibold"
+                  : "text-[#8C6226] dark:text-[#E2C799] hover:bg-[#C9A66B]/15 hover:text-foreground"
               }`}
             >
               <Headphones className="w-3.5 h-3.5" />
@@ -353,9 +353,9 @@ export default function ProductCatalog({
             ({filteredProducts.length} devices)
           </span>
 
-          {/* Active Brand Chip: black with white text in light mode, white with black text in dark mode */}
+          {/* Active Brand Chip */}
           {selectedBrand !== "All Mobiles" && (
-            <span className="bg-foreground text-background text-xs font-medium px-3 py-1 rounded-full flex items-center gap-1.5 ml-2 shadow-2xs animate-fade-in">
+            <span className="bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] text-xs font-medium px-3 py-1 rounded-full flex items-center gap-1.5 ml-2 shadow-2xs animate-fade-in">
               <span>{selectedBrand}</span>
               <button
                 type="button"
@@ -363,14 +363,14 @@ export default function ProductCatalog({
                 className="cursor-pointer hover:opacity-80 p-0.5"
                 title="Clear brand filter"
               >
-                <X className="w-3 h-3 text-background" />
+                <X className="w-3 h-3 text-[#FFFCFA]" />
               </button>
             </span>
           )}
 
           {/* Active Search Chip */}
           {searchQuery && (
-            <span className="bg-card border border-border text-foreground text-xs font-medium px-3 py-1 rounded-full flex items-center gap-1.5 shadow-2xs animate-fade-in">
+            <span className="bg-[#C9A66B]/15 border border-[#C9A66B]/30 text-[#8C6226] dark:text-[#E2C799] text-xs font-medium px-3 py-1 rounded-full flex items-center gap-1.5 shadow-2xs animate-fade-in">
               <span>&quot;{searchQuery}&quot;</span>
               <button
                 type="button"
@@ -385,7 +385,7 @@ export default function ProductCatalog({
 
           {/* Active Category Chip */}
           {selectedCategory !== "all" && (
-            <span className="bg-card border border-border text-foreground text-xs font-medium px-3 py-1 rounded-full flex items-center gap-1.5 shadow-2xs animate-fade-in">
+            <span className="bg-[#C9A66B]/15 border border-[#C9A66B]/30 text-[#8C6226] dark:text-[#E2C799] text-xs font-medium px-3 py-1 rounded-full flex items-center gap-1.5 shadow-2xs animate-fade-in">
               <span>Category: {selectedCategory === "SMARTPHONE" ? "Smartphones" : "Accessories"}</span>
               <button
                 type="button"
@@ -404,9 +404,9 @@ export default function ProductCatalog({
           <button
             type="button"
             onClick={() => setShowMobileFilters(!showMobileFilters)}
-            className="lg:hidden flex items-center gap-1.5 px-4 py-2 bg-card border border-border rounded-full text-xs font-medium text-foreground shadow-2xs cursor-pointer hover:bg-tile transition-colors"
+            className="lg:hidden flex items-center gap-1.5 px-4 py-2 bg-[#C9A66B]/15 border border-[#C9A66B]/40 hover:bg-[#C9A66B]/25 rounded-full text-xs font-medium text-[#8C6226] dark:text-[#E2C799] shadow-2xs cursor-pointer transition-colors"
           >
-            <SlidersHorizontal className="w-3.5 h-3.5 text-accent" />
+            <SlidersHorizontal className="w-3.5 h-3.5 text-[#C9A66B] dark:text-[#D4B483]" />
             <span>Filters ({activeFilterCount})</span>
           </button>
 
@@ -416,7 +416,7 @@ export default function ProductCatalog({
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="bg-card border border-border rounded-full px-4 py-2 text-xs text-foreground font-medium focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent cursor-pointer shadow-2xs transition-colors"
+              className="bg-card border border-[#C9A66B]/40 rounded-full px-4 py-2 text-xs text-foreground font-medium focus:outline-none focus:ring-2 focus:ring-[#C9A66B]/25 focus:border-[#C9A66B] cursor-pointer shadow-2xs transition-colors"
             >
               <option value="featured">Featured First</option>
               <option value="price-asc">Price: Low to High</option>
@@ -439,14 +439,14 @@ export default function ProductCatalog({
           {/* Sidebar Header */}
           <div className="flex items-center justify-between border-b border-border pb-3">
             <div className="flex items-center gap-2 font-bold text-sm text-foreground">
-              <SlidersHorizontal className="w-4 h-4 text-accent" />
+              <SlidersHorizontal className="w-4 h-4 text-[#C9A66B] dark:text-[#D4B483]" />
               <span>Filters</span>
             </div>
             {activeFilterCount > 0 && (
               <button
                 type="button"
                 onClick={handleResetFilters}
-                className="text-xs text-accent hover:underline font-medium flex items-center gap-1 cursor-pointer"
+                className="text-xs text-[#8C6226] dark:text-[#D4B483] hover:text-[#B8914A] font-semibold flex items-center gap-1 cursor-pointer px-2.5 py-1 rounded-full bg-[#C9A66B]/15 hover:bg-[#C9A66B]/25 border border-[#C9A66B]/30 transition-all"
               >
                 <RotateCcw className="w-3 h-3" /> Reset
               </button>
@@ -464,13 +464,13 @@ export default function ProductCatalog({
                   onClick={() => handleBrandSelect(brand)}
                   className={`w-full text-left px-3 py-1.5 rounded-full text-xs transition-all duration-200 flex items-center justify-between cursor-pointer ${
                     selectedBrand === brand
-                      ? "bg-foreground text-background font-semibold"
-                      : "text-muted hover:text-foreground hover:bg-tile"
+                      ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] font-semibold shadow-xs"
+                      : "text-muted hover:text-foreground hover:bg-[#C9A66B]/10"
                   }`}
                 >
                   <span>{brand}</span>
                   {selectedBrand === brand && (
-                    <Check className="w-3 h-3 text-background shrink-0" />
+                    <Check className="w-3 h-3 text-[#FFFCFA] shrink-0" />
                   )}
                 </button>
               ))}
@@ -481,7 +481,7 @@ export default function ProductCatalog({
           <div className="space-y-2 pt-2 border-t border-border">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-foreground">Max Price</span>
-              <span className="text-xs font-bold text-accent">
+              <span className="text-xs font-bold text-[#C9A66B] dark:text-[#D4B483]">
                 ₹{priceRange.toLocaleString("en-IN")}
               </span>
             </div>
@@ -492,7 +492,7 @@ export default function ProductCatalog({
               step="5000"
               value={priceRange}
               onChange={(e) => setPriceRange(Number(e.target.value))}
-              className="w-full h-1.5 bg-tile rounded-lg appearance-none cursor-pointer accent-accent"
+              className="w-full h-1.5 bg-tile rounded-lg appearance-none cursor-pointer accent-[#C9A66B] dark:accent-[#D4B483]"
             />
             <div className="flex justify-between text-[11px] text-muted">
               <span>₹10,000</span>
@@ -512,8 +512,8 @@ export default function ProductCatalog({
                   onClick={() => setSelectedRam(ram)}
                   className={`px-3 py-1 text-xs rounded-full font-medium transition-all duration-200 cursor-pointer ${
                     selectedRam === ram
-                      ? "bg-foreground text-background font-semibold"
-                      : "bg-tile text-muted hover:text-foreground border border-border/50"
+                      ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] font-semibold shadow-xs"
+                      : "bg-[#C9A66B]/10 text-[#8C6226] dark:text-[#E2C799] hover:bg-[#C9A66B]/20 border border-[#C9A66B]/30"
                   }`}
                 >
                   {ram}
@@ -533,8 +533,8 @@ export default function ProductCatalog({
                   onClick={() => setSelectedStorage(storage)}
                   className={`px-3 py-1 text-xs rounded-full font-medium transition-all duration-200 cursor-pointer ${
                     selectedStorage === storage
-                      ? "bg-foreground text-background font-semibold"
-                      : "bg-tile text-muted hover:text-foreground border border-border/50"
+                      ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] font-semibold shadow-xs"
+                      : "bg-[#C9A66B]/10 text-[#8C6226] dark:text-[#E2C799] hover:bg-[#C9A66B]/20 border border-[#C9A66B]/30"
                   }`}
                 >
                   {storage}
@@ -554,8 +554,8 @@ export default function ProductCatalog({
                   onClick={() => setSelectedOS(os)}
                   className={`px-3 py-1 text-xs rounded-full font-medium transition-all duration-200 cursor-pointer ${
                     selectedOS === os
-                      ? "bg-foreground text-background font-semibold"
-                      : "bg-tile text-muted hover:text-foreground border border-border/50"
+                      ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] font-semibold shadow-xs"
+                      : "bg-[#C9A66B]/10 text-[#8C6226] dark:text-[#E2C799] hover:bg-[#C9A66B]/20 border border-[#C9A66B]/30"
                   }`}
                 >
                   {os}
@@ -575,13 +575,13 @@ export default function ProductCatalog({
                   onClick={() => setSelectedBattery(opt.value)}
                   className={`w-full text-left px-3 py-1.5 rounded-full text-xs transition-all duration-200 flex items-center justify-between cursor-pointer ${
                     selectedBattery === opt.value
-                      ? "bg-foreground text-background font-semibold"
-                      : "text-muted hover:text-foreground hover:bg-tile"
+                      ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] font-semibold shadow-xs"
+                      : "text-muted hover:text-foreground hover:bg-[#C9A66B]/10"
                   }`}
                 >
                   <span>{opt.label}</span>
                   {selectedBattery === opt.value && (
-                    <Check className="w-3 h-3 text-background shrink-0" />
+                    <Check className="w-3 h-3 text-[#FFFCFA] shrink-0" />
                   )}
                 </button>
               ))}
@@ -599,8 +599,8 @@ export default function ProductCatalog({
                   onClick={() => setSelected5G(opt)}
                   className={`flex-1 py-1.5 text-xs rounded-full font-medium transition-all duration-200 cursor-pointer text-center ${
                     selected5G === opt
-                      ? "bg-foreground text-background font-semibold"
-                      : "bg-tile text-muted hover:text-foreground border border-border/50"
+                      ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] font-semibold shadow-xs"
+                      : "bg-[#C9A66B]/10 text-[#8C6226] dark:text-[#E2C799] hover:bg-[#C9A66B]/20 border border-[#C9A66B]/30"
                   }`}
                 >
                   {opt}
@@ -616,7 +616,7 @@ export default function ProductCatalog({
                 type="checkbox"
                 checked={inStockOnly}
                 onChange={(e) => setInStockOnly(e.target.checked)}
-                className="rounded border-border text-accent focus:ring-accent"
+                className="rounded border-border text-[#C9A66B] focus:ring-[#C9A66B]"
               />
               <span>In Stock Devices Only</span>
             </label>
@@ -646,7 +646,7 @@ export default function ProductCatalog({
               <button
                 type="button"
                 onClick={handleResetFilters}
-                className="py-2.5 px-6 rounded-full bg-foreground text-background text-xs font-semibold cursor-pointer transition-all duration-200 shadow-xs"
+                className="py-2.5 px-6 rounded-full bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] text-xs font-semibold cursor-pointer transition-all duration-200 shadow-xs"
               >
                 Clear All Filters
               </button>

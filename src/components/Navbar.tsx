@@ -125,7 +125,7 @@ export default function Navbar() {
                   )}
                   <button
                     onClick={logout}
-                    className="w-full text-left px-4 py-2 hover:bg-red-500/10 text-red-500 font-medium border-t border-border mt-1 cursor-pointer transition-colors"
+                    className="w-full text-left px-4 py-2 hover:bg-[#C9A66B]/15 text-[#8C6226] dark:text-[#D4B483] font-medium border-t border-border mt-1 cursor-pointer transition-colors"
                   >
                     Sign Out
                   </button>
@@ -134,7 +134,7 @@ export default function Navbar() {
             ) : (
               <Link
                 href="/login"
-                className="px-3 py-1.5 text-xs font-medium text-foreground hover:text-accent hover:bg-tile rounded-full transition-all duration-200"
+                className="px-3 py-1.5 text-xs font-semibold text-[#8C6226] dark:text-[#E2C799] bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 border border-[#C9A66B]/30 rounded-full transition-all duration-200"
               >
                 Sign In
               </Link>
@@ -144,12 +144,12 @@ export default function Navbar() {
           {/* Compare Link */}
           <Link
             href="/compare"
-            className="relative p-2 text-muted hover:text-foreground hover:bg-tile rounded-full transition-all duration-200"
+            className="relative p-2 text-muted hover:text-[#8C6226] dark:hover:text-[#D4B483] hover:bg-[#C9A66B]/15 rounded-full transition-all duration-200"
             title="Compare Mobiles"
           >
             <Layers className="w-4 h-4" />
             {compareList.length > 0 && (
-              <span className="absolute top-0.5 right-0.5 bg-accent text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center ring-2 ring-card">
+              <span className="absolute top-0.5 right-0.5 bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center ring-2 ring-card shadow-2xs">
                 {compareList.length}
               </span>
             )}
@@ -158,12 +158,12 @@ export default function Navbar() {
           {/* Wishlist Link */}
           <Link
             href="/account/wishlist"
-            className="relative p-2 text-muted hover:text-foreground hover:bg-tile rounded-full transition-all duration-200"
+            className="relative p-2 text-muted hover:text-[#8C6226] dark:hover:text-[#D4B483] hover:bg-[#C9A66B]/15 rounded-full transition-all duration-200"
             title="Wishlist"
           >
             <Heart className="w-4 h-4" />
             {wishlistCount > 0 && (
-              <span className="absolute top-0.5 right-0.5 bg-rose-500 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center ring-2 ring-card">
+              <span className="absolute top-0.5 right-0.5 bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center ring-2 ring-card shadow-2xs">
                 {wishlistCount}
               </span>
             )}
@@ -172,12 +172,12 @@ export default function Navbar() {
           {/* SMS Alerts Drawer Button */}
           <button
             onClick={() => setIsSmsDrawerOpen(true)}
-            className="relative p-2 text-muted hover:text-foreground hover:bg-tile rounded-full transition-all duration-200 cursor-pointer"
+            className="relative p-2 text-muted hover:text-[#8C6226] dark:hover:text-[#D4B483] hover:bg-[#C9A66B]/15 rounded-full transition-all duration-200 cursor-pointer"
             title="SMS Alerts"
           >
             <MessageSquareText className="w-4 h-4" />
             {unreadSmsCount > 0 && (
-              <span className="absolute top-0.5 right-0.5 bg-accent text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center ring-2 ring-card">
+              <span className="absolute top-0.5 right-0.5 bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center ring-2 ring-card shadow-2xs">
                 {unreadSmsCount}
               </span>
             )}
@@ -186,12 +186,12 @@ export default function Navbar() {
           {/* Slide-in Mini Cart Trigger */}
           <button
             onClick={() => setIsCartOpen(true)}
-            className="relative p-2 text-foreground hover:text-accent hover:bg-tile rounded-full transition-all duration-200 cursor-pointer flex items-center gap-1.5"
+            className="relative p-2 text-foreground hover:text-[#8C6226] dark:hover:text-[#D4B483] hover:bg-[#C9A66B]/15 rounded-full transition-all duration-200 cursor-pointer flex items-center gap-1.5"
             title="Shopping Cart"
           >
             <ShoppingBag className="w-4 h-4" />
             {cartCount > 0 && (
-              <span className="bg-accent text-white text-[10px] font-semibold px-1.5 py-0.2 rounded-full min-w-4 text-center">
+              <span className="bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] text-[10px] font-semibold px-1.5 py-0.2 rounded-full min-w-4 text-center shadow-2xs">
                 {cartCount}
               </span>
             )}
@@ -211,7 +211,7 @@ export default function Navbar() {
             <Link 
               href="/products" 
               prefetch={false}
-              className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium text-foreground hover:text-accent transition-colors"
+              className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] transition-all shadow-xs"
             >
               <Menu className="w-3 h-3" />
               <span>All Phones</span>

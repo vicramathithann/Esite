@@ -379,36 +379,36 @@ export default function CheckoutPage() {
             </Link>
 
             {orderCancelled ? (
-              <span className="bg-red-500/10 text-red-500 border border-red-500/20 py-2.5 px-5 text-xs font-semibold rounded-xl flex items-center gap-1.5">
-                <X className="w-4 h-4 text-red-500" />
+              <span className="bg-[#C9A66B]/15 dark:bg-[#D4B483]/15 text-[#8C6226] dark:text-[#E5CBA2] border border-[#C9A66B]/30 dark:border-[#D4B483]/30 py-2.5 px-5 text-xs font-semibold rounded-xl flex items-center gap-1.5">
+                <X className="w-4 h-4 text-[#C9A66B] dark:text-[#D4B483]" />
                 <span>Cancelled & Refunded</span>
               </span>
             ) : (
               <button
                 onClick={() => setCancelModalOpen(true)}
-                className="bg-card hover:bg-red-500/10 text-red-500 border border-border hover:border-red-500/30 py-2.5 px-5 text-xs font-semibold rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
+                className="bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 dark:hover:bg-[#D4B483]/20 text-[#8C6226] dark:text-[#E5CBA2] border border-[#C9A66B]/30 dark:border-[#D4B483]/30 py-2.5 px-5 text-xs font-semibold rounded-xl flex items-center gap-1.5 cursor-pointer transition-all shadow-2xs"
                 title="Cancel this order and receive full refund"
               >
-                <X className="w-4 h-4 text-red-500" />
+                <X className="w-4 h-4 text-[#C9A66B] dark:text-[#D4B483]" />
                 <span>Cancel Order</span>
               </button>
             )}
 
             <Link
               href="/orders"
-              className="bg-card hover:bg-tile border border-border py-2.5 px-5 text-xs font-semibold rounded-xl text-foreground transition-colors"
+              className="bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 dark:hover:bg-[#D4B483]/20 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 py-2.5 px-5 text-xs font-semibold rounded-xl text-[#8C6226] dark:text-[#E5CBA2] transition-all"
             >
               View All Orders & Warranty
             </Link>
 
             <button
               onClick={() => setIsSmsDrawerOpen(true)}
-              className="bg-tile hover:bg-card border border-border py-2.5 px-5 text-xs font-semibold text-foreground rounded-xl cursor-pointer transition-colors"
+              className="bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 dark:hover:bg-[#D4B483]/20 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 py-2.5 px-5 text-xs font-semibold text-[#8C6226] dark:text-[#E5CBA2] rounded-xl cursor-pointer transition-all"
             >
               Open Buyer SMS Inbox
             </button>
 
-            <Link href="/" className="text-xs text-accent hover:underline font-medium px-4">
+            <Link href="/" className="text-xs text-[#8C6226] dark:text-[#E5CBA2] hover:underline font-medium px-4">
               Continue Shopping on VM Mobiles
             </Link>
           </div>
@@ -487,7 +487,7 @@ export default function CheckoutPage() {
                   type="button"
                   onClick={() => setCancelModalOpen(false)}
                   disabled={cancelling}
-                  className="py-2 px-4 text-xs font-semibold rounded-xl border border-border bg-card hover:bg-tile text-foreground cursor-pointer transition-colors"
+                  className="py-2 px-4 text-xs font-semibold rounded-xl border border-[#C9A66B]/30 dark:border-[#D4B483]/30 bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 dark:hover:bg-[#D4B483]/20 text-[#8C6226] dark:text-[#E5CBA2] cursor-pointer transition-all"
                 >
                   Keep Order
                 </button>
@@ -495,7 +495,7 @@ export default function CheckoutPage() {
                   type="button"
                   onClick={handleCancelCurrentOrder}
                   disabled={cancelling}
-                  className="py-2 px-4 text-xs font-semibold rounded-xl bg-red-600 hover:bg-red-700 text-white shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
+                  className="py-2 px-4 text-xs font-semibold rounded-xl bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all"
                 >
                   {cancelling ? (
                     <>
@@ -525,7 +525,7 @@ export default function CheckoutPage() {
           <p className="text-sm text-muted">
             Your shopping cart currently has no smartphone items.
           </p>
-          <Link href="/" className="inline-flex items-center justify-center bg-accent text-white hover:opacity-95 py-2.5 px-6 text-xs font-semibold rounded-xl transition-all shadow-sm">
+          <Link href="/" className="inline-flex items-center justify-center bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] py-2.5 px-6 text-xs font-semibold rounded-xl transition-all shadow-sm">
             Shop Today&apos;s Mobile Deals
           </Link>
         </div>
@@ -568,7 +568,7 @@ export default function CheckoutPage() {
               <div className="bg-card border border-border rounded-2xl p-6 space-y-5 shadow-xs">
                 <div className="flex items-center justify-between border-b border-border pb-3">
                   <div className="flex items-center gap-2.5 font-bold text-base text-foreground">
-                    <span className="w-6 h-6 rounded-full bg-accent text-white flex items-center justify-center text-xs font-bold">1</span>
+                    <span className="w-6 h-6 rounded-full bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] flex items-center justify-center text-xs font-bold">1</span>
                     <span>Delivery Address & Phone SMS Verification</span>
                   </div>
                   {isPhoneVerified && (
@@ -586,7 +586,7 @@ export default function CheckoutPage() {
                       required
                       value={formData.customerName}
                       onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
-                      className="w-full bg-tile border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all placeholder:text-muted"
+                      className="w-full bg-tile border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20 transition-all placeholder:text-muted"
                       placeholder="Full Name"
                     />
                   </div>
@@ -594,7 +594,7 @@ export default function CheckoutPage() {
                   <div className="space-y-1.5">
                     <label className="font-semibold text-foreground flex justify-between">
                       <span>Mobile Number</span>
-                      <span className="text-[10px] text-accent">For SMS Expiry Alerts</span>
+                      <span className="text-[10px] text-[#8C6226] dark:text-[#E5CBA2]">For SMS Expiry Alerts</span>
                     </label>
                     <div className="flex gap-2">
                       <input
@@ -610,7 +610,7 @@ export default function CheckoutPage() {
                         className={`flex-1 border rounded-xl px-3.5 py-2.5 text-sm font-mono focus:outline-none transition-all ${
                           isPhoneVerified
                             ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500 font-bold"
-                            : "bg-tile border-border text-foreground focus:border-accent focus:ring-2 focus:ring-accent/20"
+                            : "bg-tile border-border text-foreground focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20"
                         }`}
                         placeholder="+91 98765 43210"
                       />
@@ -619,7 +619,7 @@ export default function CheckoutPage() {
                           type="button"
                           onClick={handleSendOtp}
                           disabled={sendingOtp}
-                          className="bg-accent text-white hover:opacity-95 px-3.5 py-2 text-xs font-semibold rounded-xl shrink-0 disabled:opacity-50 flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
+                          className="bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] px-3.5 py-2 text-xs font-semibold rounded-xl shrink-0 disabled:opacity-50 flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
                         >
                           {sendingOtp ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                           <span>{otpSent ? "Resend OTP" : "Send OTP"}</span>
@@ -633,7 +633,7 @@ export default function CheckoutPage() {
                     <div className="sm:col-span-2 p-4 bg-tile border border-border rounded-xl space-y-3 text-xs">
                       <div className="flex flex-wrap justify-between items-center gap-2">
                         <span className="font-semibold text-foreground flex items-center gap-1.5">
-                          <KeyRound className="w-3.5 h-3.5 text-accent" />
+                          <KeyRound className="w-3.5 h-3.5 text-[#C9A66B] dark:text-[#D4B483]" />
                           Enter 6-digit OTP sent via SMS to {formData.customerPhone}:
                         </span>
                         {lastDispatchedOtp && (
@@ -643,9 +643,9 @@ export default function CheckoutPage() {
                               setOtpCode(lastDispatchedOtp);
                               handleVerifyOtp(lastDispatchedOtp, autoSubmitOrder);
                             }}
-                            className="text-[11px] text-accent hover:underline font-semibold bg-card px-2.5 py-1 border border-border rounded-lg shadow-2xs flex items-center gap-1 cursor-pointer transition-all"
+                            className="text-[11px] text-[#8C6226] dark:text-[#E5CBA2] hover:underline font-semibold bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 px-2.5 py-1 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 rounded-lg shadow-2xs flex items-center gap-1 cursor-pointer transition-all"
                           >
-                            <Sparkles className="w-3 h-3 text-accent" />
+                            <Sparkles className="w-3 h-3 text-[#C9A66B] dark:text-[#D4B483]" />
                             Auto-fill & Submit ({lastDispatchedOtp})
                           </button>
                         )}
@@ -664,13 +664,13 @@ export default function CheckoutPage() {
                             }
                           }}
                           placeholder="••••••"
-                          className="w-36 border-2 border-accent rounded-xl px-3 py-2 text-center font-mono text-lg font-bold bg-card text-foreground tracking-[0.25em] shadow-inner focus:outline-none focus:ring-2 focus:ring-accent/20"
+                          className="w-36 border-2 border-[#C9A66B] dark:border-[#D4B483] rounded-xl px-3 py-2 text-center font-mono text-lg font-bold bg-card text-foreground tracking-[0.25em] shadow-inner focus:outline-none focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20"
                         />
                         <button
                           type="button"
                           onClick={() => handleVerifyOtp(otpCode, autoSubmitOrder)}
                           disabled={verifyingOtp || otpCode.length !== 6}
-                          className="bg-accent text-white hover:opacity-95 px-4 py-2 text-xs font-semibold rounded-xl disabled:opacity-50 flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
+                          className="bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] px-4 py-2 text-xs font-semibold rounded-xl disabled:opacity-50 flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
                         >
                           {verifyingOtp ? (
                             <>
@@ -745,7 +745,7 @@ export default function CheckoutPage() {
               {/* Step 2: Payment Method */}
               <div className="bg-card border border-border rounded-2xl p-6 space-y-4 text-xs shadow-xs">
                 <div className="font-bold text-base text-foreground border-b border-border pb-3 flex items-center gap-2.5">
-                  <span className="w-6 h-6 rounded-full bg-accent text-white flex items-center justify-center text-xs font-bold">2</span>
+                  <span className="w-6 h-6 rounded-full bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] flex items-center justify-center text-xs font-bold">2</span>
                   <span>Payment Method</span>
                 </div>
 
@@ -762,7 +762,7 @@ export default function CheckoutPage() {
                         key={method}
                         className={`flex items-center gap-3 p-3.5 border rounded-xl cursor-pointer transition-all ${
                           isSelected
-                            ? "border-accent bg-accent/5 text-foreground font-semibold"
+                            ? "border-[#C9A66B] dark:border-[#D4B483] bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 text-foreground font-semibold"
                             : "border-border bg-tile/40 hover:bg-tile text-foreground font-normal"
                         }`}
                       >
@@ -771,7 +771,7 @@ export default function CheckoutPage() {
                           name="payment"
                           checked={isSelected}
                           onChange={() => setFormData({ ...formData, paymentMethod: method })}
-                          className="accent-current text-accent focus:ring-accent"
+                          className="accent-[#C9A66B] dark:accent-[#D4B483]"
                         />
                         <span>{method}</span>
                       </label>
@@ -783,7 +783,7 @@ export default function CheckoutPage() {
               {/* Step 3: Review items & Delivery */}
               <div className="bg-card border border-border rounded-2xl p-6 space-y-4 text-xs shadow-xs">
                 <div className="font-bold text-base text-foreground border-b border-border pb-3 flex items-center gap-2.5">
-                  <span className="w-6 h-6 rounded-full bg-accent text-white flex items-center justify-center text-xs font-bold">3</span>
+                  <span className="w-6 h-6 rounded-full bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] flex items-center justify-center text-xs font-bold">3</span>
                   <span>Review Items and Delivery</span>
                 </div>
 
@@ -832,7 +832,7 @@ export default function CheckoutPage() {
                   hasOutOfStock
                     ? "bg-tile text-muted cursor-not-allowed border border-border"
                     : isPhoneVerified
-                    ? "bg-accent text-white hover:opacity-95 cursor-pointer shadow-md"
+                    ? "bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] cursor-pointer shadow-md"
                     : "bg-tile text-muted cursor-not-allowed border border-border"
                 }`}
               >
@@ -858,7 +858,7 @@ export default function CheckoutPage() {
                   hasOutOfStock
                     ? "bg-tile text-muted cursor-not-allowed border border-border"
                     : isPhoneVerified
-                    ? "bg-accent text-white hover:opacity-95 cursor-pointer shadow-md"
+                    ? "bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] cursor-pointer shadow-md"
                     : "bg-tile text-muted cursor-not-allowed border border-border"
                 }`}
               >

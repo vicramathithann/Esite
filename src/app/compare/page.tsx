@@ -88,7 +88,7 @@ export default function ComparePage() {
           {compareList.length > 0 && (
             <button
               onClick={clearCompare}
-              className="text-xs text-muted hover:text-foreground px-4 py-2 rounded-full border border-border bg-tile transition-all duration-200 cursor-pointer shadow-xs"
+              className="text-xs text-[#8C6226] dark:text-[#D4B483] hover:text-[#B8914A] px-4 py-2 rounded-full border border-[#C9A66B]/30 bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 transition-all duration-200 cursor-pointer shadow-xs font-semibold"
             >
               Clear all
             </button>
@@ -105,7 +105,7 @@ export default function ComparePage() {
               Select &quot;Compare&quot; on any flagship device card or browse the catalog.
             </p>
             <div className="pt-2">
-              <Link href="/" className="px-6 py-3 rounded-full bg-accent hover:opacity-90 text-white dark:text-[#0B0B0C] text-xs font-semibold inline-block transition-all duration-200 shadow-sm">
+              <Link href="/" className="px-6 py-3 rounded-full bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] text-xs font-semibold inline-block transition-all duration-200 shadow-sm cursor-pointer">
                 Browse All Models
               </Link>
             </div>
@@ -125,7 +125,7 @@ export default function ComparePage() {
                   <div key={item.id} className="relative space-y-3 p-4 rounded-[16px] bg-tile border border-border/50 text-center flex flex-col justify-between">
                     <button
                       onClick={() => removeFromCompare(item.id)}
-                      className="absolute top-2 right-2 p-1 text-muted hover:text-foreground rounded-full hover:bg-card transition-colors"
+                      className="absolute top-2 right-2 p-1 text-muted hover:text-[#B8914A] rounded-full hover:bg-[#C9A66B]/20 transition-colors"
                       title="Remove"
                     >
                       <X className="w-4 h-4" />
@@ -136,7 +136,7 @@ export default function ComparePage() {
                     </div>
 
                     <div className="space-y-1">
-                      <span className="text-[10px] uppercase font-bold text-accent">{item.brand}</span>
+                      <span className="text-[10px] uppercase font-bold text-[#8C6226] dark:text-[#D4B483]">{item.brand}</span>
                       <h4 className="font-bold text-sm text-foreground line-clamp-1">{item.name}</h4>
                       <div className="text-base font-bold text-foreground">
                         ₹{item.basePrice.toLocaleString("en-IN")}
@@ -151,8 +151,8 @@ export default function ComparePage() {
                         onClick={() => handleAddToCart(item)}
                         className={`py-2 px-3 text-xs w-full font-semibold rounded-full transition-all duration-200 cursor-pointer shadow-xs flex items-center justify-center gap-1.5 ${
                           addedItemMap[item.id]
-                            ? "bg-emerald-600 text-white font-semibold"
-                            : "bg-accent hover:opacity-90 text-white dark:text-[#0B0B0C]"
+                            ? "bg-[#A67C3D] text-[#FFFCFA] font-semibold"
+                            : "bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA]"
                         }`}
                       >
                         {addedItemMap[item.id] ? (
@@ -277,7 +277,7 @@ export default function ComparePage() {
           <div className="w-full max-w-md bg-card border border-border rounded-[20px] p-6 shadow-2xl max-h-[80vh] flex flex-col animate-scale-up text-foreground">
             <div className="flex justify-between items-center border-b border-border pb-3">
               <h3 className="font-bold text-base text-foreground">Choose Device to Compare</h3>
-              <button onClick={() => setShowAddModal(false)} className="text-muted hover:text-foreground p-1 cursor-pointer">
+              <button onClick={() => setShowAddModal(false)} className="text-muted hover:text-[#B8914A] p-1 cursor-pointer">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -301,7 +301,7 @@ export default function ComparePage() {
                       <div className="text-xs font-bold text-foreground truncate">{product.name}</div>
                       <div className="text-[11px] text-muted">₹{product.basePrice.toLocaleString("en-IN")}</div>
                     </div>
-                    <span className="px-3 py-1 rounded-full bg-accent text-white dark:text-[#0B0B0C] text-xs font-semibold">
+                    <span className="px-3 py-1 rounded-full bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] text-xs font-semibold shadow-2xs">
                       Add
                     </span>
                   </div>

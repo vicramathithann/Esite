@@ -25,7 +25,7 @@ export default function GlobalError({
               if (typeof window !== "undefined") window.location.href = "/";
               else reset();
             }}
-            className="w-full bg-[#febd69] hover:bg-[#f3a847] text-[#131921] py-2 px-6 rounded text-xs font-bold transition-colors cursor-pointer"
+            className="w-full bg-[#C9A66B] hover:bg-[#B8914A] active:bg-[#A67C3D] text-[#FFFCFA] py-2.5 px-6 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm"
           >
             Reload Storefront
           </button>

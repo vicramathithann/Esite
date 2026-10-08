@@ -33,7 +33,7 @@ export default function CartPage() {
           {cart.length > 0 && (
             <button
               onClick={clearCart}
-              className="text-xs text-rose-500 hover:text-rose-600 font-medium cursor-pointer"
+              className="text-xs text-[#8C6226] dark:text-[#D4B483] hover:text-[#B8914A] font-semibold cursor-pointer px-3 py-1.5 rounded-full bg-[#C9A66B]/15 hover:bg-[#C9A66B]/25 border border-[#C9A66B]/30 transition-all"
             >
               Clear Cart
             </button>
@@ -43,7 +43,7 @@ export default function CartPage() {
         {/* Header Card */}
         <div className="bg-card border border-border rounded-[20px] p-6 shadow-xs flex items-center justify-between">
           <div className="flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center text-accent">
+            <div className="w-10 h-10 rounded-full bg-[#C9A66B]/15 flex items-center justify-center text-[#8C6226] dark:text-[#D4B483]">
               <ShoppingBag className="w-5 h-5" />
             </div>
             <div>
@@ -53,7 +53,7 @@ export default function CartPage() {
               </p>
             </div>
           </div>
-          <span className="text-xs font-semibold px-3 py-1 bg-foreground text-background rounded-full">
+          <span className="text-xs font-semibold px-3 py-1 bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] rounded-full shadow-2xs">
             {cartCount} Items
           </span>
         </div>
@@ -67,7 +67,7 @@ export default function CartPage() {
             </p>
             <Link
               href="/"
-              className="inline-flex items-center gap-2 px-6 py-2.5 bg-accent hover:opacity-90 text-white dark:text-[#0B0B0C] text-xs font-semibold rounded-full transition-all duration-200 shadow-xs"
+              className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] text-xs font-semibold rounded-full transition-all duration-200 shadow-xs"
             >
               <Smartphone className="w-4 h-4" /> Browse Smartphones
             </Link>
@@ -91,7 +91,7 @@ export default function CartPage() {
                       />
                     </div>
                     <div>
-                      <span className="text-[10px] uppercase font-bold text-accent tracking-wider">
+                      <span className="text-[10px] uppercase font-bold text-[#8C6226] dark:text-[#D4B483] tracking-wider">
                         {item.brand}
                       </span>
                       <h3 className="text-sm font-bold text-foreground">{item.name}</h3>
@@ -110,10 +110,10 @@ export default function CartPage() {
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <div className="flex items-center border border-border bg-tile rounded-full p-0.5">
+                      <div className="flex items-center border border-[#C9A66B]/30 bg-[#C9A66B]/10 rounded-full p-0.5">
                         <button
                           onClick={() => updateQuantity(item.id, -1)}
-                          className="w-7 h-7 flex items-center justify-center hover:bg-card text-muted hover:text-foreground rounded-full transition cursor-pointer"
+                          className="w-7 h-7 flex items-center justify-center hover:bg-[#C9A66B]/20 text-[#8C6226] dark:text-[#D4B483] rounded-full transition cursor-pointer"
                           title="Decrease"
                         >
                           <Minus className="w-3 h-3" />
@@ -121,7 +121,7 @@ export default function CartPage() {
                         <span className="px-3 text-xs font-bold text-foreground">{item.quantity}</span>
                         <button
                           onClick={() => updateQuantity(item.id, 1)}
-                          className="w-7 h-7 flex items-center justify-center hover:bg-card text-muted hover:text-foreground rounded-full transition cursor-pointer"
+                          className="w-7 h-7 flex items-center justify-center hover:bg-[#C9A66B]/20 text-[#8C6226] dark:text-[#D4B483] rounded-full transition cursor-pointer"
                           title="Increase"
                         >
                           <Plus className="w-3 h-3" />
@@ -130,7 +130,7 @@ export default function CartPage() {
 
                       <button
                         onClick={() => removeFromCart(item.id)}
-                        className="p-2 hover:bg-rose-500/10 text-muted hover:text-rose-500 rounded-full transition cursor-pointer"
+                        className="p-2 hover:bg-[#C9A66B]/20 text-muted hover:text-[#B8914A] rounded-full transition cursor-pointer"
                         title="Remove"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -162,12 +162,12 @@ export default function CartPage() {
 
               <div className="flex justify-between text-base font-bold text-foreground pt-1">
                 <span>Total Amount</span>
-                <span className="text-accent">{formatINR(cartTotal)}</span>
+                <span className="text-[#C9A66B] dark:text-[#D4B483]">{formatINR(cartTotal)}</span>
               </div>
 
               <Link
                 href="/checkout"
-                className="w-full py-3.5 px-4 bg-accent hover:opacity-90 text-white dark:text-[#0B0B0C] font-semibold rounded-full flex items-center justify-center gap-2 transition-all duration-200 shadow-sm cursor-pointer"
+                className="w-full py-3.5 px-4 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] font-semibold rounded-full flex items-center justify-center gap-2 transition-all duration-200 shadow-sm cursor-pointer"
               >
                 <span>Proceed to Checkout</span>
                 <ArrowRight className="w-4 h-4" />

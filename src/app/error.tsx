@@ -34,7 +34,7 @@ export default function ErrorBoundary({
         <div className="flex flex-col sm:flex-row items-center justify-center gap-2 pt-2">
           <button
             onClick={() => reset()}
-            className="w-full sm:w-auto btn-amazon-yellow py-2 px-5 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+            className="w-full sm:w-auto bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] py-2 px-5 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow-xs"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span>Try Again</span>
@@ -45,7 +45,7 @@ export default function ErrorBoundary({
             onClick={() => {
               if (typeof window !== "undefined") window.location.href = "/";
             }}
-            className="w-full sm:w-auto bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300 py-2 px-5 text-xs font-bold rounded-sm flex items-center justify-center gap-1.5"
+            className="w-full sm:w-auto bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 text-[#8C6226] dark:text-[#E5CBA2] py-2 px-5 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-2xs"
           >
             <Smartphone className="w-3.5 h-3.5" />
             <span>All Mobiles Store</span>

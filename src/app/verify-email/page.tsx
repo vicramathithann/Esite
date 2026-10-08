@@ -201,7 +201,7 @@ function VerifyEmailContent() {
 
             <Link
               href="/login"
-              className="w-full py-3.5 px-4 bg-accent text-white hover:opacity-95 font-semibold rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs text-xs"
+              className="w-full py-3.5 px-4 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] font-semibold rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs text-xs"
             >
               <span>Proceed to Sign In</span>
               <ArrowRight className="w-4 h-4" />
@@ -209,7 +209,7 @@ function VerifyEmailContent() {
 
             <Link
               href="/"
-              className="w-full py-2.5 px-4 bg-tile hover:bg-tile/80 text-foreground text-xs font-semibold rounded-xl flex items-center justify-center transition-colors"
+              className="w-full py-2.5 px-4 bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 dark:hover:bg-[#D4B483]/20 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 text-[#8C6226] dark:text-[#E5CBA2] text-xs font-semibold rounded-xl flex items-center justify-center transition-all"
             >
               Continue to Storefront
             </Link>
@@ -225,7 +225,7 @@ function VerifyEmailContent() {
                   <p className="font-bold">{status === "expired" ? "Code Expired" : "Verification Error"}</p>
                   <p className="mt-0.5">{message}</p>
                   {remainingAttempts !== null && remainingAttempts > 0 && (
-                    <p className="mt-1 font-semibold text-accent">
+                    <p className="mt-1 font-semibold text-[#8C6226] dark:text-[#E5CBA2]">
                       Remaining attempts: {remainingAttempts}
                     </p>
                   )}
@@ -247,7 +247,7 @@ function VerifyEmailContent() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="name@example.com"
-                    className="w-full pl-9 pr-4 py-2.5 bg-tile border border-border rounded-xl text-foreground text-xs placeholder:text-muted focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
+                    className="w-full pl-9 pr-4 py-2.5 bg-tile border border-border rounded-xl text-foreground text-xs placeholder:text-muted focus:outline-none focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20 transition-all"
                   />
                   <Mail className="w-4 h-4 text-muted absolute left-3 top-3" />
                 </div>
@@ -257,7 +257,7 @@ function VerifyEmailContent() {
               <div>
                 <label className="block text-xs font-semibold text-foreground mb-1.5 flex items-center justify-between">
                   <span>6-Digit Verification Code</span>
-                  <span className="text-[10px] text-accent font-normal">Valid for 10 minutes</span>
+                  <span className="text-[10px] text-[#8C6226] dark:text-[#E5CBA2] font-normal">Valid for 10 minutes</span>
                 </label>
                 <div className="relative">
                   <input
@@ -268,7 +268,7 @@ function VerifyEmailContent() {
                     value={otp}
                     onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
                     placeholder="• • • • • •"
-                    className="w-full pl-9 pr-4 py-3 bg-tile border border-border rounded-xl text-foreground text-xl tracking-[0.5em] text-center font-mono placeholder:text-muted focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
+                    className="w-full pl-9 pr-4 py-3 bg-tile border border-border rounded-xl text-foreground text-xl tracking-[0.5em] text-center font-mono placeholder:text-muted focus:outline-none focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20 transition-all"
                   />
                   <KeyRound className="w-4 h-4 text-muted absolute left-3 top-3.5" />
                 </div>
@@ -278,7 +278,7 @@ function VerifyEmailContent() {
               <button
                 type="submit"
                 disabled={loading || otp.length !== 6 || !email.trim()}
-                className="w-full py-3.5 px-4 bg-accent hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-xs rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs"
+                className="w-full py-3.5 px-4 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-xs rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs"
               >
                 <span>Verify Code & Activate Account</span>
                 <ArrowRight className="w-4 h-4" />
@@ -295,7 +295,7 @@ function VerifyEmailContent() {
                 type="button"
                 onClick={handleResend}
                 disabled={resending || cooldown > 0 || !email.trim()}
-                className="inline-flex items-center gap-1.5 text-xs font-bold text-accent hover:underline disabled:text-muted disabled:cursor-not-allowed transition cursor-pointer"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-[#8C6226] dark:text-[#E5CBA2] hover:underline disabled:text-muted disabled:cursor-not-allowed transition cursor-pointer"
               >
                 {resending ? (
                   <>

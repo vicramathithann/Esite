@@ -469,7 +469,7 @@ export default function AdminDashboardPage() {
 
             <button
               onClick={handleAdminBypassLogin}
-              className="w-full py-2 px-4 bg-white/5 hover:bg-white/10 text-[#febd69] border border-[#febd69]/30 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+              className="w-full py-2 px-4 bg-[#C9A66B]/15 hover:bg-[#C9A66B]/25 active:bg-[#A67C3D] text-[#C9A66B] dark:text-[#D4B483] border border-[#C9A66B]/40 rounded-lg text-xs font-bold transition-colors cursor-pointer"
             >
               ⚡ Instant 1-Click Admin Access (Demo Mode)
             </button>
@@ -509,14 +509,14 @@ export default function AdminDashboardPage() {
             <Link
               href="/"
               target="_blank"
-              className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded text-gray-200 flex items-center gap-1 font-medium transition-colors"
+              className="px-3 py-1.5 bg-[#C9A66B]/15 hover:bg-[#C9A66B]/25 text-[#FFFCFA] border border-[#C9A66B]/30 rounded flex items-center gap-1 font-medium transition-colors"
             >
               <span>View Live Storefront</span>
               <ExternalLink className="w-3.5 h-3.5" />
             </Link>
             <Link
               href="/orders"
-              className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded text-gray-200 font-medium"
+              className="px-3 py-1.5 bg-[#C9A66B]/15 hover:bg-[#C9A66B]/25 text-[#FFFCFA] border border-[#C9A66B]/30 rounded font-medium transition-colors"
             >
               Customer Orders View
             </Link>
@@ -528,14 +528,14 @@ export default function AdminDashboardPage() {
       <div className="bg-slate-900 border-b border-slate-800 text-xs px-4 sm:px-8 py-2">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 overflow-x-auto scrollbar-none">
           <div className="flex items-center gap-1.5 font-medium text-slate-300">
-            <span className="text-amber-400 font-bold uppercase tracking-wider text-[10px] mr-1">Admin Desks:</span>
-            <Link href="/admin/dashboard" className="px-2.5 py-1 rounded bg-slate-800 hover:bg-indigo-600 hover:text-white transition whitespace-nowrap">📊 Dashboard</Link>
-            <Link href="/admin/orders" className="px-2.5 py-1 rounded bg-slate-800 hover:bg-indigo-600 hover:text-white transition whitespace-nowrap">📦 Orders</Link>
-            <Link href="/admin/products" className="px-2.5 py-1 rounded bg-slate-800 hover:bg-indigo-600 hover:text-white transition whitespace-nowrap">📱 Products</Link>
-            <Link href="/admin/inventory" className="px-2.5 py-1 rounded bg-slate-800 hover:bg-indigo-600 hover:text-white transition whitespace-nowrap">📦 Inventory</Link>
-            <Link href="/admin/customers" className="px-2.5 py-1 rounded bg-slate-800 hover:bg-indigo-600 hover:text-white transition whitespace-nowrap">👥 Customers</Link>
-            <Link href="/admin/warranties" className="px-2.5 py-1 rounded bg-slate-800 hover:bg-indigo-600 hover:text-white transition whitespace-nowrap">🛡️ Warranties</Link>
-            <Link href="/admin/email-logs" className="px-2.5 py-1 rounded bg-slate-800 hover:bg-indigo-600 hover:text-white transition whitespace-nowrap">✉️ MSG91 Logs</Link>
+            <span className="text-[#C9A66B] font-bold uppercase tracking-wider text-[10px] mr-1">Admin Desks:</span>
+            <Link href="/admin/dashboard" className="px-2.5 py-1 rounded bg-[#C9A66B]/15 hover:bg-[#C9A66B] hover:text-[#FFFCFA] text-[#E5CBA2] border border-[#C9A66B]/30 transition whitespace-nowrap font-medium">📊 Dashboard</Link>
+            <Link href="/admin/orders" className="px-2.5 py-1 rounded bg-[#C9A66B]/15 hover:bg-[#C9A66B] hover:text-[#FFFCFA] text-[#E5CBA2] border border-[#C9A66B]/30 transition whitespace-nowrap font-medium">📦 Orders</Link>
+            <Link href="/admin/products" className="px-2.5 py-1 rounded bg-[#C9A66B]/15 hover:bg-[#C9A66B] hover:text-[#FFFCFA] text-[#E5CBA2] border border-[#C9A66B]/30 transition whitespace-nowrap font-medium">📱 Products</Link>
+            <Link href="/admin/inventory" className="px-2.5 py-1 rounded bg-[#C9A66B]/15 hover:bg-[#C9A66B] hover:text-[#FFFCFA] text-[#E5CBA2] border border-[#C9A66B]/30 transition whitespace-nowrap font-medium">📦 Inventory</Link>
+            <Link href="/admin/customers" className="px-2.5 py-1 rounded bg-[#C9A66B]/15 hover:bg-[#C9A66B] hover:text-[#FFFCFA] text-[#E5CBA2] border border-[#C9A66B]/30 transition whitespace-nowrap font-medium">👥 Customers</Link>
+            <Link href="/admin/warranties" className="px-2.5 py-1 rounded bg-[#C9A66B]/15 hover:bg-[#C9A66B] hover:text-[#FFFCFA] text-[#E5CBA2] border border-[#C9A66B]/30 transition whitespace-nowrap font-medium">🛡️ Warranties</Link>
+            <Link href="/admin/email-logs" className="px-2.5 py-1 rounded bg-[#C9A66B]/15 hover:bg-[#C9A66B] hover:text-[#FFFCFA] text-[#E5CBA2] border border-[#C9A66B]/30 transition whitespace-nowrap font-medium">✉️ MSG91 Logs</Link>
           </div>
         </div>
       </div>
@@ -547,7 +547,7 @@ export default function AdminDashboardPage() {
             onClick={() => setActiveTab("orders")}
             className={`px-4 py-2.5 rounded-sm flex items-center gap-2 transition-all cursor-pointer ${
               activeTab === "orders"
-                ? "bg-[#febd69] text-[#131921] shadow-xs"
+                ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] shadow-xs"
                 : "text-gray-300 hover:text-white hover:bg-white/5"
             }`}
           >
@@ -559,7 +559,7 @@ export default function AdminDashboardPage() {
             onClick={() => setActiveTab("stock")}
             className={`px-4 py-2.5 rounded-sm flex items-center gap-2 transition-all cursor-pointer ${
               activeTab === "stock"
-                ? "bg-[#febd69] text-[#131921] shadow-xs"
+                ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] shadow-xs"
                 : "text-gray-300 hover:text-white hover:bg-white/5"
             }`}
           >
@@ -571,7 +571,7 @@ export default function AdminDashboardPage() {
             onClick={() => setActiveTab("add-product")}
             className={`px-4 py-2.5 rounded-sm flex items-center gap-2 transition-all cursor-pointer ${
               activeTab === "add-product"
-                ? "bg-[#febd69] text-[#131921] shadow-xs"
+                ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] shadow-xs"
                 : "text-gray-300 hover:text-white hover:bg-white/5"
             }`}
           >
@@ -608,8 +608,8 @@ export default function AdminDashboardPage() {
                       onClick={() => setOrderStatusFilter(status)}
                       className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all cursor-pointer ${
                         orderStatusFilter === status
-                          ? "bg-[#131921] text-white"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                          ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] shadow-xs"
+                          : "bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 text-[#8C6226] dark:text-[#E5CBA2] border border-[#C9A66B]/20"
                       }`}
                     >
                       {status === "ALL" ? "All Orders" : status.replace(/_/g, " ")}
@@ -618,10 +618,10 @@ export default function AdminDashboardPage() {
                 )}
                 <button
                   onClick={fetchOrders}
-                  className="p-1 text-gray-500 hover:text-gray-800"
+                  className="p-1.5 text-[#8C6226] dark:text-[#E5CBA2] bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 border border-[#C9A66B]/30 rounded transition-colors"
                   title="Refresh Orders"
                 >
-                  <RefreshCw className={`w-4 h-4 ${loadingOrders ? "animate-spin" : ""}`} />
+                  <RefreshCw className={`w-3.5 h-3.5 ${loadingOrders ? "animate-spin" : ""}`} />
                 </button>
               </div>
             </div>
@@ -698,19 +698,19 @@ export default function AdminDashboardPage() {
 
                           <button
                             onClick={() => handleOpenAlterModal(order)}
-                            className="px-2.5 py-1 text-[11px] font-bold text-gray-700 bg-white hover:bg-gray-100 border border-gray-300 rounded-sm flex items-center gap-1"
+                            className="px-2.5 py-1 text-[11px] font-bold text-[#8C6226] dark:text-[#E5CBA2] bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 border border-[#C9A66B]/30 rounded-sm flex items-center gap-1 cursor-pointer transition-colors"
                             title="Edit customer, delivery address or amount"
                           >
-                            <Edit3 className="w-3 h-3 text-blue-600" />
+                            <Edit3 className="w-3 h-3 text-[#C9A66B]" />
                             <span>Alter Details</span>
                           </button>
 
                           <button
                             onClick={() => handleDeleteOrder(order.id, order.orderNumber)}
-                            className="px-2.5 py-1 text-[11px] font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-sm flex items-center gap-1"
+                            className="px-2.5 py-1 text-[11px] font-bold text-[#8C6226] dark:text-[#E5CBA2] bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 border border-[#C9A66B]/30 rounded-sm flex items-center gap-1 cursor-pointer transition-colors"
                             title="Delete order from database"
                           >
-                            <Trash2 className="w-3 h-3 text-red-600" />
+                            <Trash2 className="w-3 h-3 text-red-500" />
                             <span>Delete</span>
                           </button>
                         </div>
@@ -825,7 +825,7 @@ export default function AdminDashboardPage() {
                           {!isShipped && !isDelivered && (
                             <button
                               onClick={() => handleOpenShippingModal(order)}
-                              className="bg-blue-600 hover:bg-blue-700 text-white py-1 px-3 text-xs font-bold rounded-sm flex items-center gap-1 transition-colors"
+                              className="bg-[#C9A66B] hover:bg-[#B8914A] active:bg-[#A67C3D] text-[#FFFCFA] py-1 px-3 text-xs font-bold rounded-sm flex items-center gap-1 transition-colors shadow-xs"
                             >
                               <Truck className="w-3 h-3" />
                               <span>Update Shipping & Tracking</span>
@@ -835,7 +835,7 @@ export default function AdminDashboardPage() {
                           {isShipped && (
                             <button
                               onClick={() => handleOpenShippingModal(order)}
-                              className="bg-gray-200 hover:bg-gray-300 text-gray-800 py-1 px-2.5 text-xs font-medium rounded-sm flex items-center gap-1"
+                              className="bg-[#C9A66B]/15 hover:bg-[#C9A66B]/25 active:bg-[#A67C3D] text-[#8C6226] dark:text-[#E5CBA2] border border-[#C9A66B]/30 py-1 px-2.5 text-xs font-medium rounded-sm flex items-center gap-1 transition-colors"
                             >
                               <Edit3 className="w-3 h-3" />
                               <span>Edit Tracking</span>
@@ -846,7 +846,7 @@ export default function AdminDashboardPage() {
                             <button
                               onClick={() => handleCompleteOrder(order.id)}
                               disabled={actionLoading === `complete-${order.id}`}
-                              className="bg-emerald-600 hover:bg-emerald-700 text-white py-1 px-3 text-xs font-bold rounded-sm flex items-center gap-1 transition-colors"
+                              className="bg-[#C9A66B] hover:bg-[#B8914A] active:bg-[#A67C3D] text-[#FFFCFA] py-1 px-3 text-xs font-bold rounded-sm flex items-center gap-1 transition-colors shadow-xs"
                             >
                               <CheckCircle2 className="w-3 h-3" />
                               <span>Complete & Deliver</span>
@@ -911,7 +911,7 @@ export default function AdminDashboardPage() {
 
                 <button
                   onClick={fetchMobiles}
-                  className="p-1.5 text-gray-600 hover:text-black border border-gray-300 rounded"
+                  className="p-1.5 text-[#8C6226] dark:text-[#E5CBA2] bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 border border-[#C9A66B]/30 rounded transition-colors cursor-pointer"
                   title="Reload Products"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${loadingMobiles ? "animate-spin" : ""}`} />
@@ -969,7 +969,7 @@ export default function AdminDashboardPage() {
                           <div className="inline-flex items-center gap-1.5 bg-gray-100 p-1 rounded border border-gray-200">
                             <button
                               onClick={() => handleUpdateStock(m.id, -1)}
-                              className="w-6 h-6 bg-white hover:bg-gray-200 border border-gray-300 rounded font-bold text-gray-700 flex items-center justify-center cursor-pointer text-xs"
+                              className="w-6 h-6 bg-[#C9A66B]/15 hover:bg-[#C9A66B]/25 active:bg-[#A67C3D] border border-[#C9A66B]/35 rounded font-bold text-[#8C6226] dark:text-[#E5CBA2] flex items-center justify-center cursor-pointer text-xs transition-colors"
                             >
                               -
                             </button>
@@ -986,7 +986,7 @@ export default function AdminDashboardPage() {
                             </span>
                             <button
                               onClick={() => handleUpdateStock(m.id, 1)}
-                              className="w-6 h-6 bg-white hover:bg-gray-200 border border-gray-300 rounded font-bold text-gray-700 flex items-center justify-center cursor-pointer text-xs"
+                              className="w-6 h-6 bg-[#C9A66B]/15 hover:bg-[#C9A66B]/25 active:bg-[#A67C3D] border border-[#C9A66B]/35 rounded font-bold text-[#8C6226] dark:text-[#E5CBA2] flex items-center justify-center cursor-pointer text-xs transition-colors"
                             >
                               +
                             </button>
@@ -995,7 +995,7 @@ export default function AdminDashboardPage() {
                             {m.stock <= 0 ? (
                               <button
                                 onClick={() => handleSetExactStock(m.id, 25)}
-                                className="px-2 py-0.5 bg-red-100 hover:bg-red-200 text-red-800 text-[10px] font-bold rounded border border-red-300 transition-colors cursor-pointer"
+                                className="px-2 py-0.5 bg-[#C9A66B] hover:bg-[#B8914A] active:bg-[#A67C3D] text-[#FFFCFA] text-[10px] font-bold rounded shadow-xs transition-colors cursor-pointer"
                                 title="Click to Restock to 25 units"
                               >
                                 ⚠️ OUT OF STOCK (Click to Restock)
@@ -1003,7 +1003,7 @@ export default function AdminDashboardPage() {
                             ) : (
                               <button
                                 onClick={() => handleSetExactStock(m.id, 0)}
-                                className="px-1.5 py-0.5 bg-gray-100 hover:bg-amber-100 text-gray-600 hover:text-amber-800 text-[10px] rounded border border-gray-200 transition-colors cursor-pointer"
+                                className="px-1.5 py-0.5 bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 text-[#8C6226] dark:text-[#E5CBA2] text-[10px] rounded border border-[#C9A66B]/30 transition-colors cursor-pointer"
                                 title="Click to mark this phone Currently Out of Stock"
                               >
                                 Set Out of Stock (0)
@@ -1015,7 +1015,7 @@ export default function AdminDashboardPage() {
                         <td className="py-3 px-3 text-right">
                           <button
                             onClick={() => handleDeleteProduct(m.id, `${m.brand} ${m.model}`)}
-                            className="p-1.5 text-gray-400 hover:text-red-600 rounded hover:bg-red-50 transition-colors"
+                            className="p-1.5 text-gray-400 hover:text-red-600 rounded hover:bg-[#C9A66B]/15 transition-colors cursor-pointer"
                             title="Delete Product"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -1306,14 +1306,14 @@ export default function AdminDashboardPage() {
                 <button
                   type="button"
                   onClick={() => setShippingModalOrder(null)}
-                  className="px-4 py-2 border border-gray-300 rounded text-xs font-bold text-gray-700"
+                  className="px-4 py-2 border border-[#C9A66B]/30 bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 rounded text-xs font-bold text-[#8C6226] dark:text-[#E5CBA2] cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={actionLoading === `ship-${shippingModalOrder.id}`}
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-bold"
+                  className="px-5 py-2 bg-[#C9A66B] hover:bg-[#B8914A] active:bg-[#A67C3D] text-[#FFFCFA] rounded text-xs font-bold cursor-pointer disabled:opacity-50 transition-colors shadow-xs"
                 >
                   {actionLoading ? "Dispatching..." : "Confirm Shipment & Notify Buyer"}
                 </button>
@@ -1468,14 +1468,14 @@ export default function AdminDashboardPage() {
                 <button
                   type="button"
                   onClick={() => setAlterModalOrder(null)}
-                  className="px-4 py-2 border border-gray-300 rounded text-xs font-bold text-gray-700"
+                  className="px-4 py-2 border border-[#C9A66B]/30 bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 rounded text-xs font-bold text-[#8C6226] dark:text-[#E5CBA2] cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={actionLoading === `alter-${alterModalOrder.id}`}
-                  className="px-5 py-2 btn-amazon-yellow text-xs font-bold rounded"
+                  className="px-5 py-2 btn-amazon-yellow text-xs font-bold rounded cursor-pointer"
                 >
                   {actionLoading ? "Saving Changes..." : "Save Alterations"}
                 </button>

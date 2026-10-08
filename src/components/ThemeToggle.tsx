@@ -87,8 +87,8 @@ export default function ThemeToggle({ className = "", showLabels = false }: Them
             onClick={() => handleThemeChange(opt.value)}
             className={`group relative flex items-center justify-center h-7 px-2.5 sm:px-3 rounded-full text-xs font-medium transition-all duration-200 ease-out cursor-pointer select-none ${
               isActive
-                ? "bg-white text-[#0071E3] shadow-[0_2px_6px_rgba(0,0,0,0.1),0_1px_2px_rgba(0,0,0,0.06)] ring-1 ring-black/[0.04] dark:bg-[#27272A] dark:text-[#2997FF] dark:shadow-[0_2px_8px_rgba(0,0,0,0.6)] dark:border dark:border-white/[0.14] dark:ring-1 dark:ring-[#2997FF]/30 font-semibold"
-                : "text-muted hover:text-foreground hover:bg-black/[0.04] dark:hover:bg-white/[0.08] dark:text-[#9E9EA4] dark:hover:text-white"
+                ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] shadow-[0_2px_8px_rgba(201,166,107,0.35)] ring-1 ring-[#C9A66B]/50 font-semibold"
+                : "text-muted hover:text-[#8C6226] dark:hover:text-[#D4B483] hover:bg-[#C9A66B]/15"
             }`}
             title={opt.title}
             aria-label={opt.title}

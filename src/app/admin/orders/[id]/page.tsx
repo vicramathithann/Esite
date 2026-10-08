@@ -156,9 +156,9 @@ export default function AdminSingleOrderPage() {
           <button
             onClick={handleResendEmail}
             disabled={resendingEmail}
-            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition"
+            className="px-3 py-1.5 bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 text-[#8C6226] dark:text-[#E5CBA2] rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
           >
-            <Mail className={`w-3.5 h-3.5 text-indigo-400 ${resendingEmail ? "animate-spin" : ""}`} />
+            <Mail className={`w-3.5 h-3.5 text-[#8C6226] dark:text-[#E5CBA2] ${resendingEmail ? "animate-spin" : ""}`} />
             Resend Confirmation Email
           </button>
         </div>
@@ -239,7 +239,7 @@ export default function AdminSingleOrderPage() {
             <button
               type="submit"
               disabled={saving}
-              className="py-2.5 px-5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs rounded-xl flex items-center gap-1.5 transition"
+              className="py-2.5 px-5 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] font-semibold text-xs rounded-xl flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
             >
               <Save className="w-3.5 h-3.5" />
               {saving ? "Saving Changes..." : "Update Order & Notify Customer via Email"}

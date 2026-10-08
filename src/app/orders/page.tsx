@@ -167,14 +167,14 @@ export default function OrdersPage() {
           <div className="flex items-center gap-2.5">
             <button
               onClick={loadOrders}
-              className="py-2 px-3.5 bg-card border border-border rounded-xl hover:bg-tile text-foreground text-xs font-medium flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
+              className="py-2 px-3.5 bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 rounded-xl hover:bg-[#C9A66B]/20 text-[#8C6226] dark:text-[#E5CBA2] text-xs font-medium flex items-center gap-1.5 cursor-pointer transition-all shadow-2xs"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
               <span>Refresh</span>
             </button>
             <button
               onClick={() => setIsSmsDrawerOpen(true)}
-              className="py-2 px-4 bg-accent text-white hover:opacity-95 text-xs font-semibold rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm transition-all"
+              className="py-2 px-4 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] text-xs font-semibold rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm transition-all"
             >
               <MessageSquare className="w-3.5 h-3.5" />
               <span>View Buyer SMS Alerts</span>
@@ -196,7 +196,7 @@ export default function OrdersPage() {
             </div>
             <Link
               href="/login?redirect=/orders"
-              className="px-4 py-2 bg-accent text-white hover:opacity-95 text-xs font-semibold rounded-xl shadow-xs transition-all"
+              className="px-4 py-2 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] text-xs font-semibold rounded-xl shadow-xs transition-all"
             >
               Sign In to Your Account
             </Link>
@@ -209,7 +209,7 @@ export default function OrdersPage() {
             onClick={() => setActiveOrderTab("all")}
             className={`pb-3 text-xs md:text-sm transition-colors cursor-pointer ${
               activeOrderTab === "all"
-                ? "font-bold text-foreground border-b-2 border-accent"
+                ? "font-bold text-[#8C6226] dark:text-[#E5CBA2] border-b-2 border-[#C9A66B] dark:border-[#D4B483]"
                 : "text-muted hover:text-foreground"
             }`}
           >
@@ -219,7 +219,7 @@ export default function OrdersPage() {
             onClick={() => setActiveOrderTab("active")}
             className={`pb-3 text-xs md:text-sm transition-colors cursor-pointer ${
               activeOrderTab === "active"
-                ? "font-bold text-foreground border-b-2 border-accent"
+                ? "font-bold text-[#8C6226] dark:text-[#E5CBA2] border-b-2 border-[#C9A66B] dark:border-[#D4B483]"
                 : "text-muted hover:text-foreground"
             }`}
           >
@@ -229,8 +229,8 @@ export default function OrdersPage() {
             onClick={() => setActiveOrderTab("cancelled")}
             className={`pb-3 text-xs md:text-sm transition-colors cursor-pointer ${
               activeOrderTab === "cancelled"
-                ? "font-bold text-red-500 border-b-2 border-red-500"
-                : "text-muted hover:text-red-500"
+                ? "font-bold text-[#8C6226] dark:text-[#E5CBA2] border-b-2 border-[#C9A66B] dark:border-[#D4B483]"
+                : "text-muted hover:text-foreground"
             }`}
           >
             Cancelled Orders ({cancelledOrdersCount})
@@ -240,7 +240,7 @@ export default function OrdersPage() {
         {/* Feature Banner */}
         <div className="bg-tile border border-border rounded-2xl p-4 mb-6 text-xs text-muted flex items-center justify-between gap-3 shadow-2xs">
           <div className="flex items-center gap-2.5">
-            <BellRing className="w-4 h-4 text-accent shrink-0" />
+            <BellRing className="w-4 h-4 text-[#C9A66B] dark:text-[#D4B483] shrink-0" />
             <span>
               <strong className="text-foreground">VM Mobiles Pre-Expiry Alert System:</strong> Test sending simulated SMS alerts (5 days or 24 hours left) on any smartphone below to verify the delivery on your phone number.
             </span>
@@ -250,7 +250,7 @@ export default function OrdersPage() {
         {/* Orders List */}
         {loading && orders.length === 0 ? (
           <div className="py-20 text-center text-muted">
-            <div className="w-8 h-8 border-3 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+            <div className="w-8 h-8 border-3 border-[#C9A66B] dark:border-[#D4B483] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
             <p className="text-xs">Loading your orders...</p>
           </div>
         ) : orders.length === 0 ? (
@@ -260,7 +260,7 @@ export default function OrdersPage() {
             <p className="text-xs text-muted max-w-md mx-auto">
               When you purchase a smartphone from VM Mobiles, you can track delivery and device warranty expiry here.
             </p>
-            <Link href="/" className="inline-flex items-center justify-center bg-accent text-white hover:opacity-95 py-2.5 px-6 text-xs font-semibold rounded-xl transition-all shadow-sm">
+            <Link href="/" className="inline-flex items-center justify-center bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] py-2.5 px-6 text-xs font-semibold rounded-xl transition-all shadow-sm">
               Start Shopping
             </Link>
           </div>
@@ -296,14 +296,14 @@ export default function OrdersPage() {
                     <div className="flex items-center gap-2">
                       <Link
                         href={`/track/${order.orderNumber}`}
-                        className="bg-accent text-white hover:opacity-95 py-1.5 px-3 text-xs font-semibold rounded-xl flex items-center gap-1.5 shadow-2xs transition-all"
+                        className="bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] py-1.5 px-3 text-xs font-semibold rounded-xl flex items-center gap-1.5 shadow-2xs transition-all"
                       >
                         <Truck className="w-3.5 h-3.5" />
                         <span>Track Package</span>
                       </Link>
 
                       {order.orderStatus === "CANCELLED" ? (
-                        <span className="py-1.5 px-3 text-xs font-semibold rounded-xl bg-red-500/10 text-red-500 border border-red-500/20 flex items-center gap-1">
+                        <span className="py-1.5 px-3 text-xs font-semibold rounded-xl bg-[#C9A66B]/15 text-[#8C6226] dark:text-[#E5CBA2] border border-[#C9A66B]/30 flex items-center gap-1">
                           <X className="w-3.5 h-3.5" /> Cancelled
                         </span>
                       ) : order.orderStatus !== "DELIVERED" ? (
@@ -312,7 +312,7 @@ export default function OrdersPage() {
                             setCancelModalOrder(order);
                             setCancelReason("Order created by mistake");
                           }}
-                          className="py-1.5 px-3 text-xs font-semibold rounded-xl bg-card hover:bg-red-500/10 text-red-500 border border-border hover:border-red-500/30 flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                          className="py-1.5 px-3 text-xs font-semibold rounded-xl bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 text-[#8C6226] dark:text-[#E5CBA2] flex items-center gap-1 cursor-pointer transition-all shadow-2xs"
                           title="Cancel this order and receive full refund"
                         >
                           <X className="w-3.5 h-3.5" />
@@ -459,9 +459,9 @@ export default function OrdersPage() {
                             <button
                               onClick={() => handleSimulateExpiry(item.id, "SET_NEAR_EXPIRY")}
                               disabled={actionLoading !== null}
-                              className="w-full py-2 px-3 bg-card hover:bg-tile border border-border rounded-xl font-medium text-left transition-colors cursor-pointer text-foreground disabled:opacity-50"
+                              className="w-full py-2 px-3 bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 dark:hover:bg-[#D4B483]/20 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 rounded-xl font-medium text-left transition-all cursor-pointer text-foreground disabled:opacity-50"
                             >
-                              <div className="flex items-center gap-1.5 text-amber-500 font-semibold text-xs">
+                              <div className="flex items-center gap-1.5 text-[#8C6226] dark:text-[#E5CBA2] font-semibold text-xs">
                                 <AlertTriangle className="w-3.5 h-3.5" /> Set 5-Day Expiry
                               </div>
                               <span className="text-[10px] text-muted block mt-0.5">Triggers 7-Day Warning SMS</span>
@@ -470,9 +470,9 @@ export default function OrdersPage() {
                             <button
                               onClick={() => handleSimulateExpiry(item.id, "SET_URGENT_EXPIRY")}
                               disabled={actionLoading !== null}
-                              className="w-full py-2 px-3 bg-card hover:bg-tile border border-border rounded-xl font-medium text-left transition-colors cursor-pointer text-foreground disabled:opacity-50"
+                              className="w-full py-2 px-3 bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 dark:hover:bg-[#D4B483]/20 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 rounded-xl font-medium text-left transition-all cursor-pointer text-foreground disabled:opacity-50"
                             >
-                              <div className="flex items-center gap-1.5 text-red-500 font-semibold text-xs">
+                              <div className="flex items-center gap-1.5 text-[#8C6226] dark:text-[#E5CBA2] font-semibold text-xs">
                                 <ShieldAlert className="w-3.5 h-3.5" /> Set 24H Expiry
                               </div>
                               <span className="text-[10px] text-muted block mt-0.5">Triggers Final Alert SMS</span>
@@ -481,9 +481,9 @@ export default function OrdersPage() {
                             <button
                               onClick={() => handleSimulateExpiry(item.id, "EXTEND_WARRANTY")}
                               disabled={actionLoading !== null}
-                              className="w-full py-2 px-3 bg-card hover:bg-tile border border-border rounded-xl font-medium text-left transition-colors cursor-pointer text-foreground disabled:opacity-50"
+                              className="w-full py-2 px-3 bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 dark:hover:bg-[#D4B483]/20 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 rounded-xl font-medium text-left transition-all cursor-pointer text-foreground disabled:opacity-50"
                             >
-                              <div className="flex items-center gap-1.5 text-emerald-500 font-semibold text-xs">
+                              <div className="flex items-center gap-1.5 text-[#8C6226] dark:text-[#E5CBA2] font-semibold text-xs">
                                 <Plus className="w-3.5 h-3.5" /> Extend +1 Year
                               </div>
                               <span className="text-[10px] text-muted block mt-0.5">Renew warranty & SMS</span>
@@ -588,7 +588,7 @@ export default function OrdersPage() {
                 type="button"
                 onClick={() => setCancelModalOrder(null)}
                 disabled={cancelling}
-                className="py-2 px-4 text-xs font-semibold rounded-xl border border-border bg-card hover:bg-tile text-foreground cursor-pointer transition-colors"
+                className="py-2 px-4 text-xs font-semibold rounded-xl border border-[#C9A66B]/30 dark:border-[#D4B483]/30 bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 text-[#8C6226] dark:text-[#E5CBA2] cursor-pointer transition-all"
               >
                 Keep Order
               </button>
@@ -596,7 +596,7 @@ export default function OrdersPage() {
                 type="button"
                 onClick={handleConfirmCancel}
                 disabled={cancelling}
-                className="py-2 px-4 text-xs font-semibold rounded-xl bg-red-600 hover:bg-red-700 text-white shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
+                className="py-2 px-4 text-xs font-semibold rounded-xl bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all"
               >
                 {cancelling ? (
                   <>

@@ -25,7 +25,7 @@ export default function AdminLoginPage() {
         </p>
         <Link
           href="/login?redirect=/admin"
-          className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#febd69] text-[#131921] font-bold text-xs rounded-md shadow hover:bg-[#f3a847]"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] font-bold text-xs rounded-xl shadow-xs transition-all"
         >
           <span>Continue to Sign In</span>
           <ArrowRight className="w-3.5 h-3.5" />

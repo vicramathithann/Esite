@@ -33,7 +33,7 @@ export default function AdminNav() {
         <div className="flex items-center justify-between h-14">
           <div className="flex items-center gap-3">
             <span className="font-bold text-white text-sm tracking-tight flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse"></span>
+              <span className="w-2.5 h-2.5 rounded-full bg-[#C9A66B] dark:bg-[#D4B483] animate-pulse"></span>
               VM Mobiles Admin
             </span>
           </div>
@@ -46,9 +46,9 @@ export default function AdminNav() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
                     isActive
-                      ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/20"
+                      ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] shadow-md shadow-[#C9A66B]/20"
                       : "text-slate-400 hover:text-white hover:bg-slate-800/60"
                   }`}
                 >

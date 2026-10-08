@@ -150,9 +150,9 @@ export default function SingleOrderDetailsPage() {
           <div className="flex items-center gap-2">
             <Link
               href={`/track/${order.orderNumber}`}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-tile border border-border hover:bg-tile/80 text-foreground rounded-full text-xs font-medium transition-all shadow-2xs"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 hover:bg-[#C9A66B]/20 text-[#8C6226] dark:text-[#E5CBA2] rounded-full text-xs font-medium transition-all shadow-2xs"
             >
-              <Truck className="w-3.5 h-3.5 text-accent" /> Track Live Shipment
+              <Truck className="w-3.5 h-3.5 text-[#C9A66B] dark:text-[#D4B483]" /> Track Live Shipment
             </Link>
           </div>
         </div>
@@ -169,7 +169,7 @@ export default function SingleOrderDetailsPage() {
                       ? "bg-red-500/10 text-red-500 border border-red-500/20"
                       : order.orderStatus === "Delivered"
                       ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                      : "bg-accent/10 text-accent border border-accent/20"
+                      : "bg-[#C9A66B]/15 text-[#8C6226] dark:text-[#E5CBA2] border border-[#C9A66B]/30"
                   }`}
                 >
                   {order.orderStatus}
@@ -184,7 +184,7 @@ export default function SingleOrderDetailsPage() {
               <button
                 onClick={handleCancelOrder}
                 disabled={cancelling}
-                className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-500 text-xs font-semibold rounded-full flex items-center gap-1.5 transition self-start sm:self-auto cursor-pointer"
+                className="px-4 py-2 bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 text-[#8C6226] dark:text-[#E5CBA2] text-xs font-semibold rounded-full flex items-center gap-1.5 transition-all self-start sm:self-auto cursor-pointer"
               >
                 <XCircle className="w-4 h-4" /> {cancelling ? "Cancelling..." : "Cancel Order"}
               </button>

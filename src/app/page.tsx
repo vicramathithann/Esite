@@ -101,7 +101,7 @@ function MarketplaceContent() {
               <div className="pt-2 flex flex-wrap items-center justify-center lg:justify-start gap-3">
                 <Link
                   href={`/mobile/${heroProduct.id}`}
-                  className="px-8 py-3.5 rounded-full bg-accent hover:opacity-90 text-white dark:text-[#0B0B0C] text-sm font-semibold transition-all duration-200 shadow-md flex items-center gap-2"
+                  className="px-8 py-3.5 rounded-full bg-[#C9A66B] hover:bg-[#B8914A] active:bg-[#A67C3D] text-[#FFFCFA] text-sm font-semibold transition-all duration-200 shadow-md flex items-center gap-2 cursor-pointer"
                 >
                   <span>Buy Now</span>
                   <ChevronRight className="w-4 h-4" />
@@ -109,7 +109,7 @@ function MarketplaceContent() {
 
                 <Link
                   href="/compare"
-                  className="px-8 py-3.5 rounded-full bg-white/10 hover:bg-white/15 text-white border border-white/20 text-sm font-medium transition-all duration-200 flex items-center gap-2"
+                  className="px-8 py-3.5 rounded-full bg-[#C9A66B]/20 hover:bg-[#C9A66B]/30 text-[#FFFCFA] border border-[#C9A66B]/50 text-sm font-medium transition-all duration-200 flex items-center gap-2 cursor-pointer"
                 >
                   <Layers className="w-4 h-4" />
                   <span>Compare</span>
@@ -119,7 +119,7 @@ function MarketplaceContent() {
 
             {/* Right Phone Stage with Ambient Backlight */}
             <div className="lg:col-span-5 flex items-center justify-center relative">
-              <div className="absolute w-72 h-72 sm:w-96 sm:h-96 rounded-full bg-accent/20 blur-3xl pointer-events-none" />
+              <div className="absolute w-72 h-72 sm:w-96 sm:h-96 rounded-full bg-[#C9A66B]/20 blur-3xl pointer-events-none" />
 
               <div className="relative aspect-square w-full max-w-[420px] p-6 flex items-center justify-center">
                 <Image
@@ -128,7 +128,7 @@ function MarketplaceContent() {
                   fill
                   priority
                   unoptimized
-                  className="object-contain drop-shadow-[0_20px_50px_rgba(41,151,255,0.3)] hover:scale-105 transition-transform duration-200 ease-out"
+                  className="object-contain drop-shadow-[0_20px_50px_rgba(201,166,107,0.3)] hover:scale-105 transition-transform duration-200 ease-out"
                 />
               </div>
             </div>
@@ -147,8 +147,8 @@ function MarketplaceContent() {
                 onClick={() => setSelectedBrand(brand)}
                 className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-200 cursor-pointer ${
                   selectedBrand === brand
-                    ? "bg-foreground text-background shadow-xs font-semibold"
-                    : "bg-tile text-muted hover:text-foreground hover:bg-tile/80 border border-border/40"
+                    ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] shadow-xs font-semibold"
+                    : "bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 text-[#8C6226] dark:text-[#E2C799] border border-[#C9A66B]/30"
                 }`}
               >
                 {brand}

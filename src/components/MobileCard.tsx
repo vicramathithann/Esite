@@ -118,7 +118,7 @@ export default function MobileCard({ product }: MobileCardProps) {
               onClick={() => setSelectedColor(color)}
               className={`w-3.5 h-3.5 rounded-full transition-all duration-200 cursor-pointer ${
                 selectedColor?.name === color.name
-                  ? "ring-2 ring-offset-2 ring-accent scale-110"
+                  ? "ring-2 ring-offset-2 ring-[#C9A66B] dark:ring-[#D4B483] scale-110"
                   : "opacity-75 hover:opacity-100"
               }`}
               style={{ backgroundColor: color.hex }}
@@ -131,7 +131,7 @@ export default function MobileCard({ product }: MobileCardProps) {
         <div className="space-y-1">
           <Link 
             href={`/mobile/${product.id}`}
-            className="text-sm sm:text-base font-bold text-foreground hover:text-accent transition-colors duration-200 line-clamp-1 block leading-snug"
+            className="text-sm sm:text-base font-bold text-foreground hover:text-[#C9A66B] dark:hover:text-[#D4B483] transition-colors duration-200 line-clamp-1 block leading-snug"
           >
             {product.name}
           </Link>
@@ -162,8 +162,8 @@ export default function MobileCard({ product }: MobileCardProps) {
                 onClick={() => setSelectedStorage(storage)}
                 className={`px-2.5 py-0.5 text-[10px] sm:text-[11px] rounded-full font-medium transition-all duration-200 cursor-pointer ${
                   selectedStorage?.size === storage.size
-                    ? "bg-foreground text-background font-semibold"
-                    : "bg-tile text-muted hover:text-foreground border border-border/50"
+                    ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] font-semibold shadow-xs"
+                    : "bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 text-[#8C6226] dark:text-[#E2C799] border border-[#C9A66B]/30"
                 }`}
               >
                 {(storage.size || "").split(" ")[0]}
@@ -181,10 +181,10 @@ export default function MobileCard({ product }: MobileCardProps) {
             <button
               type="button"
               onClick={handleAddToCart}
-              className="w-full py-2 px-3 text-xs font-medium rounded-full bg-tile text-muted border border-border cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
+              className="w-full py-2 px-3 text-xs font-medium rounded-full bg-[#C9A66B]/15 text-[#8C6226] dark:text-[#D4B483] border border-[#C9A66B]/30 cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
               title="Out of stock"
             >
-              <AlertCircle className="w-3.5 h-3.5 text-rose-500" />
+              <AlertCircle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
               <span>Out of Stock</span>
             </button>
           ) : (
@@ -192,8 +192,8 @@ export default function MobileCard({ product }: MobileCardProps) {
               onClick={handleAddToCart}
               className={`w-full py-2 px-3 text-xs font-semibold rounded-full transition-all duration-200 cursor-pointer shadow-xs flex items-center justify-center gap-1.5 ${
                 isAdded
-                  ? "bg-emerald-600 text-white"
-                  : "bg-accent hover:opacity-90 text-white dark:text-[#0B0B0C]"
+                  ? "bg-[#A67C3D] text-[#FFFCFA]"
+                  : "bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA]"
               }`}
             >
               {isAdded ? (
@@ -213,7 +213,7 @@ export default function MobileCard({ product }: MobileCardProps) {
         <div className="grid grid-cols-2 gap-1.5 pt-0.5">
           <Link
             href={`/mobile/${product.id}`}
-            className="py-1.5 px-2 text-[11px] rounded-full text-center font-medium bg-tile hover:bg-tile/80 text-foreground border border-border transition-all duration-200 block"
+            className="py-1.5 px-2 text-[11px] rounded-full text-center font-semibold bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] shadow-xs transition-all duration-200 block"
           >
             Buy Now
           </Link>
@@ -222,11 +222,11 @@ export default function MobileCard({ product }: MobileCardProps) {
             onClick={handleToggleCompare}
             className={`py-1.5 px-2 text-[11px] rounded-full text-center font-medium transition-all duration-200 cursor-pointer border ${
               isCompared
-                ? "bg-accent/15 text-accent border-accent/30 font-semibold"
-                : "bg-tile hover:bg-tile/80 text-muted hover:text-foreground border-border"
+                ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] border-[#C9A66B] dark:border-[#D4B483] font-semibold shadow-xs"
+                : "bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 text-[#8C6226] dark:text-[#E2C799] border-[#C9A66B]/40"
             }`}
           >
-            {isCompared ? "In Compare" : "Compare"}
+            {isCompared ? "In Compare ✓" : "Compare"}
           </button>
         </div>
       </div>
@@ -246,13 +246,13 @@ export default function MobileCard({ product }: MobileCardProps) {
           >
             <button
               onClick={() => setOutOfStockAlert(false)}
-              className="absolute top-4 right-4 text-muted hover:text-foreground p-1 cursor-pointer"
+              className="absolute top-4 right-4 text-[#8C6226] hover:text-[#B8914A] dark:text-[#D4B483] p-1 cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
 
             <div className="flex items-start gap-3.5">
-              <div className="w-10 h-10 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
                 <AlertCircle className="w-5 h-5" />
               </div>
               <div className="space-y-1.5">
@@ -262,7 +262,7 @@ export default function MobileCard({ product }: MobileCardProps) {
                 <p className="text-xs text-muted leading-relaxed">
                   We&apos;re sorry, <strong>{product.name}</strong> is currently out of stock.
                 </p>
-                <p className="text-xs text-accent bg-accent/10 p-2.5 rounded-[12px] border border-accent/20 mt-2">
+                <p className="text-xs text-[#8C6226] dark:text-[#D4B483] bg-[#C9A66B]/15 p-2.5 rounded-[12px] border border-[#C9A66B]/30 mt-2">
                   📢 We will notify you once fresh stock is replenished.
                 </p>
               </div>
@@ -271,7 +271,7 @@ export default function MobileCard({ product }: MobileCardProps) {
             <div className="mt-5 pt-3 border-t border-border flex justify-end">
               <button
                 onClick={() => setOutOfStockAlert(false)}
-                className="py-2 px-5 text-xs font-semibold rounded-full bg-foreground text-background cursor-pointer transition-colors"
+                className="py-2 px-5 text-xs font-semibold rounded-full bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] cursor-pointer transition-colors shadow-xs"
               >
                 Understood
               </button>

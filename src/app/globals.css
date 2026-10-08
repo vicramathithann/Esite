@@ -11,6 +11,11 @@
   --color-border: var(--border);
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
+  --color-sandal: var(--sandal-primary);
+  --color-sandal-hover: var(--sandal-hover);
+  --color-sandal-active: var(--sandal-active);
+  --color-sandal-text: var(--sandal-text);
+  --color-sandal-border: var(--sandal-border);
 }
 
 :root {
@@ -23,11 +28,24 @@
   --accent: #0071E3;
   --accent-hover: #0077ED;
 
+  /* Warm Sandal Button Color Tokens */
+  --sandal-primary: #C9A66B;
+  --sandal-hover: #B8914A;
+  --sandal-active: #A67C3D;
+  --sandal-text: #FFFCFA;
+  --sandal-border: #C9A66B;
+  --sandal-secondary-bg: rgba(201, 166, 107, 0.12);
+  --sandal-secondary-hover: rgba(201, 166, 107, 0.22);
+  --sandal-secondary-text: #8C6226;
+  --sandal-secondary-border: rgba(201, 166, 107, 0.40);
+  --sandal-focus-ring: rgba(201, 166, 107, 0.45);
+  --sandal-glow: 0 0 0 3px rgba(201, 166, 107, 0.35);
+
   /* Additional helper tokens */
   --card-radius: 20px;
   --card-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
-  --pill-active-bg: #111111;
-  --pill-active-text: #FFFFFF;
+  --pill-active-bg: #C9A66B;
+  --pill-active-text: #FFFCFA;
 }
 
 .dark {
@@ -40,11 +58,24 @@
   --accent: #2997FF;
   --accent-hover: #389eff;
 
+  /* Warm Sandal Button Color Tokens (Dark Mode) */
+  --sandal-primary: #D4B483;
+  --sandal-hover: #C49A5A;
+  --sandal-active: #A67C3D;
+  --sandal-text: #FFFCFA;
+  --sandal-border: #D4B483;
+  --sandal-secondary-bg: rgba(212, 180, 131, 0.16);
+  --sandal-secondary-hover: rgba(212, 180, 131, 0.28);
+  --sandal-secondary-text: #E5CBA2;
+  --sandal-secondary-border: rgba(212, 180, 131, 0.45);
+  --sandal-focus-ring: rgba(212, 180, 131, 0.45);
+  --sandal-glow: 0 0 0 3px rgba(212, 180, 131, 0.35);
+
   /* Additional helper tokens */
   --card-radius: 20px;
   --card-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
-  --pill-active-bg: #F5F5F7;
-  --pill-active-text: #111111;
+  --pill-active-bg: #D4B483;
+  --pill-active-text: #FFFCFA;
 }
 
 /* ========================================================
@@ -130,48 +161,112 @@ a {
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Apple & OnePlus Style Button Utilities */
+/* ========================================================
+   Warm Sandal Button System & Utilities
+   Primary: #C9A66B / #D4B483 | Hover: #B8914A / #C49A5A | Active: #A67C3D
+   Text: #FFFCFA | Focus glow: rgba(201,166,107,0.4)
+   ======================================================== */
 .btn-apple-primary,
-.btn-primary {
-  background-color: var(--accent);
-  border: 1px solid var(--accent);
+.btn-primary,
+.btn-sandal-primary,
+.btn-amazon-yellow {
+  background-color: var(--sandal-primary);
+  border: 1px solid var(--sandal-border);
   border-radius: 9999px;
-  color: #FFFFFF;
-  font-weight: 500;
-  transition: all 200ms ease-out;
-  box-shadow: 0 2px 8px rgba(0, 113, 227, 0.2);
+  color: var(--sandal-text) !important;
+  font-weight: 600;
+  transition: all 280ms cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 10px rgba(201, 166, 107, 0.28);
 }
 
 .btn-apple-primary:hover,
-.btn-primary:hover {
-  background-color: var(--accent-hover);
-  border-color: var(--accent-hover);
-  transform: translateY(-1px);
+.btn-primary:hover,
+.btn-sandal-primary:hover,
+.btn-amazon-yellow:hover {
+  background-color: var(--sandal-hover);
+  border-color: var(--sandal-hover);
+  transform: scale(1.02);
+}
+
+.btn-apple-primary:active,
+.btn-primary:active,
+.btn-sandal-primary:active,
+.btn-amazon-yellow:active {
+  background-color: var(--sandal-active);
+  border-color: var(--sandal-active);
+  transform: scale(0.98);
 }
 
 .dark .btn-apple-primary,
-.dark .btn-primary {
-  color: #0B0B0C;
+.dark .btn-primary,
+.dark .btn-sandal-primary,
+.dark .btn-amazon-yellow {
+  color: var(--sandal-text) !important;
   font-weight: 600;
-  box-shadow: 0 2px 10px rgba(41, 151, 255, 0.3);
+  box-shadow: 0 2px 12px rgba(212, 180, 131, 0.3);
 }
 
-.btn-apple-secondary {
-  background-color: var(--tile);
-  border: 1px solid var(--border);
+.btn-apple-secondary,
+.btn-sandal-secondary {
+  background-color: var(--sandal-secondary-bg);
+  border: 1px solid var(--sandal-secondary-border);
   border-radius: 9999px;
-  color: var(--foreground);
+  color: var(--sandal-secondary-text);
   font-weight: 500;
-  transition: all 200ms ease-out;
+  transition: all 280ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.btn-apple-secondary:hover {
-  filter: brightness(0.96);
-  transform: translateY(-1px);
+.btn-apple-secondary:hover,
+.btn-sandal-secondary:hover {
+  background-color: var(--sandal-secondary-hover);
+  border-color: var(--sandal-hover);
+  transform: scale(1.02);
 }
 
-.dark .btn-apple-secondary:hover {
-  filter: brightness(1.15);
+.btn-apple-secondary:active,
+.btn-sandal-secondary:active {
+  background-color: var(--sandal-active);
+  color: var(--sandal-text);
+  transform: scale(0.98);
+}
+
+/* Universal Button Behavior: 250-300ms transitions, hover/active scale, soft warm sandal glow */
+button,
+[role="button"],
+input[type="button"],
+input[type="submit"],
+input[type="reset"] {
+  transition-property: background-color, border-color, color, box-shadow, transform, opacity;
+  transition-duration: 280ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+button:focus-visible,
+[role="button"]:focus-visible,
+input[type="button"]:focus-visible,
+input[type="submit"]:focus-visible,
+input[type="reset"]:focus-visible {
+  outline: none !important;
+  box-shadow: var(--sandal-glow) !important;
+}
+
+button:hover:not(:disabled),
+[role="button"]:hover:not(:disabled) {
+  transform: scale(1.02);
+}
+
+button:active:not(:disabled),
+[role="button"]:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+button:disabled,
+[role="button"][aria-disabled="true"],
+input[type="button"]:disabled,
+input[type="submit"]:disabled {
+  opacity: 0.55 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
 }
 
 /* Clean Tech Card */

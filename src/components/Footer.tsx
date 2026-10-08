@@ -57,7 +57,7 @@ export default function Footer() {
             <div className="lg:col-span-5">
               {subscribed ? (
                 <div className="flex items-center gap-3 p-4 rounded-full bg-accent/10 border border-accent/20 text-accent text-sm font-medium animate-fade-in">
-                  <div className="w-6 h-6 rounded-full bg-accent text-white dark:text-[#0B0B0C] flex items-center justify-center shrink-0">
+                  <div className="w-6 h-6 rounded-full bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] flex items-center justify-center shrink-0">
                     <Check className="w-3.5 h-3.5" />
                   </div>
                   <span>Thank you! You are subscribed to flagship alerts.</span>
@@ -72,12 +72,12 @@ export default function Footer() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="Enter your email address"
-                      className="w-full pl-11 pr-4 py-3 bg-tile hover:bg-tile/80 focus:bg-card text-sm text-foreground placeholder:text-muted rounded-full border border-border focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none transition-all duration-200"
+                      className="w-full pl-11 pr-4 py-3 bg-tile hover:bg-tile/80 focus:bg-card text-sm text-foreground placeholder:text-muted rounded-full border border-border focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20 focus:outline-none transition-all duration-200"
                     />
                   </div>
                   <button
                     type="submit"
-                    className="px-6 py-3 rounded-full bg-accent hover:opacity-90 text-white dark:text-[#0B0B0C] text-sm font-semibold transition-all duration-200 shadow-sm shrink-0 flex items-center justify-center gap-2 cursor-pointer"
+                    className="px-6 py-3 rounded-full bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] text-sm font-semibold transition-all duration-200 shadow-sm shrink-0 flex items-center justify-center gap-2 cursor-pointer"
                   >
                     Subscribe
                   </button>
@@ -272,7 +272,7 @@ export default function Footer() {
           <button
             type="button"
             onClick={scrollToTop}
-            className="flex items-center gap-2 px-4 py-2 rounded-full bg-tile hover:bg-tile/80 text-muted hover:text-foreground border border-border text-xs font-medium transition-all duration-200 cursor-pointer shadow-2xs shrink-0"
+            className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 dark:hover:bg-[#D4B483]/20 text-[#8C6226] dark:text-[#E5CBA2] border border-[#C9A66B]/30 dark:border-[#D4B483]/30 text-xs font-medium transition-all duration-200 cursor-pointer shadow-2xs shrink-0"
           >
             <span>Back to top</span>
             <ArrowUp className="w-3.5 h-3.5" />

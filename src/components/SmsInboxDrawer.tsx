@@ -151,14 +151,14 @@ export default function SmsInboxDrawer() {
         {/* Header */}
         <div className="p-4 sm:p-5 bg-card text-foreground border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center text-accent">
+            <div className="w-10 h-10 rounded-full bg-[#C9A66B]/15 dark:bg-[#D4B483]/15 flex items-center justify-center text-[#8C6226] dark:text-[#E5CBA2]">
               <Smartphone className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="font-bold text-base text-foreground">SMS Inbox & Alerts</h2>
                 {unreadSmsCount > 0 && (
-                  <span className="bg-accent text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  <span className="bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] text-[10px] font-bold px-2 py-0.5 rounded-full">
                     {unreadSmsCount} New
                   </span>
                 )}
@@ -181,7 +181,7 @@ export default function SmsInboxDrawer() {
           <button
             onClick={triggerExpiryScan}
             disabled={simulating}
-            className="bg-accent text-white hover:opacity-95 py-2 px-3.5 text-xs font-semibold rounded-xl flex-1 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all shadow-xs"
+            className="bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] py-2 px-3.5 text-xs font-semibold rounded-xl flex-1 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all shadow-xs"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${simulating ? "animate-spin" : ""}`} />
             <span>{simulating ? "Scanning Expiries..." : "Run Auto-Expiry Scan"}</span>
@@ -189,7 +189,7 @@ export default function SmsInboxDrawer() {
           {unreadSmsCount > 0 && (
             <button
               onClick={markAllSmsAsRead}
-              className="text-xs text-accent hover:underline font-semibold px-2 py-1 cursor-pointer"
+              className="text-xs text-[#8C6226] dark:text-[#E5CBA2] hover:underline font-semibold px-2 py-1 cursor-pointer"
             >
               Mark all read
             </button>
@@ -202,7 +202,7 @@ export default function SmsInboxDrawer() {
             onClick={() => setActiveTab("all")}
             className={`px-3 py-1 rounded-full font-semibold transition-all shrink-0 cursor-pointer ${
               activeTab === "all"
-                ? "bg-foreground text-background"
+                ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] shadow-xs"
                 : "bg-tile text-muted hover:text-foreground"
             }`}
           >
@@ -212,7 +212,7 @@ export default function SmsInboxDrawer() {
             onClick={() => setActiveTab("otp")}
             className={`px-3 py-1 rounded-full font-semibold transition-all shrink-0 cursor-pointer ${
               activeTab === "otp"
-                ? "bg-foreground text-background"
+                ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] shadow-xs"
                 : "bg-tile text-muted hover:text-foreground"
             }`}
           >
@@ -222,7 +222,7 @@ export default function SmsInboxDrawer() {
             onClick={() => setActiveTab("expiry")}
             className={`px-3 py-1 rounded-full font-semibold transition-all shrink-0 cursor-pointer ${
               activeTab === "expiry"
-                ? "bg-foreground text-background"
+                ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] shadow-xs"
                 : "bg-tile text-muted hover:text-foreground"
             }`}
           >
@@ -232,7 +232,7 @@ export default function SmsInboxDrawer() {
             onClick={() => setActiveTab("orders")}
             className={`px-3 py-1 rounded-full font-semibold transition-all shrink-0 cursor-pointer ${
               activeTab === "orders"
-                ? "bg-foreground text-background"
+                ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] shadow-xs"
                 : "bg-tile text-muted hover:text-foreground"
             }`}
           >

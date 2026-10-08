@@ -272,8 +272,8 @@ export default function MobileDetailPage({
                     onClick={() => handleColorChange(color)}
                     className={`px-3.5 py-2 rounded-full border text-xs font-medium flex items-center gap-2 cursor-pointer transition-all duration-200 ${
                       selectedColor.name === color.name
-                        ? "border-foreground bg-card ring-2 ring-foreground/20 shadow-xs text-foreground font-semibold"
-                        : "border-border bg-tile text-muted hover:text-foreground"
+                        ? "border-[#C9A66B] dark:border-[#D4B483] bg-[#C9A66B]/15 ring-2 ring-[#C9A66B]/30 shadow-xs text-[#8C6226] dark:text-[#D4B483] font-semibold"
+                        : "border-[#C9A66B]/30 bg-[#C9A66B]/5 text-muted hover:text-foreground"
                     }`}
                   >
                     <span 
@@ -298,8 +298,8 @@ export default function MobileDetailPage({
                     onClick={() => setSelectedStorage(storage)}
                     className={`px-4 py-2 rounded-full border text-xs font-medium cursor-pointer transition-all duration-200 ${
                       selectedStorage.size === storage.size
-                        ? "border-foreground bg-foreground text-background shadow-xs font-semibold"
-                        : "border-border bg-tile text-foreground hover:border-foreground/40"
+                        ? "border-[#C9A66B] dark:border-[#D4B483] bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] shadow-xs font-semibold"
+                        : "border-[#C9A66B]/30 bg-[#C9A66B]/5 text-foreground hover:border-[#C9A66B]"
                     }`}
                   >
                     <span>{storage.size}</span>
@@ -321,8 +321,8 @@ export default function MobileDetailPage({
                     onClick={() => setSelectedRam(ram)}
                     className={`px-4 py-2 rounded-full border text-xs font-medium cursor-pointer transition-all duration-200 ${
                       selectedRam === ram
-                        ? "border-foreground bg-foreground text-background font-semibold"
-                        : "border-border bg-tile text-foreground hover:border-foreground/40"
+                        ? "border-[#C9A66B] dark:border-[#D4B483] bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] shadow-xs font-semibold"
+                        : "border-[#C9A66B]/30 bg-[#C9A66B]/5 text-foreground hover:border-[#C9A66B]"
                     }`}
                   >
                     {ram} Unified Memory
@@ -365,10 +365,10 @@ export default function MobileDetailPage({
                 disabled={isOutOfStock}
                 className={`flex-1 py-3.5 px-6 rounded-full text-xs font-semibold transition-all duration-200 cursor-pointer shadow-sm flex items-center justify-center gap-2 ${
                   isOutOfStock
-                    ? "bg-tile text-muted cursor-not-allowed border border-border"
+                    ? "bg-[#C9A66B]/20 text-[#8C6226]/50 dark:text-[#D4B483]/50 cursor-not-allowed border border-[#C9A66B]/30"
                     : isAdded
-                    ? "bg-emerald-600 text-white"
-                    : "bg-accent hover:opacity-90 text-white dark:text-[#0B0B0C]"
+                    ? "bg-[#A67C3D] text-[#FFFCFA]"
+                    : "bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA]"
                 }`}
               >
                 {isAdded ? (
@@ -385,7 +385,7 @@ export default function MobileDetailPage({
               <button
                 onClick={handleBuyNow}
                 disabled={isOutOfStock}
-                className="py-3.5 px-8 rounded-full text-xs font-semibold bg-foreground hover:opacity-90 text-background transition-all duration-200 cursor-pointer disabled:opacity-50"
+                className="py-3.5 px-8 rounded-full text-xs font-semibold bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] shadow-xs transition-all duration-200 cursor-pointer disabled:opacity-50"
               >
                 Buy Now
               </button>
@@ -394,8 +394,8 @@ export default function MobileDetailPage({
                 onClick={() => addToCompare(product)}
                 className={`p-3.5 rounded-full border transition-all duration-200 cursor-pointer ${
                   isCompared
-                    ? "bg-accent/15 border-accent text-accent font-semibold"
-                    : "border-border bg-tile text-foreground hover:bg-tile/80"
+                    ? "bg-[#C9A66B] dark:bg-[#D4B483] border-[#C9A66B] text-[#FFFCFA] font-semibold shadow-xs"
+                    : "border-[#C9A66B]/40 bg-[#C9A66B]/10 text-[#8C6226] dark:text-[#D4B483] hover:bg-[#C9A66B]/20"
                 }`}
                 title="Compare"
               >
@@ -497,21 +497,21 @@ export default function MobileDetailPage({
       <div className="fixed bottom-0 left-0 right-0 lg:hidden bg-card/95 backdrop-blur-md border-t border-border p-3.5 z-40 flex items-center justify-between gap-4 shadow-lg text-foreground">
         <div className="min-w-0">
           <div className="text-xs font-bold text-foreground truncate">{product.name}</div>
-          <div className="text-sm font-bold text-accent">₹{currentPrice.toLocaleString("en-IN")}</div>
+          <div className="text-sm font-bold text-[#C9A66B] dark:text-[#D4B483]">₹{currentPrice.toLocaleString("en-IN")}</div>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={handleAddToCart}
             disabled={isOutOfStock}
-            className="px-4 py-2.5 rounded-full bg-tile text-foreground text-xs font-semibold cursor-pointer border border-border"
+            className="px-4 py-2.5 rounded-full border border-[#C9A66B] bg-[#C9A66B]/15 text-[#8C6226] dark:text-[#D4B483] hover:bg-[#C9A66B]/25 text-xs font-semibold cursor-pointer"
           >
             {isAdded ? "Added ✓" : "Add to Cart"}
           </button>
           <button
             onClick={handleBuyNow}
             disabled={isOutOfStock}
-            className="px-6 py-2.5 rounded-full bg-accent hover:opacity-90 text-white dark:text-[#0B0B0C] text-xs font-semibold cursor-pointer shadow-sm"
+            className="px-6 py-2.5 rounded-full bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] text-xs font-semibold cursor-pointer shadow-sm"
           >
             Buy Now
           </button>
@@ -530,13 +530,13 @@ export default function MobileDetailPage({
           >
             <button
               onClick={() => setOutOfStockAlert(false)}
-              className="absolute top-4 right-4 text-muted hover:text-foreground p-1 cursor-pointer"
+              className="absolute top-4 right-4 text-[#8C6226] hover:text-[#B8914A] dark:text-[#D4B483] p-1 cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
 
             <div className="flex items-start gap-3.5">
-              <div className="w-10 h-10 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
                 <AlertCircle className="w-5 h-5" />
               </div>
               <div className="space-y-1.5">
@@ -546,7 +546,7 @@ export default function MobileDetailPage({
                 <p className="text-xs text-muted leading-relaxed">
                   We apologize, <strong>{product.name}</strong> is currently out of stock.
                 </p>
-                <p className="text-xs text-accent bg-accent/10 p-2.5 rounded-[12px] border border-accent/20 mt-2">
+                <p className="text-xs text-[#8C6226] dark:text-[#D4B483] bg-[#C9A66B]/15 p-2.5 rounded-[12px] border border-[#C9A66B]/30 mt-2">
                   📢 We will alert you via SMS once restocked.
                 </p>
               </div>
@@ -555,7 +555,7 @@ export default function MobileDetailPage({
             <div className="mt-5 pt-3 border-t border-border flex justify-end">
               <button
                 onClick={() => setOutOfStockAlert(false)}
-                className="py-2 px-5 text-xs font-semibold rounded-full bg-foreground text-background cursor-pointer transition-colors"
+                className="py-2 px-5 text-xs font-semibold rounded-full bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] cursor-pointer transition-colors shadow-xs"
               >
                 Understood
               </button>

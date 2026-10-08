@@ -77,7 +77,7 @@ export default function ProfilePage() {
           <p className="text-slate-300 text-sm mb-4">Please log in to manage your profile.</p>
           <Link
             href="/login"
-            className="inline-block px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold"
+            className="inline-block px-5 py-2.5 bg-[#C9A66B] hover:bg-[#B8914A] active:bg-[#A67C3D] text-[#FFFCFA] rounded-xl text-xs font-semibold shadow-sm transition-colors"
           >
             Sign In
           </Link>
@@ -113,7 +113,7 @@ export default function ProfilePage() {
             <button
               onClick={handleResendVerification}
               disabled={resending}
-              className="px-3 py-1.5 bg-amber-500 text-slate-950 text-xs font-bold rounded-xl flex items-center gap-1.5 hover:bg-amber-400 transition"
+              className="px-3 py-1.5 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all shadow-xs"
             >
               {resending ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}
               Send Verification Email
@@ -150,7 +150,7 @@ export default function ProfilePage() {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500"
+                className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-[#C9A66B] dark:focus:border-[#D4B483]"
                 required
               />
             </div>
@@ -182,7 +182,7 @@ export default function ProfilePage() {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="+91 XXXXX XXXXX"
-                className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500"
+                className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-[#C9A66B] dark:focus:border-[#D4B483]"
               />
             </div>
 
@@ -195,7 +195,7 @@ export default function ProfilePage() {
             <button
               type="submit"
               disabled={saving}
-              className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm rounded-xl flex items-center justify-center gap-2 transition"
+              className="w-full py-2.5 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] font-semibold text-sm rounded-xl flex items-center justify-center gap-2 transition-all shadow-xs"
             >
               {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               Save Changes
