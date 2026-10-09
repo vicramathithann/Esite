@@ -90,18 +90,18 @@ export default function AdminInventoryPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-background text-foreground flex flex-col transition-colors duration-200">
       <AdminNav />
 
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card border border-border rounded-2xl p-6 shadow-xs transition-colors duration-200">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+            <div className="w-10 h-10 rounded-xl bg-[#C9A66B]/10 border border-[#C9A66B]/20 flex items-center justify-center text-[#8C6226] dark:text-[#E5CBA2]">
               <Boxes className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-white">Mobile Store Inventory</h1>
-              <p className="text-xs text-slate-400">
+              <h1 className="text-xl font-bold text-foreground">Mobile Store Inventory</h1>
+              <p className="text-xs text-muted">
                 Track and update stock levels for smartphones and accessories. Out of stock products are automatically guarded on checkout.
               </p>
             </div>
@@ -119,14 +119,14 @@ export default function AdminInventoryPage() {
         {/* Filters & Search */}
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-3.5 top-3 w-4 h-4 text-muted" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && loadInventory()}
               placeholder="Search product, brand, or model..."
-              className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-indigo-500"
+              className="w-full pl-10 pr-4 py-2.5 bg-card border border-border rounded-xl text-foreground text-xs focus:outline-none focus:border-[#C9A66B]"
             />
           </div>
 
@@ -134,7 +134,7 @@ export default function AdminInventoryPage() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-slate-900 border border-slate-800 text-xs text-white rounded-xl px-3 py-2.5 focus:outline-none focus:border-indigo-500"
+              className="bg-card border border-border text-xs text-foreground rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#C9A66B]"
             >
               <option value="all">All Stock Statuses</option>
               <option value="available">Available (&gt; 5)</option>
@@ -145,7 +145,7 @@ export default function AdminInventoryPage() {
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              className="bg-slate-900 border border-slate-800 text-xs text-white rounded-xl px-3 py-2.5 focus:outline-none focus:border-indigo-500"
+              className="bg-card border border-border text-xs text-foreground rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#C9A66B]"
             >
               <option value="all">All Categories</option>
               <option value="SMARTPHONE">Smartphones</option>
@@ -155,10 +155,10 @@ export default function AdminInventoryPage() {
         </div>
 
         {/* Inventory Table */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
+        <div className="bg-card border border-border rounded-2xl shadow-xs overflow-hidden transition-colors duration-200">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-950/60 border-b border-slate-800 text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
+              <thead className="bg-tile/80 border-b border-border text-muted font-semibold uppercase tracking-wider text-[10px]">
                 <tr>
                   <th className="py-3.5 px-4">Product</th>
                   <th className="py-3.5 px-4">Brand / Model</th>
@@ -169,16 +169,16 @@ export default function AdminInventoryPage() {
                   <th className="py-3.5 px-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/80">
+              <tbody className="divide-y divide-border">
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-slate-400">
+                    <td colSpan={7} className="py-12 text-center text-muted">
                       Loading inventory records...
                     </td>
                   </tr>
                 ) : items.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-slate-400">
+                    <td colSpan={7} className="py-12 text-center text-muted">
                       No inventory items match your search.
                     </td>
                   </tr>
@@ -188,9 +188,9 @@ export default function AdminInventoryPage() {
                     const hasChanged = editedStock !== item.stock;
 
                     return (
-                      <tr key={item.id} className="hover:bg-slate-800/30 transition">
-                        <td className="py-3 px-4 font-semibold text-white flex items-center gap-3">
-                          <div className="relative w-9 h-9 rounded-lg bg-slate-950 border border-slate-800 p-1 flex-shrink-0">
+                      <tr key={item.id} className="hover:bg-tile/50 transition">
+                        <td className="py-3 px-4 font-semibold text-foreground flex items-center gap-3">
+                          <div className="relative w-9 h-9 rounded-lg bg-tile border border-border p-1 flex-shrink-0">
                             <Image
                               src={item.imageUrl || "/images/placeholder.png"}
                               alt={item.name}
@@ -200,26 +200,26 @@ export default function AdminInventoryPage() {
                           </div>
                           <span className="line-clamp-1 max-w-xs">{item.name}</span>
                         </td>
-                        <td className="py-3 px-4 text-slate-300">
+                        <td className="py-3 px-4 text-foreground/90">
                           <div>{item.brand}</div>
-                          <div className="text-[11px] text-slate-500">{item.model || "—"}</div>
+                          <div className="text-[11px] text-muted">{item.model || "—"}</div>
                         </td>
                         <td className="py-3 px-4">
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-800 text-slate-300">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-tile text-foreground">
                             {item.category || "SMARTPHONE"}
                           </span>
                         </td>
-                        <td className="py-3 px-4 font-mono font-medium text-white">
+                        <td className="py-3 px-4 font-mono font-medium text-foreground">
                           {formatINR(item.basePrice)}
                         </td>
                         <td className="py-3 px-4">
                           <span
                             className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
                               item.status === "Out of Stock"
-                                ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                                ? "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20"
                                 : item.status === "Low Stock"
-                                ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                                : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                ? "bg-amber-500/10 text-amber-800 dark:text-amber-400 border-amber-500/20"
+                                : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
                             }`}
                           >
                             {item.status} ({item.stock})
@@ -244,7 +244,7 @@ export default function AdminInventoryPage() {
                                   [item.id]: Math.max(0, parseInt(e.target.value, 10) || 0),
                                 }))
                               }
-                              className="w-14 text-center py-1 bg-slate-950 border border-slate-800 rounded-lg text-white font-mono text-xs focus:outline-none focus:border-indigo-500"
+                              className="w-14 text-center py-1 bg-tile border border-border rounded-lg text-foreground font-mono text-xs focus:outline-none focus:border-[#C9A66B]"
                             />
                             <button
                               onClick={() => handleStockChange(item.id, 1)}
@@ -269,7 +269,7 @@ export default function AdminInventoryPage() {
                             )}
                             <Link
                               href={`/admin/products/${item.id}`}
-                              className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition"
+                              className="p-1.5 hover:bg-tile rounded-lg text-muted hover:text-foreground transition"
                               title="Edit full product details"
                             >
                               <ExternalLink className="w-3.5 h-3.5" />

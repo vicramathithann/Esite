@@ -72,18 +72,18 @@ export default function AdminEmailLogsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-background text-foreground flex flex-col transition-colors duration-200">
       <AdminNav />
 
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card border border-border rounded-2xl p-6 shadow-xs transition-colors duration-200">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+            <div className="w-10 h-10 rounded-xl bg-[#C9A66B]/10 border border-[#C9A66B]/20 flex items-center justify-center text-[#8C6226] dark:text-[#E5CBA2]">
               <MailCheck className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-white">MSG91 Transactional Email Logs</h1>
-              <p className="text-xs text-slate-400">
+              <h1 className="text-xl font-bold text-foreground">MSG91 Transactional Email Logs</h1>
+              <p className="text-xs text-muted">
                 Connected Gmail (Integration ID: 832). Tracks order confirmations, verification emails, and warranty alerts.
               </p>
             </div>
@@ -100,49 +100,49 @@ export default function AdminEmailLogsPage() {
 
         {/* Stats Row */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
+          <div className="bg-card border border-border rounded-2xl p-4 flex items-center justify-between shadow-xs transition-colors duration-200">
             <div>
-              <span className="text-xs text-slate-400">Total Email Events</span>
-              <p className="text-2xl font-bold text-white mt-1">{stats?.total ?? 0}</p>
+              <span className="text-xs text-muted">Total Email Events</span>
+              <p className="text-2xl font-bold text-foreground mt-1">{stats?.total ?? 0}</p>
             </div>
-            <Mail className="w-6 h-6 text-slate-500" />
+            <Mail className="w-6 h-6 text-muted" />
           </div>
 
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
+          <div className="bg-card border border-border rounded-2xl p-4 flex items-center justify-between shadow-xs transition-colors duration-200">
             <div>
-              <span className="text-xs text-slate-400">Delivered Successfully</span>
-              <p className="text-2xl font-bold text-emerald-400 mt-1">{stats?.sentCount ?? 0}</p>
+              <span className="text-xs text-muted">Delivered Successfully</span>
+              <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">{stats?.sentCount ?? 0}</p>
             </div>
-            <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+            <CheckCircle2 className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
           </div>
 
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
+          <div className="bg-card border border-border rounded-2xl p-4 flex items-center justify-between shadow-xs transition-colors duration-200">
             <div>
-              <span className="text-xs text-slate-400">Failed / Pending Retry</span>
-              <p className="text-2xl font-bold text-amber-400 mt-1">{stats?.failedCount ?? 0}</p>
+              <span className="text-xs text-muted">Failed / Pending Retry</span>
+              <p className="text-2xl font-bold text-amber-700 dark:text-amber-400 mt-1">{stats?.failedCount ?? 0}</p>
             </div>
-            <AlertCircle className="w-6 h-6 text-amber-400" />
+            <AlertCircle className="w-6 h-6 text-amber-600 dark:text-amber-400" />
           </div>
         </div>
 
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-3.5 top-3 w-4 h-4 text-muted" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && loadLogs()}
               placeholder="Search by recipient email, customer name, or subject..."
-              className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-indigo-500"
+              className="w-full pl-10 pr-4 py-2.5 bg-card border border-border rounded-xl text-foreground text-xs focus:outline-none focus:border-[#C9A66B]"
             />
           </div>
 
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-slate-900 border border-slate-800 text-xs text-white rounded-xl px-3 py-2.5 focus:outline-none focus:border-indigo-500"
+            className="bg-card border border-border text-xs text-foreground rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#C9A66B]"
           >
             <option value="all">All Delivery Statuses</option>
             <option value="SENT">Sent Only</option>
@@ -152,10 +152,10 @@ export default function AdminEmailLogsPage() {
         </div>
 
         {/* Table */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
+        <div className="bg-card border border-border rounded-2xl shadow-xs overflow-hidden transition-colors duration-200">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-950/60 border-b border-slate-800 text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
+              <thead className="bg-tile/80 border-b border-border text-muted font-semibold uppercase tracking-wider text-[10px]">
                 <tr>
                   <th className="py-3.5 px-4">Recipient</th>
                   <th className="py-3.5 px-4">Email Type</th>
@@ -166,49 +166,49 @@ export default function AdminEmailLogsPage() {
                   <th className="py-3.5 px-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/80">
+              <tbody className="divide-y divide-border">
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-slate-400">
+                    <td colSpan={7} className="py-12 text-center text-muted">
                       Loading email logs...
                     </td>
                   </tr>
                 ) : logs.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-slate-400">
+                    <td colSpan={7} className="py-12 text-center text-muted">
                       No email log records found.
                     </td>
                   </tr>
                 ) : (
                   logs.map((log) => (
-                    <tr key={log.id} className="hover:bg-slate-800/30 transition">
+                    <tr key={log.id} className="hover:bg-tile/50 transition">
                       <td className="py-3.5 px-4">
-                        <div className="font-semibold text-white">{log.recipientName || "Customer"}</div>
-                        <div className="text-[11px] text-slate-400 font-mono">{log.recipientEmail}</div>
+                        <div className="font-semibold text-foreground">{log.recipientName || "Customer"}</div>
+                        <div className="text-[11px] text-muted font-mono">{log.recipientEmail}</div>
                       </td>
                       <td className="py-3.5 px-4">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-800 text-slate-300">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-tile text-foreground">
                           {log.emailType}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 font-medium text-slate-200 max-w-xs truncate">
+                      <td className="py-3.5 px-4 font-medium text-foreground/90 max-w-xs truncate">
                         {log.subject}
                       </td>
                       <td className="py-3.5 px-4">
                         <span
                           className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
                             log.status === "SENT"
-                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                              : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
+                              : "bg-amber-500/10 text-amber-800 dark:text-amber-400 border-amber-500/20"
                           }`}
                         >
                           {log.status}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 text-[11px] text-slate-400 max-w-xs truncate">
+                      <td className="py-3.5 px-4 text-[11px] text-muted max-w-xs truncate">
                         {log.errorMessage || (log.status === "SENT" ? "Delivered without errors" : "Awaiting retry")}
                       </td>
-                      <td className="py-3.5 px-4 text-slate-400 text-[11px]">
+                      <td className="py-3.5 px-4 text-muted text-[11px]">
                         {log.sentAt ? formatDateOnly(log.sentAt) : formatDateOnly(log.createdAt)}
                       </td>
                       <td className="py-3.5 px-4 text-right">

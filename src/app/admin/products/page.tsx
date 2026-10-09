@@ -66,18 +66,18 @@ export default function AdminProductsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-background text-foreground flex flex-col transition-colors duration-200">
       <AdminNav />
 
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card border border-border rounded-2xl p-6 shadow-xs transition-colors duration-200">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+            <div className="w-10 h-10 rounded-xl bg-[#C9A66B]/10 border border-[#C9A66B]/20 flex items-center justify-center text-[#8C6226] dark:text-[#E5CBA2]">
               <Smartphone className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-white">Product Catalog Management</h1>
-              <p className="text-xs text-slate-400">
+              <h1 className="text-xl font-bold text-foreground">Product Catalog Management</h1>
+              <p className="text-xs text-muted">
                 Manage smartphone specs, accessories, pricing, and hardware variants.
               </p>
             </div>
@@ -103,21 +103,21 @@ export default function AdminProductsPage() {
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-3.5 top-3 w-4 h-4 text-muted" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && loadProducts()}
               placeholder="Search by name, brand, processor..."
-              className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-indigo-500"
+              className="w-full pl-10 pr-4 py-2.5 bg-card border border-border rounded-xl text-foreground text-xs focus:outline-none focus:border-[#C9A66B]"
             />
           </div>
 
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="bg-slate-900 border border-slate-800 text-xs text-white rounded-xl px-3 py-2.5 focus:outline-none focus:border-indigo-500"
+            className="bg-card border border-border text-xs text-foreground rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#C9A66B]"
           >
             <option value="all">All Product Categories</option>
             <option value="SMARTPHONE">Smartphones Only</option>
@@ -126,10 +126,10 @@ export default function AdminProductsPage() {
         </div>
 
         {/* Products Table */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
+        <div className="bg-card border border-border rounded-2xl shadow-xs overflow-hidden transition-colors duration-200">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-950/60 border-b border-slate-800 text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
+              <thead className="bg-tile/80 border-b border-border text-muted font-semibold uppercase tracking-wider text-[10px]">
                 <tr>
                   <th className="py-3.5 px-4">Device</th>
                   <th className="py-3.5 px-4">Brand</th>
@@ -139,24 +139,24 @@ export default function AdminProductsPage() {
                   <th className="py-3.5 px-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/80">
+              <tbody className="divide-y divide-border">
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="py-12 text-center text-slate-400">
+                    <td colSpan={6} className="py-12 text-center text-muted">
                       Loading products...
                     </td>
                   </tr>
                 ) : products.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-12 text-center text-slate-400">
+                    <td colSpan={6} className="py-12 text-center text-muted">
                       No products found.
                     </td>
                   </tr>
                 ) : (
                   products.map((p) => (
-                    <tr key={p.id} className="hover:bg-slate-800/30 transition">
-                      <td className="py-3.5 px-4 font-semibold text-white flex items-center gap-3">
-                        <div className="relative w-10 h-10 rounded-lg bg-slate-950 border border-slate-800 p-1 flex-shrink-0">
+                    <tr key={p.id} className="hover:bg-tile/50 transition">
+                      <td className="py-3.5 px-4 font-semibold text-foreground flex items-center gap-3">
+                        <div className="relative w-10 h-10 rounded-lg bg-tile border border-border p-1 flex-shrink-0">
                           <Image
                             src={p.imageUrl || "/images/placeholder.png"}
                             alt={p.name}
@@ -168,19 +168,19 @@ export default function AdminProductsPage() {
                           <div className="flex items-center gap-2">
                             <span>{p.name}</span>
                             {p.isFeatured && (
-                              <span className="inline-flex items-center gap-0.5 text-[10px] text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded-full font-bold">
-                                <Sparkles className="w-2.5 h-2.5" /> Featured
+                              <span className="inline-flex items-center gap-0.5 text-[10px] text-[#8C6226] dark:text-[#E5CBA2] bg-[#C9A66B]/15 px-1.5 py-0.5 rounded-full font-bold">
+                                <Sparkles className="w-2.5 h-2.5 text-[#C9A66B]" /> Featured
                               </span>
                             )}
                           </div>
-                          <span className="text-[11px] text-slate-400">{p.model || p.tagline}</span>
+                          <span className="text-[11px] text-muted">{p.model || p.tagline}</span>
                         </div>
                       </td>
-                      <td className="py-3.5 px-4 text-slate-300 font-medium">{p.brand}</td>
-                      <td className="py-3.5 px-4 font-mono font-bold text-white">
+                      <td className="py-3.5 px-4 text-foreground/90 font-medium">{p.brand}</td>
+                      <td className="py-3.5 px-4 font-mono font-bold text-foreground">
                         {formatINR(p.basePrice)}
                       </td>
-                      <td className="py-3.5 px-4 text-slate-400 text-[11px]">
+                      <td className="py-3.5 px-4 text-muted text-[11px]">
                         <div>{p.ram} RAM • {p.processor}</div>
                         <div>{p.os} • {p.display}</div>
                       </td>
@@ -188,10 +188,10 @@ export default function AdminProductsPage() {
                         <span
                           className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
                             p.stock === 0
-                              ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                              ? "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20"
                               : p.stock <= 5
-                              ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                              : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                              ? "bg-amber-500/10 text-amber-800 dark:text-amber-400 border-amber-500/20"
+                              : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
                           }`}
                         >
                           {p.stock === 0 ? "Out of Stock" : `${p.stock} In Stock`}

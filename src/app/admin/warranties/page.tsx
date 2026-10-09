@@ -66,18 +66,18 @@ export default function AdminWarrantiesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-background text-foreground flex flex-col transition-colors duration-200">
       <AdminNav />
 
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card border border-border rounded-2xl p-6 shadow-xs transition-colors duration-200">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+            <div className="w-10 h-10 rounded-xl bg-[#C9A66B]/10 border border-[#C9A66B]/20 flex items-center justify-center text-[#8C6226] dark:text-[#E5CBA2]">
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-white">Mobile Device Warranties</h1>
-              <p className="text-xs text-slate-400">
+              <h1 className="text-xl font-bold text-foreground">Mobile Device Warranties</h1>
+              <p className="text-xs text-muted">
                 Official smartphone warranties registered by IMEI. Search by customer, order, or serial number.
               </p>
             </div>
@@ -94,22 +94,22 @@ export default function AdminWarrantiesPage() {
 
         {/* Search */}
         <div className="relative">
-          <Search className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
+          <Search className="absolute left-3.5 top-3 w-4 h-4 text-muted" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && loadWarranties()}
             placeholder="Search by Order ID, Customer, Smartphone Name, or IMEI..."
-            className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-indigo-500"
+            className="w-full pl-10 pr-4 py-2.5 bg-card border border-border rounded-xl text-foreground text-xs focus:outline-none focus:border-[#C9A66B]"
           />
         </div>
 
         {/* Table */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
+        <div className="bg-card border border-border rounded-2xl shadow-xs overflow-hidden transition-colors duration-200">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-950/60 border-b border-slate-800 text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
+              <thead className="bg-tile/80 border-b border-border text-muted font-semibold uppercase tracking-wider text-[10px]">
                 <tr>
                   <th className="py-3.5 px-4">Order ID</th>
                   <th className="py-3.5 px-4">Smartphone</th>
@@ -120,16 +120,16 @@ export default function AdminWarrantiesPage() {
                   <th className="py-3.5 px-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/80">
+              <tbody className="divide-y divide-border">
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-slate-400">
+                    <td colSpan={7} className="py-12 text-center text-muted">
                       Loading warranty registry...
                     </td>
                   </tr>
                 ) : warranties.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-slate-400">
+                    <td colSpan={7} className="py-12 text-center text-muted">
                       No warranty records found.
                     </td>
                   </tr>
@@ -137,23 +137,23 @@ export default function AdminWarrantiesPage() {
                   warranties.map((w) => {
                     const isExpired = new Date(w.warrantyExpiryDate) < new Date();
                     return (
-                      <tr key={w.id} className="hover:bg-slate-800/30 transition">
-                        <td className="py-3.5 px-4 font-mono font-bold text-white">
+                      <tr key={w.id} className="hover:bg-tile/50 transition">
+                        <td className="py-3.5 px-4 font-mono font-bold text-foreground">
                           #{w.order?.orderNumber || w.orderId}
                         </td>
-                        <td className="py-3.5 px-4 font-semibold text-white">
+                        <td className="py-3.5 px-4 font-semibold text-foreground">
                           {w.productName}
                         </td>
                         <td className="py-3.5 px-4">
-                          <div className="text-white font-medium">{w.customerName}</div>
-                          <div className="text-[11px] text-slate-400 font-mono">{w.customerEmail}</div>
+                          <div className="text-foreground font-medium">{w.customerName}</div>
+                          <div className="text-[11px] text-muted font-mono">{w.customerEmail}</div>
                         </td>
-                        <td className="py-3.5 px-4 font-mono text-indigo-400 font-medium">
+                        <td className="py-3.5 px-4 font-mono text-[#8C6226] dark:text-[#E5CBA2] font-semibold">
                           {w.imeiNumber}
                         </td>
                         <td className="py-3.5 px-4">
-                          <div className="text-slate-300 font-medium">{w.warrantyDuration || "1 Year"}</div>
-                          <div className={`text-[11px] ${isExpired ? "text-rose-400" : "text-emerald-400"}`}>
+                          <div className="text-foreground/90 font-medium">{w.warrantyDuration || "1 Year"}</div>
+                          <div className={`text-[11px] ${isExpired ? "text-rose-600 dark:text-rose-400 font-semibold" : "text-emerald-600 dark:text-emerald-400 font-semibold"}`}>
                             Exp: {formatDateOnly(w.warrantyExpiryDate)}
                           </div>
                         </td>
@@ -161,8 +161,8 @@ export default function AdminWarrantiesPage() {
                           <span
                             className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
                               isExpired
-                                ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
-                                : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                ? "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20"
+                                : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
                             }`}
                           >
                             {isExpired ? "EXPIRED" : w.warrantyStatus || "ACTIVE"}
