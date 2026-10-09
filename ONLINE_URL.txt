@@ -2,10 +2,10 @@
               VM MOBILES - ONLINE STORE
 ============================================================
 Status:            ONLINE (24/7 Background Service)
-Public Web Link:   https://vancouver-experiencing-organizer-gilbert.trycloudflare.com
+Public Web Link:   https://monkey-getting-mozilla-polished.trycloudflare.com
 Local Link:        http://localhost:3000
 Local Wi-Fi Link:  http://10.1.7.122:3000
-Last Updated:      8/10/2026, 9:24:18 am
+Last Updated:      9/10/2026, 1:37:40 pm
 ============================================================
 Share the Public Web Link with anyone on any phone, laptop,
 or tablet anywhere in the world to browse and buy mobiles!
