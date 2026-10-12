@@ -51,10 +51,10 @@ export async function POST(request: Request) {
       }
     }
 
-    // Invalidate previous OTP & token and generate fresh 10-minute code
+    // Invalidate previous OTP & token and generate fresh 5-minute code
     const otp = generateSecureOtp();
     const otpHash = hashOtp(otp);
-    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const otpExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
     const newToken = crypto.randomBytes(32).toString("hex");
     const newExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
       },
     });
 
-    // Send verification email through MSG91
+    // Send verification email through Gmail SMTP
     try {
       await sendUserVerificationEmail(
         { id: user.id, name: user.name, email: user.email },

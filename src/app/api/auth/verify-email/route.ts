@@ -127,7 +127,7 @@ export async function POST(request: Request) {
         );
       }
 
-      // Check OTP expiration (10 minutes)
+      // Check OTP expiration (5 minutes)
       if (!user.otpHash || !user.otpExpires || user.otpExpires < new Date()) {
         return NextResponse.json(
           {

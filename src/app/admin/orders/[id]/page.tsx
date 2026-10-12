@@ -316,7 +316,7 @@ export default function AdminSingleOrderPage() {
         {order.emailNotifications && order.emailNotifications.length > 0 && (
           <div className="bg-card border border-border rounded-2xl p-6 shadow-xs space-y-3 transition-colors duration-200">
             <h2 className="text-sm font-bold text-foreground flex items-center gap-1.5">
-              <Mail className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> MSG91 Email Dispatch History for this Order
+              <Mail className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> Email Dispatch History for this Order
             </h2>
             <div className="divide-y divide-border text-xs">
               {order.emailNotifications.map((em: any) => (

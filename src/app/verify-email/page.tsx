@@ -144,7 +144,7 @@ function VerifyEmailContent() {
 
       if (data.success) {
         setStatus("idle");
-        setMessage("A fresh 6-digit verification code has been dispatched via MSG91.");
+        setMessage("A fresh 6-digit verification code has been sent to your email.");
         setCooldown(60);
         setRemainingAttempts(null);
       } else {
@@ -183,14 +183,14 @@ function VerifyEmailContent() {
         <p className="text-xs text-muted text-center mb-6 leading-relaxed">
           {status === "success"
             ? "Your email address has been authenticated. You now have full access to VM Mobiles."
-            : "Enter the 6-digit verification code sent to your email via MSG91 to activate your account."}
+            : "Enter the 6-digit verification code sent to your email to activate your account (valid for 5 minutes)."}
         </p>
 
         {/* Loading Spinner */}
         {loading ? (
           <div className="py-10 text-center flex flex-col items-center">
             <Loader2 className="w-10 h-10 text-accent animate-spin mb-3" />
-            <p className="text-muted font-medium text-sm">Verifying with MSG91 gateway...</p>
+            <p className="text-muted font-medium text-sm">Verifying code...</p>
           </div>
         ) : status === "success" ? (
           /* Success Screen */
@@ -300,7 +300,7 @@ function VerifyEmailContent() {
                 {resending ? (
                   <>
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    <span>Dispatching via MSG91...</span>
+                    <span>Sending code...</span>
                   </>
                 ) : cooldown > 0 ? (
                   <span>Resend code in {cooldown}s</span>

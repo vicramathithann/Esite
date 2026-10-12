@@ -163,7 +163,7 @@ export async function PATCH(
         console.error("Error creating status history:", histErr);
       }
 
-      // Dispatch Order Status Email via MSG91
+      // Dispatch Order Status Email via Gmail SMTP
       try {
         await sendOrderStatusEmail(
           {

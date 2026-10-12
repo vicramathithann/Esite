@@ -336,7 +336,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // 8. Dispatch Order Confirmation Email via MSG91 (Connected Gmail Integration 832)
+    // 8. Dispatch Order Confirmation Email via Gmail SMTP
     let emailResult = null;
     try {
       emailResult = await sendOrderConfirmationEmail({

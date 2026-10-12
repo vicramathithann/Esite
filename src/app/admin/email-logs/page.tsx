@@ -82,9 +82,9 @@ export default function AdminEmailLogsPage() {
               <MailCheck className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-foreground">MSG91 Transactional Email Logs</h1>
+              <h1 className="text-xl font-bold text-foreground">Transactional Email Logs</h1>
               <p className="text-xs text-muted">
-                Connected Gmail (Integration ID: 832). Tracks order confirmations, verification emails, and warranty alerts.
+                Gmail SMTP Delivery. Tracks order confirmations, verification emails, and warranty alerts.
               </p>
             </div>
           </div>

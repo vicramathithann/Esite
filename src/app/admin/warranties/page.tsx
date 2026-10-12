@@ -173,7 +173,7 @@ export default function AdminWarrantiesPage() {
                             onClick={() => handleResend(w.id, w.customerEmail)}
                             disabled={actionLoading === w.id}
                             className="px-2.5 py-1 bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 text-[#8C6226] dark:text-[#E5CBA2] text-[11px] font-semibold rounded-lg inline-flex items-center gap-1 transition-all cursor-pointer"
-                            title="Resend Warranty Certificate Email via MSG91"
+                            title="Resend Warranty Certificate Email"
                           >
                             {actionLoading === w.id ? (
                               <RefreshCw className="w-3 h-3 animate-spin" />

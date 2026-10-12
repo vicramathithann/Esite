@@ -535,7 +535,7 @@ export default function AdminDashboardPage() {
             <Link href="/admin/inventory" className="px-2.5 py-1 rounded bg-[#C9A66B]/15 hover:bg-[#C9A66B] hover:text-[#FFFCFA] text-[#8C6226] dark:text-[#E5CBA2] border border-[#C9A66B]/30 transition whitespace-nowrap font-medium">📦 Inventory</Link>
             <Link href="/admin/customers" className="px-2.5 py-1 rounded bg-[#C9A66B]/15 hover:bg-[#C9A66B] hover:text-[#FFFCFA] text-[#8C6226] dark:text-[#E5CBA2] border border-[#C9A66B]/30 transition whitespace-nowrap font-medium">👥 Customers</Link>
             <Link href="/admin/warranties" className="px-2.5 py-1 rounded bg-[#C9A66B]/15 hover:bg-[#C9A66B] hover:text-[#FFFCFA] text-[#8C6226] dark:text-[#E5CBA2] border border-[#C9A66B]/30 transition whitespace-nowrap font-medium">🛡️ Warranties</Link>
-            <Link href="/admin/email-logs" className="px-2.5 py-1 rounded bg-[#C9A66B]/15 hover:bg-[#C9A66B] hover:text-[#FFFCFA] text-[#8C6226] dark:text-[#E5CBA2] border border-[#C9A66B]/30 transition whitespace-nowrap font-medium">✉️ MSG91 Logs</Link>
+            <Link href="/admin/email-logs" className="px-2.5 py-1 rounded bg-[#C9A66B]/15 hover:bg-[#C9A66B] hover:text-[#FFFCFA] text-[#8C6226] dark:text-[#E5CBA2] border border-[#C9A66B]/30 transition whitespace-nowrap font-medium">✉️ Email Logs</Link>
           </div>
         </div>
       </div>

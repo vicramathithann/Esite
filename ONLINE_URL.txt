@@ -2,10 +2,10 @@
               VM MOBILES - ONLINE STORE
 ============================================================
 Status:            ONLINE (24/7 Background Service)
-Public Web Link:   https://monkey-getting-mozilla-polished.trycloudflare.com
+Public Web Link:   https://compliance-phd-encoding-kits.trycloudflare.com
 Local Link:        http://localhost:3000
 Local Wi-Fi Link:  http://10.1.7.122:3000
-Last Updated:      9/10/2026, 1:37:40 pm
+Last Updated:      12/10/2026, 9:38:42 am
 ============================================================
 Share the Public Web Link with anyone on any phone, laptop,
 or tablet anywhere in the world to browse and buy mobiles!

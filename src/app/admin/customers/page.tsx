@@ -55,7 +55,7 @@ export default function AdminCustomersPage() {
             <div>
               <h1 className="text-xl font-bold text-foreground">Customer Accounts Directory</h1>
               <p className="text-xs text-muted">
-                View registered customers, their MSG91 email verification status, order count, and lifetime value.
+                View registered customers, their email verification status, order count, and lifetime value.
               </p>
             </div>
           </div>

@@ -79,7 +79,7 @@ export default function RegisterPage() {
       <div className="w-full max-w-sm bg-card border border-border rounded-2xl p-6 sm:p-8 shadow-sm">
         <h1 className="text-2xl font-bold text-foreground mb-1.5">Create Account</h1>
         <p className="text-xs text-muted mb-5 leading-relaxed">
-          A 6-digit verification code will be dispatched to your email address via MSG91.
+          A 6-digit verification code will be sent to your email address (valid for 5 minutes).
         </p>
 
         {error && (

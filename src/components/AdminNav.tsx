@@ -24,7 +24,7 @@ export default function AdminNav() {
     { href: "/admin/inventory", label: "Inventory", icon: Boxes },
     { href: "/admin/customers", label: "Customers", icon: Users },
     { href: "/admin/warranties", label: "Warranties", icon: ShieldCheck },
-    { href: "/admin/email-logs", label: "MSG91 Email Logs", icon: MailCheck },
+    { href: "/admin/email-logs", label: "Email Logs", icon: MailCheck },
   ];
 
   return (

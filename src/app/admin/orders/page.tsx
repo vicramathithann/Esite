@@ -239,7 +239,7 @@ export default function AdminOrdersPage() {
                             onClick={() => handleResendEmail(o.id, o.customerEmail)}
                             disabled={resendingId === o.id}
                             className="px-2.5 py-1 bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 text-[#8C6226] dark:text-[#E5CBA2] rounded-lg text-[11px] font-semibold flex items-center gap-1 transition-all cursor-pointer"
-                            title="Resend Order Confirmation Email via MSG91"
+                            title="Resend Order Confirmation Email"
                           >
                             <Mail className={`w-3 h-3 text-[#8C6226] dark:text-[#E5CBA2] ${resendingId === o.id ? "animate-spin" : ""}`} />
                             Resend Email

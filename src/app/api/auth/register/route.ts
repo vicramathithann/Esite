@@ -59,7 +59,7 @@ export async function POST(request: Request) {
     // 6. Generate cryptographically secure OTP (6 digits) & expiring token
     const otp = generateSecureOtp();
     const otpHash = hashOtp(otp);
-    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const otpExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
     const verificationToken = crypto.randomBytes(32).toString("hex");
     const tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
     const hashedPassword = hashPassword(password);
@@ -132,7 +132,7 @@ export async function POST(request: Request) {
       });
     }
 
-    // 7. Send the verification email through MSG91 using template_28_09_2026_14_09_2 & integration 832
+    // 7. Send the verification email through Gmail SMTP
     try {
       await sendUserVerificationEmail(
         { id: user.id, name: user.name, email: user.email },

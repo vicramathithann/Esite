@@ -38,21 +38,6 @@ export async function POST(request: Request) {
       },
     });
 
-    // Optional: Dispatch real SMS via MSG91 if configured in environment
-    const authKey = process.env.MSG91_AUTHKEY?.trim();
-    if (authKey && authKey !== "your_msg91_authkey_here") {
-      try {
-        const { sendMsg91Sms } = await import("@/lib/msg91");
-        await sendMsg91Sms({
-          mobile: cleanPhone,
-          variables: {
-            otp: code,
-          },
-        });
-      } catch (msg91Err) {
-        console.warn("[MSG91 OTP Dispatch Warn]", msg91Err);
-      }
-    }
 
     return NextResponse.json({
       success: true,
