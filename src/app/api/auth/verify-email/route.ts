@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifyOtp } from "@/lib/auth";
+import { verifyOtp, createSessionToken } from "@/lib/auth";
 
 export async function GET(request: Request) {
   try {
@@ -29,7 +29,7 @@ export async function GET(request: Request) {
       return NextResponse.json(
         {
           success: false,
-          error: "Verification link has expired. Please request a new verification code or email.",
+          error: "Verification link has expired. Please request a new verification code.",
           expired: true,
           email: user.email,
         },
@@ -58,11 +58,22 @@ export async function GET(request: Request) {
       },
     });
 
-    return NextResponse.json({
+    const sessionToken = createSessionToken(updatedUser);
+    const response = NextResponse.json({
       success: true,
       user: updatedUser,
-      message: "Email verified successfully! You now have full access to your VM Mobiles account.",
+      message: "Email verified successfully! You are now logged in.",
     });
+
+    response.cookies.set("vn_session", sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 30 * 24 * 60 * 60,
+    });
+
+    return response;
   } catch (error) {
     console.error("Email verification error:", error);
     return NextResponse.json(
@@ -108,11 +119,30 @@ export async function POST(request: Request) {
       }
 
       if (user.emailVerified) {
-        return NextResponse.json({
+        const sessionToken = createSessionToken(user);
+        const response = NextResponse.json({
           success: true,
           alreadyVerified: true,
-          message: "Your email is already verified. You can log in directly.",
+          user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            phone: user.phone,
+            role: user.role,
+            emailVerified: true,
+          },
+          message: "Your email is already verified. You are now logged in.",
         });
+
+        response.cookies.set("vn_session", sessionToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "lax",
+          path: "/",
+          maxAge: 30 * 24 * 60 * 60,
+        });
+
+        return response;
       }
 
       // Check max failed verification attempts
@@ -153,16 +183,17 @@ export async function POST(request: Request) {
         return NextResponse.json(
           {
             success: false,
-            error: remaining > 0
-              ? `Invalid verification code. ${remaining} attempt${remaining === 1 ? "" : "s"} remaining.`
-              : "Too many failed attempts. Please request a new verification code.",
+            error:
+              remaining > 0
+                ? `Invalid verification code. ${remaining} attempt${remaining === 1 ? "" : "s"} remaining.`
+                : "Too many failed attempts. Please request a new verification code.",
             remainingAttempts: remaining,
           },
           { status: 400 }
         );
       }
 
-      // Correct OTP: Mark email verified and prevent reuse
+      // Correct OTP: Mark email verified and establish authenticated session
       const updatedUser = await prisma.user.update({
         where: { id: user.id },
         data: {
@@ -183,11 +214,22 @@ export async function POST(request: Request) {
         },
       });
 
-      return NextResponse.json({
+      const sessionToken = createSessionToken(updatedUser);
+      const response = NextResponse.json({
         success: true,
         user: updatedUser,
-        message: "Email verified successfully! You can now log in to your account.",
+        message: "Email verified successfully! You are now logged in.",
       });
+
+      response.cookies.set("vn_session", sessionToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: 30 * 24 * 60 * 60,
+      });
+
+      return response;
     }
 
     // B. Token Verification Flow (e.g. from verification link POST)
@@ -242,11 +284,22 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json({
+    const sessionToken = createSessionToken(updatedUser);
+    const response = NextResponse.json({
       success: true,
       user: updatedUser,
-      message: "Email verified successfully! You can now log in.",
+      message: "Email verified successfully! You are now logged in.",
     });
+
+    response.cookies.set("vn_session", sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 30 * 24 * 60 * 60,
+    });
+
+    return response;
   } catch (error) {
     console.error("POST verify email error:", error);
     return NextResponse.json(

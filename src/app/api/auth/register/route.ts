@@ -133,14 +133,27 @@ export async function POST(request: Request) {
     }
 
     // 7. Send the verification email through Gmail SMTP
+    let emailResult = null;
     try {
-      await sendUserVerificationEmail(
+      emailResult = await sendUserVerificationEmail(
         { id: user.id, name: user.name, email: user.email },
         verificationToken,
         otp
       );
     } catch (emailErr) {
-      console.error("[EMAIL DISPATCH WARNING] Could not send verification email immediately:", emailErr);
+      console.error("[EMAIL DISPATCH ERROR] Could not send verification email:", emailErr);
+    }
+
+    if (!emailResult || !emailResult.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Your account was created, but we could not deliver the verification code to your email. Please check your email or click Resend Code.",
+          emailDeliveryFailed: true,
+          email: cleanEmail,
+        },
+        { status: 502 }
+      );
     }
 
     // Never return the OTP or token in the public JSON response

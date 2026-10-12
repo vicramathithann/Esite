@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle2, AlertCircle, Mail, ArrowRight, Loader2, RefreshCw, KeyRound, ShieldCheck } from "lucide-react";
 import { useApp } from "@/context/AppContext";
+import { isValidInternalRedirect } from "@/lib/auth";
 
 function VerifyEmailContent() {
   const searchParams = useSearchParams();
@@ -12,6 +13,8 @@ function VerifyEmailContent() {
 
   const emailParam = searchParams.get("email") || "";
   const tokenParam = searchParams.get("token") || "";
+  const redirectParam = searchParams.get("redirect") || "";
+  const safeRedirect = isValidInternalRedirect(redirectParam);
 
   const { currentUser, login } = useApp();
 
@@ -52,12 +55,16 @@ function VerifyEmailContent() {
       const res = await fetch(`/api/auth/verify-email?token=${encodeURIComponent(tokenToVerify.trim())}`);
       const data = await res.json();
 
-      if (data.success) {
+      if (data.success && data.user) {
         setStatus("success");
         setMessage(data.message || "Your email has been verified successfully!");
-        if (currentUser && data.user) {
-          login({ ...currentUser, ...data.user, emailVerified: true });
-        }
+        login(data.user);
+
+        // Auto redirect after successful verification
+        setTimeout(() => {
+          const target = redirectParam ? safeRedirect : "/";
+          router.push(target);
+        }, 1200);
       } else {
         setStatus("error");
         setMessage(data.error || "Verification link is invalid or expired.");
@@ -96,12 +103,17 @@ function VerifyEmailContent() {
 
       const data = await res.json();
 
-      if (data.success) {
+      if (data.success && data.user) {
         setStatus("success");
-        setMessage(data.message || "Email verified successfully!");
-        if (currentUser && data.user) {
-          login({ ...currentUser, ...data.user, emailVerified: true });
-        }
+        setMessage(data.message || "Email verified successfully! You are now logged in.");
+        // Establish authenticated session in frontend context
+        login(data.user);
+
+        // Auto-redirect to intended destination without forcing user to re-enter password
+        setTimeout(() => {
+          const target = redirectParam ? safeRedirect : "/";
+          router.push(target);
+        }, 1200);
       } else {
         if (res.status === 410) {
           setStatus("expired");
@@ -144,14 +156,14 @@ function VerifyEmailContent() {
 
       if (data.success) {
         setStatus("idle");
-        setMessage("A fresh 6-digit verification code has been sent to your email.");
+        setMessage("A fresh 6-digit verification code has been sent to your email (valid for 5 minutes).");
         setCooldown(60);
         setRemainingAttempts(null);
       } else {
         setStatus("error");
         setMessage(data.error || "Unable to resend verification code.");
-        if (data.cooldownRemaining) {
-          setCooldown(data.cooldownRemaining);
+        if (data.cooldown) {
+          setCooldown(data.cooldown);
         }
       }
     } catch {
@@ -182,7 +194,7 @@ function VerifyEmailContent() {
 
         <p className="text-xs text-muted text-center mb-6 leading-relaxed">
           {status === "success"
-            ? "Your email address has been authenticated. You now have full access to VM Mobiles."
+            ? "Your email address has been authenticated. Redirecting you automatically..."
             : "Enter the 6-digit verification code sent to your email to activate your account (valid for 5 minutes)."}
         </p>
 
@@ -197,22 +209,16 @@ function VerifyEmailContent() {
           <div className="space-y-4 py-2">
             <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-center">
               <p className="text-sm font-semibold text-emerald-500">{message}</p>
+              <p className="text-xs text-muted mt-1">Establishing your session and taking you to your destination...</p>
             </div>
 
-            <Link
-              href="/login"
+            <button
+              onClick={() => router.push(redirectParam ? safeRedirect : "/")}
               className="w-full py-3.5 px-4 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] font-semibold rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs text-xs"
             >
-              <span>Proceed to Sign In</span>
+              <span>Continue Now</span>
               <ArrowRight className="w-4 h-4" />
-            </Link>
-
-            <Link
-              href="/"
-              className="w-full py-2.5 px-4 bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 dark:hover:bg-[#D4B483]/20 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 text-[#8C6226] dark:text-[#E5CBA2] text-xs font-semibold rounded-xl flex items-center justify-center transition-all"
-            >
-              Continue to Storefront
-            </Link>
+            </button>
           </div>
         ) : (
           /* OTP Form */
@@ -257,7 +263,7 @@ function VerifyEmailContent() {
               <div>
                 <label className="block text-xs font-semibold text-foreground mb-1.5 flex items-center justify-between">
                   <span>6-Digit Verification Code</span>
-                  <span className="text-[10px] text-[#8C6226] dark:text-[#E5CBA2] font-normal">Valid for 10 minutes</span>
+                  <span className="text-[10px] text-[#8C6226] dark:text-[#E5CBA2] font-semibold">Valid for 5 minutes</span>
                 </label>
                 <div className="relative">
                   <input
@@ -280,7 +286,7 @@ function VerifyEmailContent() {
                 disabled={loading || otp.length !== 6 || !email.trim()}
                 className="w-full py-3.5 px-4 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-xs rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs"
               >
-                <span>Verify Code & Activate Account</span>
+                <span>Verify Code & Enter</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </form>
@@ -317,7 +323,10 @@ function VerifyEmailContent() {
 
         {/* Footer Link */}
         <div className="mt-6 text-center pt-4 border-t border-border">
-          <Link href="/login" className="text-xs text-muted hover:text-foreground transition-colors">
+          <Link
+            href={redirectParam ? `/login?redirect=${encodeURIComponent(safeRedirect)}` : "/login"}
+            className="text-xs text-muted hover:text-foreground transition-colors"
+          >
             ← Return to Sign In
           </Link>
         </div>

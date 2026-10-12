@@ -8,6 +8,7 @@ import { X, Trash2, Plus, Minus, ShieldCheck, ShoppingBag, AlertCircle } from "l
 
 export default function CartDrawer() {
   const { 
+    currentUser,
     cart, 
     isCartOpen, 
     setIsCartOpen, 
@@ -183,7 +184,13 @@ export default function CartDrawer() {
                 </button>
               ) : (
                 <Link
-                  href="/checkout"
+                  href={
+                    !currentUser
+                      ? "/login?redirect=/checkout"
+                      : !currentUser.emailVerified
+                      ? `/verify-email?email=${encodeURIComponent(currentUser.email)}&redirect=/checkout`
+                      : "/checkout"
+                  }
                   onClick={() => setIsCartOpen(false)}
                   className="py-3 px-6 text-xs font-semibold w-full text-center block rounded-full bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] cursor-pointer transition-all duration-200 shadow-sm"
                 >

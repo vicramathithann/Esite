@@ -26,6 +26,8 @@ export default function CheckoutPage() {
   const router = useRouter();
   const { currentUser, cart, cartTotal, clearCart, fetchSmsAlerts, setIsSmsDrawerOpen } = useApp();
 
+  const [authChecking, setAuthChecking] = useState(true);
+
   const [formData, setFormData] = useState({
     customerName: "",
     customerPhone: "",
@@ -36,6 +38,31 @@ export default function CheckoutPage() {
     state: "Karnataka",
     paymentMethod: "Amazon Pay UPI",
   });
+
+  // Auth Protection: Require authenticated and email-verified user
+  useEffect(() => {
+    let user = currentUser;
+    if (!user && typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("novamobile_user");
+        if (saved) user = JSON.parse(saved);
+      } catch (e) {
+        user = null;
+      }
+    }
+
+    if (!user) {
+      router.replace("/login?redirect=/checkout");
+      return;
+    }
+
+    if (!user.emailVerified) {
+      router.replace(`/verify-email?email=${encodeURIComponent(user.email)}&redirect=/checkout`);
+      return;
+    }
+
+    setAuthChecking(false);
+  }, [currentUser, router]);
 
   // Pre-fill user data if logged in
   useEffect(() => {
@@ -142,6 +169,18 @@ export default function CheckoutPage() {
 
   // Place Order Core Logic
   const executeOrderPlacement = async (isVerified = isPhoneVerified) => {
+    if (!currentUser) {
+      alert("Please log in to complete your purchase.");
+      router.push("/login?redirect=/checkout");
+      return;
+    }
+
+    if (!currentUser.emailVerified) {
+      alert("Please verify your email before placing an order.");
+      router.push(`/verify-email?email=${encodeURIComponent(currentUser.email)}&redirect=/checkout`);
+      return;
+    }
+
     const outOfStockItem = cart.find(
       (item) => item.inStock === false || (item.stock !== undefined && item.stock <= 0)
     );
@@ -168,7 +207,7 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           customerName: formData.customerName || currentUser?.name || "Customer",
           customerPhone: formData.customerPhone || currentUser?.phone || "+91 98765 43210",
-          customerEmail: formData.customerEmail || currentUser?.email || "customer@example.com",
+          customerEmail: currentUser?.email || formData.customerEmail || "customer@example.com",
           address: formData.address,
           city: formData.city,
           pincode: formData.pincode,
@@ -189,6 +228,18 @@ export default function CheckoutPage() {
           })),
         }),
       });
+
+      if (res.status === 401) {
+        alert("Session expired or unauthorized. Please log in again.");
+        router.push("/login?redirect=/checkout");
+        return;
+      }
+
+      if (res.status === 403) {
+        alert("Email verification required. Please verify your email before placing an order.");
+        router.push(`/verify-email?email=${encodeURIComponent(currentUser?.email || formData.customerEmail)}&redirect=/checkout`);
+        return;
+      }
 
       const data = await res.json();
       if (data.success) {
@@ -255,6 +306,15 @@ export default function CheckoutPage() {
     e.preventDefault();
     await executeOrderPlacement();
   };
+
+  if (authChecking) {
+    return (
+      <div className="min-h-screen py-20 flex flex-col items-center justify-center bg-background text-foreground space-y-3">
+        <RefreshCw className="w-8 h-8 text-[#C9A66B] dark:text-[#D4B483] animate-spin" />
+        <p className="text-sm text-muted">Securing checkout session...</p>
+      </div>
+    );
+  }
 
   if (orderComplete) {
     const order = orderComplete.order;

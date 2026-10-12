@@ -71,14 +71,26 @@ export async function POST(request: Request) {
     });
 
     // Send verification email through Gmail SMTP
+    let emailResult = null;
     try {
-      await sendUserVerificationEmail(
+      emailResult = await sendUserVerificationEmail(
         { id: user.id, name: user.name, email: user.email },
         newToken,
         otp
       );
     } catch (emailErr) {
-      console.error("[EMAIL DISPATCH WARNING] Could not send verification email immediately:", emailErr);
+      console.error("[EMAIL DISPATCH ERROR] Could not send verification email:", emailErr);
+    }
+
+    if (!emailResult || !emailResult.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Failed to dispatch verification code via email. Please check your connection and try again.",
+          cooldown: 60,
+        },
+        { status: 502 }
+      );
     }
 
     // Do NOT return the OTP or token in the public JSON response

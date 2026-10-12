@@ -1,13 +1,16 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useApp } from "@/context/AppContext";
-import { ArrowRight, AlertCircle, CheckCircle2, ShieldCheck } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ArrowRight, AlertCircle } from "lucide-react";
+import { isValidInternalRedirect } from "@/lib/auth";
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectParam = searchParams.get("redirect") || "";
+  const safeRedirect = isValidInternalRedirect(redirectParam);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -48,8 +51,8 @@ export default function RegisterPage() {
 
       const data = await res.json();
       if (data.success) {
-        // Redirection to verification page with email query param
-        router.push(`/verify-email?email=${encodeURIComponent(formData.email.trim())}`);
+        const redirectQuery = redirectParam ? `&redirect=${encodeURIComponent(safeRedirect)}` : "";
+        router.push(`/verify-email?email=${encodeURIComponent(formData.email.trim())}${redirectQuery}`);
       } else {
         setError(data.error || "Registration failed. Please check your details.");
       }
@@ -60,6 +63,10 @@ export default function RegisterPage() {
       setLoading(false);
     }
   };
+
+  const loginHref = redirectParam
+    ? `/login?redirect=${encodeURIComponent(safeRedirect)}`
+    : "/login";
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col items-center pt-8 pb-16 px-4">
@@ -163,18 +170,26 @@ export default function RegisterPage() {
         </form>
 
         <p className="text-[11px] text-muted mt-4 leading-relaxed">
-          By creating an account, you agree to VM Mobiles Conditions of Use and Privacy Notice.
+          By creating an account, you agree to VN Mobiles Conditions of Use and Privacy Notice.
         </p>
 
         <div className="mt-5 pt-4 border-t border-border text-xs">
           <p className="text-muted">
             Already have an account?{" "}
-            <Link href="/login" className="text-[#8C6226] dark:text-[#E5CBA2] hover:underline font-semibold">
+            <Link href={loginHref} className="text-[#8C6226] dark:text-[#E5CBA2] hover:underline font-semibold">
               Sign in →
             </Link>
           </p>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center text-foreground">Loading...</div>}>
+      <RegisterForm />
+    </Suspense>
   );
 }

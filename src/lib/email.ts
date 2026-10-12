@@ -134,13 +134,19 @@ export async function sendGmailEmail(options: SendEmailOptions): Promise<EmailSe
 
   // 3. Dispatch email via Nodemailer
   try {
-    const fromAddress = `"VM Mobiles" <${userEmail}>`;
+    // VN Mobiles display name with authenticated Gmail sender address
+    const fromAddress = `"VN Mobiles" <${userEmail}>`;
     const mailOptions = {
       from: fromAddress,
       to: `"${recipientName}" <${cleanRecipientEmail}>`,
       subject: options.subject,
       text: options.text || options.contentSummary || options.subject,
       html: options.html,
+      headers: {
+        "X-Priority": "1",
+        "X-MSMail-Priority": "High",
+        "Importance": "high",
+      },
     };
 
     console.log(`[GMAIL SMTP] Dispatching ${options.emailType} to ${cleanRecipientEmail} via smtp.gmail.com:465`);
@@ -194,7 +200,13 @@ export const sendMsg91Email = sendGmailEmail;
 export const sendEmail = sendGmailEmail;
 
 /**
- * Sends User Email Verification message with unique expiring token and 5-minute OTP.
+ * Sends User Email Verification message with unique 5-minute OTP for VN Mobiles.
+ * 
+ * Optimized for high inbox deliverability:
+ * - Direct, transactional content without spam trigger words
+ * - Clean, standard HTML layout with high text-to-code ratio
+ * - Identical plain-text representation
+ * - Clear 5-minute expiry warning and security notice
  */
 export async function sendUserVerificationEmail(
   user: {
@@ -202,79 +214,66 @@ export async function sendUserVerificationEmail(
     name: string;
     email: string;
   },
-  token: string,
+  _token?: string,
   otp?: string
 ): Promise<EmailSendResult> {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-  const verifyLink = `${appUrl}/verify-email?token=${encodeURIComponent(token)}&email=${encodeURIComponent(user.email)}`;
-  const codeDisplay = otp || token.slice(0, 6);
+  const codeDisplay = (otp || "").slice(0, 6);
 
-  const plainText = `Hi ${user.name},\n\nYour VM Mobiles verification OTP is: ${codeDisplay}\nThis code is valid for 5 minutes.\n\nAlternatively, verify using this link:\n${verifyLink}\n\nFor security reasons, never share this OTP with anyone.\n\nThank you,\nVM Mobiles`;
+  const plainText = [
+    "Your VN Mobiles verification code",
+    "",
+    `Hi ${user.name},`,
+    "",
+    "You recently requested a verification code for your VN Mobiles account.",
+    "",
+    `Verification Code: ${codeDisplay}`,
+    "",
+    "This code expires in 5 minutes.",
+    "",
+    "If you did not request this verification code, please ignore this email. No changes have been made to your account.",
+    "",
+    "Thank you,",
+    "VN Mobiles",
+  ].join("\n");
 
-  const html = `
-<!DOCTYPE html>
+  const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Verify Your Email - VM Mobiles</title>
+  <title>Your VN Mobiles verification code</title>
 </head>
-<body style="margin: 0; padding: 0; background-color: #F8F9FA; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1F2937;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #F8F9FA; padding: 40px 16px;">
+<body style="margin:0;padding:0;background-color:#f6f8fa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#24292f;-webkit-font-smoothing:antialiased;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f6f8fa;padding:32px 16px;">
     <tr>
       <td align="center">
-        <table role="presentation" width="100%" style="max-width: 540px; background-color: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
-          <!-- Header -->
+        <table role="presentation" width="100%" style="max-width:500px;background-color:#ffffff;border:1px solid #d0d7de;border-radius:12px;overflow:hidden;">
           <tr>
-            <td style="background: linear-gradient(135deg, #232F3E 0%, #131921 100%); padding: 28px 32px; text-align: center;">
-              <div style="display: inline-block; background-color: #C9A66B; color: #FFFFFF; font-weight: 800; font-size: 18px; padding: 6px 12px; border-radius: 8px; margin-bottom: 8px; letter-spacing: 0.5px;">VM</div>
-              <h1 style="margin: 0; color: #FFFFFF; font-size: 20px; font-weight: 700; letter-spacing: -0.5px;">VM Mobiles</h1>
-              <p style="margin: 4px 0 0 0; color: #D4B483; font-size: 12px; font-weight: 500;">Premium Smartphones & Accessories</p>
+            <td style="padding:28px 32px 20px 32px;border-bottom:1px solid #f0f2f5;">
+              <h1 style="margin:0;font-size:20px;font-weight:700;color:#1f2328;letter-spacing:-0.2px;">VN Mobiles</h1>
             </td>
           </tr>
-
-          <!-- Content -->
           <tr>
-            <td style="padding: 36px 32px 24px 32px;">
-              <h2 style="margin: 0 0 12px 0; color: #111827; font-size: 20px; font-weight: 700;">Verify Your Email Address</h2>
-              <p style="margin: 0 0 20px 0; font-size: 14px; line-height: 1.6; color: #4B5563;">
-                Hi <strong>${user.name}</strong>,<br>
-                Thank you for choosing VM Mobiles. Please use the following 6-digit verification code to complete your account registration:
+            <td style="padding:24px 32px;">
+              <p style="margin:0 0 16px 0;font-size:14px;line-height:1.6;color:#24292f;">
+                Hi <strong>${user.name}</strong>,
               </p>
-
-              <!-- OTP Code Box -->
-              <div style="background-color: #FFFDF9; border: 2px dashed #C9A66B; border-radius: 12px; padding: 20px; text-align: center; margin: 24px 0;">
-                <span style="display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #8C6226; letter-spacing: 1px; margin-bottom: 8px;">Your 6-Digit Verification Code</span>
-                <span style="display: inline-block; font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #8C6226; font-family: monospace;">${codeDisplay}</span>
-                <div style="margin-top: 10px; display: inline-block; background-color: #FEF3C7; color: #92400E; font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 20px;">
-                  ⏱ Valid for 5 minutes only
-                </div>
+              <p style="margin:0 0 20px 0;font-size:14px;line-height:1.6;color:#57606a;">
+                You recently requested a verification code for your VN Mobiles account. Please enter the following code to complete your verification:
+              </p>
+              <div style="background-color:#f6f8fa;border:1px solid #d0d7de;border-radius:8px;padding:20px;text-align:center;margin:20px 0;">
+                <div style="font-size:11px;font-weight:600;text-transform:uppercase;color:#57606a;letter-spacing:1px;margin-bottom:6px;">Verification Code</div>
+                <div style="font-size:34px;font-weight:700;letter-spacing:8px;color:#1f2328;font-family:ui-monospace,SFMono-Regular,Consolas,'Liberation Mono',Menlo,monospace;">${codeDisplay}</div>
+                <div style="margin-top:8px;font-size:12px;color:#cf222e;font-weight:600;">Expires in 5 minutes</div>
               </div>
-
-              <!-- Button CTA -->
-              <p style="margin: 20px 0 12px 0; font-size: 13px; color: #6B7280; text-align: center;">Or click the button below to verify automatically:</p>
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
-                <tr>
-                  <td align="center">
-                    <a href="${verifyLink}" style="display: inline-block; background-color: #C9A66B; color: #FFFFFF; font-weight: 600; font-size: 14px; text-decoration: none; padding: 12px 28px; border-radius: 8px; box-shadow: 0 2px 4px rgba(201, 166, 107, 0.3);">
-                      Verify My Email
-                    </a>
-                  </td>
-                </tr>
-              </table>
-
-              <!-- Security notice -->
-              <div style="margin-top: 32px; padding: 14px 16px; background-color: #F9FAFB; border-radius: 8px; border: 1px solid #E5E7EB; font-size: 12px; color: #6B7280; line-height: 1.5;">
-                <strong style="color: #374151;">Security Alert:</strong> VM Mobiles will never ask for your verification code or password. If you did not create this account, you can safely disregard this email. Single-use only.
-              </div>
+              <p style="margin:20px 0 0 0;font-size:13px;line-height:1.5;color:#57606a;">
+                If you did not request this verification code, please ignore this email. No changes have been made to your account.
+              </p>
             </td>
           </tr>
-
-          <!-- Footer -->
           <tr>
-            <td style="background-color: #F9FAFB; border-top: 1px solid #E5E7EB; padding: 20px 32px; text-align: center; font-size: 11px; color: #9CA3AF;">
-              &copy; ${new Date().getFullYear()} VM Mobiles. All rights reserved.<br>
-              Official Store &bull; Device Shield &bull; Pan-India Support
+            <td style="background-color:#f6f8fa;padding:16px 32px;border-top:1px solid #d0d7de;font-size:12px;color:#57606a;text-align:center;">
+              &copy; ${new Date().getFullYear()} VN Mobiles. All rights reserved.
             </td>
           </tr>
         </table>
@@ -282,14 +281,13 @@ export async function sendUserVerificationEmail(
     </tr>
   </table>
 </body>
-</html>
-  `.trim();
+</html>`;
 
   return sendGmailEmail({
     userId: user.id,
     recipientName: user.name,
     recipientEmail: user.email,
-    subject: "Verify Your Email - VM Mobiles",
+    subject: "Your VN Mobiles verification code",
     emailType: "EMAIL_VERIFICATION",
     contentSummary: plainText,
     text: plainText,
@@ -322,7 +320,7 @@ export async function sendOrderConfirmationEmail(order: {
   const totalQty = order.items.reduce((s, i) => s + (i.quantity || 1), 0);
   const formattedTotal = `₹${order.totalAmount.toLocaleString("en-IN")}`;
 
-  const plainText = `Hi ${order.customerName},\n\nThank you for your order!\n\nYour order ${order.orderNumber} has been successfully confirmed.\n\nProduct: ${productSummary}\nQuantity: ${totalQty}\nOrder Total: ${formattedTotal}\n\nWe will notify you when your order is shipped.\n\nThank you,\nVM Mobiles`;
+  const plainText = `Hi ${order.customerName},\n\nThank you for your order!\n\nYour order ${order.orderNumber} has been successfully confirmed.\n\nProduct: ${productSummary}\nQuantity: ${totalQty}\nOrder Total: ${formattedTotal}\n\nWe will notify you when your order is shipped.\n\nThank you,\nVN Mobiles`;
 
   const itemsHtml = order.items
     .map(
@@ -358,7 +356,6 @@ export async function sendOrderConfirmationEmail(order: {
         <table role="presentation" width="100%" style="max-width: 560px; background-color: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
           <tr>
             <td style="background: linear-gradient(135deg, #232F3E 0%, #131921 100%); padding: 28px 32px; text-align: center;">
-              <div style="display: inline-block; background-color: #C9A66B; color: #FFFFFF; font-weight: 800; font-size: 18px; padding: 6px 12px; border-radius: 8px; margin-bottom: 8px;">VM</div>
               <h1 style="margin: 0; color: #FFFFFF; font-size: 20px; font-weight: 700;">Order Confirmed!</h1>
               <p style="margin: 4px 0 0 0; color: #D4B483; font-size: 12px;">Order ID: ${order.orderNumber}</p>
             </td>
@@ -394,7 +391,7 @@ export async function sendOrderConfirmationEmail(order: {
           </tr>
           <tr>
             <td style="background-color: #F9FAFB; border-top: 1px solid #E5E7EB; padding: 20px 32px; text-align: center; font-size: 11px; color: #9CA3AF;">
-              &copy; ${new Date().getFullYear()} VM Mobiles. Thank you for shopping with us!
+              &copy; ${new Date().getFullYear()} VN Mobiles. Thank you for shopping with us!
             </td>
           </tr>
         </table>
@@ -442,7 +439,7 @@ export async function sendOrderStatusEmail(
     ? `\nCarrier: ${order.shippingCarrier || "Standard Delivery"}\nTracking Number: ${order.trackingNumber}`
     : "";
 
-  const plainText = `Hi ${order.customerName},\n\nYour order ${order.orderNumber} status has been updated to: ${readableStatus}.${trackingInfo}\n${note ? `\nNote: ${note}\n` : ""}\nYou can track your order anytime on VM Mobiles.\n\nThank you,\nVM Mobiles`;
+  const plainText = `Hi ${order.customerName},\n\nYour order ${order.orderNumber} status has been updated to: ${readableStatus}.${trackingInfo}\n${note ? `\nNote: ${note}\n` : ""}\nYou can track your order anytime on VN Mobiles.\n\nThank you,\nVN Mobiles`;
 
   const html = `
 <!DOCTYPE html>
@@ -490,7 +487,7 @@ export async function sendOrderStatusEmail(
           </tr>
           <tr>
             <td style="background-color: #F9FAFB; border-top: 1px solid #E5E7EB; padding: 20px 32px; text-align: center; font-size: 11px; color: #9CA3AF;">
-              &copy; ${new Date().getFullYear()} VM Mobiles.
+              &copy; ${new Date().getFullYear()} VN Mobiles.
             </td>
           </tr>
         </table>
@@ -542,7 +539,7 @@ export async function sendWarrantyActivationEmail(warranty: {
     year: "numeric",
   });
 
-  const plainText = `Hi ${warranty.customerName},\n\nOfficial Mobile Warranty Activated!\n\nProduct: ${warranty.productName}\nOrder: ${warranty.orderNumber}\nIMEI Number: ${warranty.imeiNumber}\nPurchase Date: ${purchaseFormatted}\nWarranty: ${warranty.warrantyDuration}\nWarranty Expiry: ${expiryFormatted}\nWarranty Status: ACTIVE\n\nYour smartphone is protected by VM Mobiles Device Shield.\n\nThank you,\nVM Mobiles`;
+  const plainText = `Hi ${warranty.customerName},\n\nOfficial Mobile Warranty Activated!\n\nProduct: ${warranty.productName}\nOrder: ${warranty.orderNumber}\nIMEI Number: ${warranty.imeiNumber}\nPurchase Date: ${purchaseFormatted}\nWarranty: ${warranty.warrantyDuration}\nWarranty Expiry: ${expiryFormatted}\nWarranty Status: ACTIVE\n\nYour smartphone is protected by VN Mobiles Device Shield.\n\nThank you,\nVN Mobiles`;
 
   const html = `
 <!DOCTYPE html>
@@ -566,7 +563,7 @@ export async function sendWarrantyActivationEmail(warranty: {
             <td style="padding: 32px;">
               <p style="margin: 0 0 16px 0; font-size: 14px; line-height: 1.6; color: #4B5563;">
                 Hi <strong>${warranty.customerName}</strong>,<br>
-                Your official manufacturer warranty coverage has been activated on VM Mobiles Device Shield.
+                Your official manufacturer warranty coverage has been activated on VN Mobiles Device Shield.
               </p>
 
               <table role="presentation" width="100%" style="background-color: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 10px; padding: 16px; font-size: 13px; margin: 20px 0;">
@@ -599,7 +596,7 @@ export async function sendWarrantyActivationEmail(warranty: {
           </tr>
           <tr>
             <td style="background-color: #F9FAFB; border-top: 1px solid #E5E7EB; padding: 20px 32px; text-align: center; font-size: 11px; color: #9CA3AF;">
-              &copy; ${new Date().getFullYear()} VM Mobiles Device Shield.
+              &copy; ${new Date().getFullYear()} VN Mobiles Device Shield.
             </td>
           </tr>
         </table>

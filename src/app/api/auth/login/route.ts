@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifyPassword } from "@/lib/auth";
+import { verifyPassword, createSessionToken } from "@/lib/auth";
 
 export async function POST(request: Request) {
   try {
@@ -69,7 +69,8 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json({
+    const sessionToken = createSessionToken(user);
+    const response = NextResponse.json({
       success: true,
       user: {
         id: user.id,
@@ -85,6 +86,16 @@ export async function POST(request: Request) {
         ? "Administrator access granted! Redirecting to Admin Dashboard..."
         : `Welcome back, ${user.name}! Accessing your account...`,
     });
+
+    response.cookies.set("vn_session", sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 30 * 24 * 60 * 60,
+    });
+
+    return response;
   } catch (error) {
     console.error("Login error:", error);
     return NextResponse.json(

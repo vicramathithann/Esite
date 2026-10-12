@@ -1,48 +1,41 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendOrderConfirmationEmail, sendWarrantyActivationEmail } from "@/lib/email";
+import { getAuthenticatedUser } from "@/lib/auth";
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
-    const email = searchParams.get("email");
-    const phone = searchParams.get("phone");
     const admin = searchParams.get("admin");
     const role = searchParams.get("role");
+
+    // Authenticate caller via session cookie or database verified user
+    const authUser = await getAuthenticatedUser(request);
+    let effectiveUser = authUser;
+
+    if (!effectiveUser && userId) {
+      effectiveUser = await prisma.user.findUnique({ where: { id: userId } });
+    }
+
+    if (!effectiveUser) {
+      // Unauthenticated guests cannot access private order records
+      return NextResponse.json({ success: true, count: 0, orders: [] });
+    }
 
     let where: Record<string, unknown> = {};
 
     // 1. Admin Request: Can view all orders across all users
-    if (admin === "true" || role === "ADMIN") {
+    if (effectiveUser.role === "ADMIN" && (admin === "true" || role === "ADMIN")) {
       where = {};
-    } else if (userId) {
-      // 2. Querying by authenticated User ID
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-      });
-
-      if (!user) {
-        return NextResponse.json({ success: true, count: 0, orders: [] });
-      }
-
-      if (user.role === "ADMIN") {
-        where = {}; // Admin sees all
-      } else {
-        // Normal user: ONLY see their own orders - strict user isolation
-        where = {
-          OR: [
-            { userId: user.id },
-            { customerEmail: { equals: user.email } },
-          ],
-        };
-      }
-    } else if (email) {
-      // 3. Querying by specific email
-      where = { customerEmail: { equals: email.trim().toLowerCase() } };
     } else {
-      // 4. Guest / Unauthenticated: Do NOT expose private order data
-      return NextResponse.json({ success: true, count: 0, orders: [] });
+      // 2. Strict Customer Isolation: User only sees their own orders
+      where = {
+        OR: [
+          { userId: effectiveUser.id },
+          { customerEmail: { equals: effectiveUser.email } },
+        ],
+      };
     }
 
     const orders = await prisma.order.findMany({
@@ -103,25 +96,43 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2. Resolve authenticated user and email verification status
-    let validUserId: string | null = null;
-    let userVerified = false;
+    // 2. Resolve authenticated user and enforce purchase protection
+    let validUser = await getAuthenticatedUser(request);
 
-    if (userId) {
-      const userRecord = await prisma.user.findUnique({ where: { id: userId } });
-      if (userRecord) {
-        validUserId = userRecord.id;
-        userVerified = userRecord.emailVerified;
-      }
+    if (!validUser && userId) {
+      validUser = await prisma.user.findUnique({ where: { id: userId } });
     }
 
-    if (!validUserId && cleanCustomerEmail) {
-      const userByEmail = await prisma.user.findUnique({ where: { email: cleanCustomerEmail } });
-      if (userByEmail) {
-        validUserId = userByEmail.id;
-        userVerified = userByEmail.emailVerified;
-      }
+    if (!validUser && cleanCustomerEmail) {
+      validUser = await prisma.user.findUnique({ where: { email: cleanCustomerEmail } });
     }
+
+    // Purchase Protection: Require authenticated customer
+    if (!validUser) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Authentication required. Please sign in to place your order.",
+          requiresAuth: true,
+        },
+        { status: 401 }
+      );
+    }
+
+    // Purchase Protection: Require verified email address
+    if (!validUser.emailVerified) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Email verification required. Please verify your email before placing an order.",
+          requiresVerification: true,
+          email: validUser.email,
+        },
+        { status: 403 }
+      );
+    }
+
+    const validUserId = validUser.id;
 
     // 3. Strict Backend Product, Stock, and Price Validation
     let computedBackendTotal = 0;

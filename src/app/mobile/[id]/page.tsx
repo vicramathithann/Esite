@@ -33,7 +33,7 @@ export default function MobileDetailPage({
 }) {
   const resolvedParams = use(params);
   const router = useRouter();
-  const { addToCart, addToCompare, compareList } = useApp();
+  const { currentUser, addToCart, addToCompare, compareList } = useApp();
 
   const defaultMatch = DEFAULT_PRODUCTS.find((p) => p.id === resolvedParams.id) || null;
 
@@ -157,6 +157,17 @@ export default function MobileDetailPage({
       quantity,
       warrantyMonths: product.warrantyMonths || 12,
     });
+
+    if (!currentUser) {
+      router.push("/login?redirect=/checkout");
+      return;
+    }
+
+    if (!currentUser.emailVerified) {
+      router.push(`/verify-email?email=${encodeURIComponent(currentUser.email)}&redirect=/checkout`);
+      return;
+    }
+
     router.push("/checkout");
   };
 

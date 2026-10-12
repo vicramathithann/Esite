@@ -18,7 +18,7 @@ import { formatINR } from "@/lib/formatters";
 import { useApp } from "@/context/AppContext";
 
 export default function CartPage() {
-  const { cart, updateQuantity, removeFromCart, clearCart, cartTotal, cartCount } = useApp();
+  const { currentUser, cart, updateQuantity, removeFromCart, clearCart, cartTotal, cartCount } = useApp();
 
   return (
     <div className="min-h-screen bg-background text-foreground py-10 px-4 sm:px-6 lg:px-8 transition-colors duration-200">
@@ -166,7 +166,13 @@ export default function CartPage() {
               </div>
 
               <Link
-                href="/checkout"
+                href={
+                  !currentUser
+                    ? "/login?redirect=/checkout"
+                    : !currentUser.emailVerified
+                    ? `/verify-email?email=${encodeURIComponent(currentUser.email)}&redirect=/checkout`
+                    : "/checkout"
+                }
                 className="w-full py-3.5 px-4 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] font-semibold rounded-full flex items-center justify-center gap-2 transition-all duration-200 shadow-sm cursor-pointer"
               >
                 <span>Proceed to Checkout</span>
