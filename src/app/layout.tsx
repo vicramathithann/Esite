@@ -19,7 +19,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full" suppressHydrationWarning>
-      <body className="min-h-full flex flex-col bg-background text-foreground antialiased selection:bg-accent selection:text-white">
+      <body
+        suppressHydrationWarning
+        className="min-h-full flex flex-col bg-background text-foreground antialiased selection:bg-accent selection:text-white"
+      >
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

@@ -7284,3 +7284,43 @@ Argument `productName` is missing.
 [2026-10-12 04:08:42] Updated shortcuts in Z:\Web_Site\Shortcuts folder.
 [2026-10-12 04:08:42] [Tunnel] 2026-10-12T04:08:42Z INF |  Your quick Tunnel has been created! Visit it at (it may take some time to be reachable):  |
 [2026-10-12 04:08:44] [Tunnel] 2026-10-12T04:08:44Z INF Registered tunnel connection connIndex=0 connection=6c39ddf6-ebb2-444f-9768-7a8d460d350c event=0 ip=198.41.192.107 location=bom06 protocol=http2
+[2026-10-13 03:52:50] ================================================================
+[2026-10-13 03:52:50]    VM Mobiles Standalone Background Service Starting
+[2026-10-13 03:52:50] ================================================================
+[2026-10-13 03:52:50] Starting Next.js production server on 0.0.0.0:3000 (IPv4)...
+[2026-10-13 03:52:50] Waiting for Next.js to be ready at http://127.0.0.1:3000 ...
+[2026-10-13 03:52:51] [Next.js] ▲ Next.js 16.3.4
+[2026-10-13 03:52:51] [Next.js] - Local:         http://localhost:3000
+- Network:       http://0.0.0.0:3000
+✓ Ready in 433ms
+[2026-10-13 03:52:51] [Next.js] ✓ Running next.config.ts took 157ms
+[2026-10-13 03:52:52] Next.js server is confirmed HEALTHY and responding on port 3000.
+[2026-10-13 03:52:52] Starting Cloudflare Tunnel (http2 protocol)...
+[2026-10-13 03:52:58] ================================================================
+[2026-10-13 03:52:58] >>> PUBLIC INTERNET URL: https://permitted-shot-communications-plot.trycloudflare.com <<<
+[2026-10-13 03:52:58] ================================================================
+[2026-10-13 03:52:58] Updated shortcuts in Z:\Web_Site\Shortcuts folder.
+[2026-10-13 03:52:58] [Tunnel] 2026-10-13T03:52:58Z INF |  Your quick Tunnel has been created! Visit it at (it may take some time to be reachable):  |
+[2026-10-13 03:53:00] [Tunnel] 2026-10-13T03:53:00Z INF Registered tunnel connection connIndex=0 connection=edfff88b-eba4-4f9c-89d3-cfc809f23c2c event=0 ip=198.41.192.7 location=bom03 protocol=http2
+[2026-10-13 03:57:13] ================================================================
+[2026-10-13 03:57:13]    VM Mobiles Standalone Background Service Starting
+[2026-10-13 03:57:13] ================================================================
+[2026-10-13 03:57:13] Starting Next.js production server on 0.0.0.0:3000 (IPv4)...
+[2026-10-13 03:57:13] Waiting for Next.js to be ready at http://127.0.0.1:3000 ...
+[2026-10-13 03:57:15] [Next.js] ▲ Next.js 16.3.4
+[2026-10-13 03:57:15] [Next.js] - Local:         http://localhost:3000
+- Network:       http://0.0.0.0:3000
+✓ Ready in 441ms
+[2026-10-13 03:57:15] [Next.js] ✓ Running next.config.ts took 137ms
+[2026-10-13 03:57:15] Next.js server is confirmed HEALTHY and responding on port 3000.
+[2026-10-13 03:57:15] Starting Cloudflare Tunnel (http2 protocol)...
+[2026-10-13 03:57:21] ================================================================
+[2026-10-13 03:57:21] >>> PUBLIC INTERNET URL: https://statements-drinking-talking-forty.trycloudflare.com <<<
+[2026-10-13 03:57:21] ================================================================
+[2026-10-13 03:57:21] Updated shortcuts in Z:\Web_Site\Shortcuts folder.
+[2026-10-13 03:57:21] [Tunnel] 2026-10-13T03:57:21Z INF |  Your quick Tunnel has been created! Visit it at (it may take some time to be reachable):  |
+[2026-10-13 03:57:22] [Tunnel] 2026-10-13T03:57:22Z INF Registered tunnel connection connIndex=0 connection=bd117d17-61c1-4386-b817-ce5fa79c2e9d event=0 ip=198.41.192.107 location=bom03 protocol=http2
+[2026-10-13 04:20:25] [Tunnel] 2026-10-13T04:20:25Z INF Registered tunnel connection connIndex=0 connection=a0b888cc-08ac-4d22-bc8f-0c02afec3093 event=0 ip=198.41.192.107 location=bom03 protocol=http2
+[2026-10-13 05:01:18] [Tunnel] 2026-10-13T05:01:18Z INF Registered tunnel connection connIndex=0 connection=1b7e6d58-85a9-4e47-8e3a-e33a17d5feea event=0 ip=198.41.192.107 location=bom06 protocol=http2
+[2026-10-13 05:30:50] [Tunnel] 2026-10-13T05:30:50Z INF Registered tunnel connection connIndex=0 connection=1660e0f1-c82b-40fe-a2a1-13f8aebaf0e1 event=0 ip=198.41.192.107 location=bom03 protocol=http2
+[2026-10-13 06:47:06] [Tunnel] 2026-10-13T06:47:06Z INF Registered tunnel connection connIndex=0 connection=55a27337-4b85-4ba4-a21f-f133bea6fe13 event=0 ip=198.41.192.107 location=bom06 protocol=http2

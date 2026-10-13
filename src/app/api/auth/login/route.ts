@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifyPassword, createSessionToken } from "@/lib/auth";
+import { verifyPassword, createSessionToken, ensureAdminUser } from "@/lib/auth";
 
 export async function POST(request: Request) {
   try {
@@ -21,6 +21,10 @@ export async function POST(request: Request) {
     // Optional alias mapping for default system admin shortcut
     if (cleanEmail === "admin") {
       cleanEmail = "admin@vmmobiles.in";
+    }
+
+    if (cleanEmail === "admin@vmmobiles.in") {
+      await ensureAdminUser();
     }
 
     // Find user by email or phone

@@ -165,9 +165,15 @@ export async function ensureAdminUser() {
           phone: "+91 99999 00000",
           password: hashedPassword,
           role: "ADMIN",
+          emailVerified: true,
         },
       });
       console.log("Default admin account created: admin@vmmobiles.in / admin123");
+    } else if (!existing.emailVerified || existing.role !== "ADMIN") {
+      await prisma.user.update({
+        where: { id: existing.id },
+        data: { emailVerified: true, role: "ADMIN" },
+      });
     }
   } catch (e) {
     console.error("Error seeding admin account:", e);
