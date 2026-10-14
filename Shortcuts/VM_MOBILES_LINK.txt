@@ -2,10 +2,10 @@
               VM MOBILES - ONLINE STORE
 ============================================================
 Status:            ONLINE (24/7 Background Service)
-Public Web Link:   https://statements-drinking-talking-forty.trycloudflare.com
+Public Web Link:   https://america-loads-martha-parks.trycloudflare.com
 Local Link:        http://localhost:3000
 Local Wi-Fi Link:  http://10.1.7.122:3000
-Last Updated:      13/10/2026, 9:27:21 am
+Last Updated:      14/10/2026, 9:23:22 am
 ============================================================
 Share the Public Web Link with anyone on any phone, laptop,
 or tablet anywhere in the world to browse and buy mobiles!
