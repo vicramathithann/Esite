@@ -45,3 +45,12 @@ next-env.d.ts
 # Local SQLite database
 prisma/dev.db
 prisma/dev.db-journal
+
+
+# Local database
+prisma/dev.db-wal
+prisma/dev.db-shm
+
+# Application logs
+service.log
+*.log

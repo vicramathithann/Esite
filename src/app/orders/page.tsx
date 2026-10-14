@@ -242,7 +242,7 @@ export default function OrdersPage() {
           <div className="flex items-center gap-2.5">
             <BellRing className="w-4 h-4 text-[#C9A66B] dark:text-[#D4B483] shrink-0" />
             <span>
-              <strong className="text-foreground">VM Mobiles Pre-Expiry Alert System:</strong> Test sending simulated SMS alerts (5 days or 24 hours left) on any smartphone below to verify the delivery on your phone number.
+              <strong className="text-foreground">VN Mobiles Pre-Expiry Alert System:</strong> Test sending simulated SMS alerts (5 days or 24 hours left) on any smartphone below to verify the delivery on your phone number.
             </span>
           </div>
         </div>
@@ -258,7 +258,7 @@ export default function OrdersPage() {
             <Smartphone className="w-12 h-12 mx-auto text-muted" />
             <h3 className="text-lg font-bold text-foreground">No Orders Placed Yet</h3>
             <p className="text-xs text-muted max-w-md mx-auto">
-              When you purchase a smartphone from VM Mobiles, you can track delivery and device warranty expiry here.
+              When you purchase a smartphone from VN Mobiles, you can track delivery and device warranty expiry here.
             </p>
             <Link href="/" className="inline-flex items-center justify-center bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] py-2.5 px-6 text-xs font-semibold rounded-xl transition-all shadow-sm">
               Start Shopping

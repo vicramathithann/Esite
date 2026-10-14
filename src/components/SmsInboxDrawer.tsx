@@ -139,7 +139,7 @@ export default function SmsInboxDrawer() {
       default:
         return (
           <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-tile text-foreground border border-border">
-            <Zap className="w-3 h-3" /> VM Mobiles
+            <Zap className="w-3 h-3" /> VN Mobiles
           </span>
         );
     }
@@ -269,7 +269,7 @@ export default function SmsInboxDrawer() {
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-mono font-bold text-foreground">
-                      [VM-MOBILES]
+                      [VN-MOBILES]
                     </span>
                     {getAlertBadge(sms.alertType)}
                   </div>
@@ -305,7 +305,7 @@ export default function SmsInboxDrawer() {
         <div className="p-3.5 bg-card border-t border-border text-xs text-muted flex items-center gap-2.5">
           <Zap className="w-4 h-4 text-accent shrink-0" />
           <p className="text-[11px] leading-tight">
-            VM Mobiles monitors your warranty in the database and automatically sends warning SMS alerts 7 days & 24h before expiry.
+            VN Mobiles monitors your warranty in the database and automatically sends warning SMS alerts 7 days & 24h before expiry.
           </p>
         </div>
       </div>

@@ -191,7 +191,7 @@ export async function POST(request: Request) {
 
     for (const item of items) {
       let pName = item.productName;
-      let pBrand = item.productBrand || "VM Mobiles";
+      let pBrand = item.productBrand || "VN Mobiles";
       let pImage = item.productImageUrl || "/images/placeholder.png";
       let pPrice = item.price;
 
@@ -377,7 +377,7 @@ export async function POST(request: Request) {
           customerPhone: customerPhone ? customerPhone.trim() : "",
           alertType: "PURCHASE_CONFIRMATION",
           title: `Order ${order.orderNumber} Confirmed`,
-          messageBody: `[VM Mobiles] Thank you ${customerName}! Your order ${order.orderNumber} for ${productSummary} (Total: Rs ${order.totalAmount.toLocaleString("en-IN")}) is confirmed. Official 1-Year Device Shield is active. Track: /track/${order.orderNumber}`,
+          messageBody: `[VN Mobiles] Thank you ${customerName}! Your order ${order.orderNumber} for ${productSummary} (Total: Rs ${order.totalAmount.toLocaleString("en-IN")}) is confirmed. Official 1-Year Device Shield is active. Track: /track/${order.orderNumber}`,
           isRead: false,
         },
       });

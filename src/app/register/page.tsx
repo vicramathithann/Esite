@@ -74,10 +74,10 @@ function RegisterForm() {
       <Link href="/" className="mb-6 flex flex-col items-center group">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-foreground text-background flex items-center justify-center font-bold text-xs tracking-tight transition-transform duration-200 group-hover:scale-105">
-            VM
+            VN
           </div>
           <span className="text-xl font-bold tracking-tight text-foreground">
-            VM <span className="text-muted font-normal">Mobiles</span>
+            VN <span className="text-muted font-normal">Mobiles</span>
           </span>
         </div>
       </Link>

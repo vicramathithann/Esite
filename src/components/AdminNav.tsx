@@ -34,7 +34,7 @@ export default function AdminNav() {
           <div className="flex items-center gap-3">
             <span className="font-bold text-foreground text-sm tracking-tight flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-[#C9A66B] dark:bg-[#D4B483] animate-pulse"></span>
-              VM Mobiles Admin
+              VN Mobiles Admin
             </span>
           </div>
 

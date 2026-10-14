@@ -35,28 +35,28 @@ export async function POST(request: Request) {
       newStatus = "EXPIRING_SOON";
       alertType = "EXPIRY_WARNING_7D";
       title = "⚠️ Warranty Expiring Soon (5 Days Remaining)";
-      messageBody = `[VM Mobiles ALERT] Dear ${orderItem.order.customerName}, warranty for ${orderItem.productName} (IMEI: ${orderItem.imeiNumber}) expires in 5 DAYS on ${newExpiryDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}! Book free inspection or extend coverage at vmmobiles.in`;
+      messageBody = `[VN Mobiles ALERT] Dear ${orderItem.order.customerName}, warranty for ${orderItem.productName} (IMEI: ${orderItem.imeiNumber}) expires in 5 DAYS on ${newExpiryDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}! Book free inspection or extend coverage at vnmobiles.in`;
     } else if (action === "SET_URGENT_EXPIRY") {
       // 24 hours left
       newExpiryDate = new Date(now.getTime() + 24 * 60 * 60 * 1000);
       newStatus = "EXPIRING_SOON";
       alertType = "EXPIRY_ALERT_24H";
       title = "🚨 FINAL EXPIRY WARNING: 24 Hours Remaining";
-      messageBody = `[VM Mobiles URGENT] Final 24 hours! Your device shield for ${orderItem.productName} (IMEI: ${orderItem.imeiNumber}) expires TOMORROW! Last chance to claim coverage or extend protection.`;
+      messageBody = `[VN Mobiles URGENT] Final 24 hours! Your device shield for ${orderItem.productName} (IMEI: ${orderItem.imeiNumber}) expires TOMORROW! Last chance to claim coverage or extend protection.`;
     } else if (action === "SET_EXPIRED") {
       // Expired yesterday
       newExpiryDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
       newStatus = "EXPIRED";
       alertType = "EXPIRED_NOTICE";
       title = "❌ Device Protection Expired";
-      messageBody = `[VM Mobiles Notice] Your device protection for ${orderItem.productName} (IMEI: ${orderItem.imeiNumber}) has EXPIRED. Hardware repair protection is now void. Renew coverage at vmmobiles.in`;
+      messageBody = `[VN Mobiles Notice] Your device protection for ${orderItem.productName} (IMEI: ${orderItem.imeiNumber}) has EXPIRED. Hardware repair protection is now void. Renew coverage at vnmobiles.in`;
     } else if (action === "EXTEND_WARRANTY") {
       // Extend 1 year from now
       newExpiryDate = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
       newStatus = "ACTIVE";
       alertType = "CUSTOM_ALERT";
       title = "🛡️ Warranty Extended (+12 Months)";
-      messageBody = `[VM Mobiles] Great news! Device shield for your ${orderItem.productName} (IMEI: ${orderItem.imeiNumber}) has been extended for 12 additional months until ${newExpiryDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.`;
+      messageBody = `[VN Mobiles] Great news! Device shield for your ${orderItem.productName} (IMEI: ${orderItem.imeiNumber}) has been extended for 12 additional months until ${newExpiryDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.`;
     } else {
       return NextResponse.json({ success: false, error: "Invalid action" }, { status: 400 });
     }

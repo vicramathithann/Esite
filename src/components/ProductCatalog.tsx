@@ -295,7 +295,7 @@ export default function ProductCatalog({
           <div className="space-y-1.5">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent/10 text-accent text-xs font-semibold">
               <Sparkles className="w-3.5 h-3.5" />
-              <span>VM Mobiles Marketplace</span>
+              <span>VN Mobiles Marketplace</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
               {bannerTitle || (selectedBrand !== "All Mobiles" ? `${selectedBrand} Flagships` : "Smartphones & Mobile Devices")}

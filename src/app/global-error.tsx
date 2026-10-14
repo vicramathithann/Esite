@@ -16,7 +16,7 @@ export default function GlobalError({
           <div className="w-12 h-12 mx-auto rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xl font-bold">
             ⚠
           </div>
-          <h2 className="text-xl font-bold text-[#0f1111]">VM Mobiles Storefront</h2>
+          <h2 className="text-xl font-bold text-[#0f1111]">VN Mobiles Storefront</h2>
           <p className="text-xs text-gray-600">
             A temporary connection hiccup occurred. Click below to reconnect immediately.
           </p>

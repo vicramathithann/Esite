@@ -153,7 +153,7 @@ export default function AdminDashboardPage() {
   const handleAdminBypassLogin = () => {
     login({
       id: "admin-master",
-      name: "VM Mobiles Administrator",
+      name: "VN Mobiles Administrator",
       email: "admin@vmmobiles.in",
       phone: "+91 99999 00000",
       role: "ADMIN",
@@ -494,7 +494,7 @@ export default function AdminDashboardPage() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-lg font-black text-white tracking-tight">VM MOBILES</span>
+                <span className="text-lg font-black text-white tracking-tight">VN MOBILES</span>
                 <span className="bg-amber-500/20 text-[#febd69] text-[10px] font-bold px-2 py-0.5 rounded border border-[#febd69]/30">
                   ADMIN CONTROL DESK
                 </span>

@@ -26,7 +26,7 @@ export async function POST(request: Request) {
       },
     });
 
-    const messageBody = `[VM Mobiles Security] Your mobile verification OTP is ${code}. Valid for 10 minutes. Use this code to authenticate your phone for device warranty registration & expiry alerts on VM Mobiles.in.`;
+    const messageBody = `[VN Mobiles Security] Your mobile verification OTP is ${code}. Valid for 10 minutes. Use this code to authenticate your phone for device warranty registration & expiry alerts on VN Mobiles.in.`;
 
     const smsAlert = await prisma.smsAlert.create({
       data: {

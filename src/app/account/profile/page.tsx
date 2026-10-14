@@ -124,7 +124,7 @@ export default function ProfilePage() {
             <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
             <div className="text-xs">
               <span className="font-semibold text-sm block text-emerald-300">Verified Customer Account</span>
-              Your email ({currentUser.email}) is officially verified and secured with VM Mobiles.
+              Your email ({currentUser.email}) is officially verified and secured with VN Mobiles.
             </div>
           </div>
         )}

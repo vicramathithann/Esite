@@ -34,7 +34,7 @@ function MarketplaceContent() {
 
 export default function MarketplaceHome() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-foreground font-medium bg-background">Loading VM Mobiles...</div>}>
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-foreground font-medium bg-background">Loading VN Mobiles...</div>}>
       <MarketplaceContent />
     </Suspense>
   );

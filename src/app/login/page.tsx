@@ -100,10 +100,10 @@ function LoginForm() {
       <Link href="/" className="mb-6 flex flex-col items-center group">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-foreground text-background flex items-center justify-center font-bold text-xs tracking-tight transition-transform duration-200 group-hover:scale-105">
-            VM
+            VN
           </div>
           <span className="text-xl font-bold tracking-tight text-foreground">
-            VM <span className="text-muted font-normal">Mobiles</span>
+            VN <span className="text-muted font-normal">Mobiles</span>
           </span>
         </div>
         <span className="text-[11px] font-semibold text-muted uppercase tracking-widest mt-1">
@@ -276,11 +276,11 @@ function LoginForm() {
         </p>
       </div>
 
-      {/* New to VM Mobiles Section */}
+      {/* New to VN Mobiles Section */}
       <div className="w-full max-w-md mt-6">
         <div className="relative flex py-2 items-center">
           <div className="flex-grow border-t border-border"></div>
-          <span className="flex-shrink mx-3 text-xs text-muted font-medium">New to VM Mobiles?</span>
+          <span className="flex-shrink mx-3 text-xs text-muted font-medium">New to VN Mobiles?</span>
           <div className="flex-grow border-t border-border"></div>
         </div>
 
@@ -288,7 +288,7 @@ function LoginForm() {
           href="/register"
           className="block w-full text-center py-2.5 px-4 bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 dark:hover:bg-[#D4B483]/20 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 rounded-xl text-xs font-semibold text-[#8C6226] dark:text-[#E5CBA2] shadow-2xs transition-all"
         >
-          Create your VM Mobiles customer account
+          Create your VN Mobiles customer account
         </Link>
 
         <div className="text-center mt-4">

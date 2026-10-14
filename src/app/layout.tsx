@@ -8,8 +8,8 @@ import SmsInboxDrawer from "@/components/SmsInboxDrawer";
 import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
-  title: "VM Mobiles.in: Flagship Smartphones, Deals & Protection Alerts",
-  description: "VM Mobiles online smartphone store. Shop latest iPhones, Samsung Galaxy, OnePlus, Pixel with INR pricing, No Cost EMI, and automated pre-expiry SMS alerts.",
+  title: "VN Mobiles.in: Flagship Smartphones, Deals & Protection Alerts",
+  description: "VN Mobiles online smartphone store. Shop latest iPhones, Samsung Galaxy, OnePlus, Pixel with INR pricing, No Cost EMI, and automated pre-expiry SMS alerts.",
 };
 
 export default function RootLayout({

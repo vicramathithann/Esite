@@ -86,7 +86,7 @@ export default function UserWarrantiesPage() {
             <div>
               <h1 className="text-xl font-bold text-white">Device Shield Warranties</h1>
               <p className="text-xs text-slate-400">
-                Official smartphone warranties registered with VM Mobiles. Each smartphone is tracked by its unique hardware IMEI.
+                Official smartphone warranties registered with VN Mobiles. Each smartphone is tracked by its unique hardware IMEI.
               </p>
             </div>
           </div>
@@ -102,7 +102,7 @@ export default function UserWarrantiesPage() {
             <Smartphone className="w-12 h-12 text-slate-600 mx-auto mb-3" />
             <h3 className="text-base font-bold text-white mb-1">No Active Warranties</h3>
             <p className="text-xs text-slate-400 max-w-sm mx-auto mb-6">
-              When you purchase a smartphone from VM Mobiles, official 1-year Device Shield warranty protection will automatically be registered here.
+              When you purchase a smartphone from VN Mobiles, official 1-year Device Shield warranty protection will automatically be registered here.
             </p>
             <Link
               href="/"

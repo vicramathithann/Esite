@@ -12,7 +12,7 @@ export default function ErrorBoundary({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("VM Mobiles Client Error Boundary:", error);
+    console.error("VN Mobiles Client Error Boundary:", error);
   }, [error]);
 
   return (

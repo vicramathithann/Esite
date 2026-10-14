@@ -469,7 +469,7 @@ export default function CheckoutPage() {
             </button>
 
             <Link href="/" className="text-xs text-[#8C6226] dark:text-[#E5CBA2] hover:underline font-medium px-4">
-              Continue Shopping on VM Mobiles
+              Continue Shopping on VN Mobiles
             </Link>
           </div>
         </div>
@@ -581,7 +581,7 @@ export default function CheckoutPage() {
     return (
       <div className="min-h-screen py-16 bg-background max-w-xl mx-auto px-4 text-center space-y-4">
         <div className="bg-card border border-border rounded-2xl p-8 space-y-4 shadow-sm">
-          <h2 className="text-xl font-bold text-foreground">Your VM Mobiles Cart is Empty</h2>
+          <h2 className="text-xl font-bold text-foreground">Your VN Mobiles Cart is Empty</h2>
           <p className="text-sm text-muted">
             Your shopping cart currently has no smartphone items.
           </p>
@@ -600,10 +600,10 @@ export default function CheckoutPage() {
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 group">
             <div className="w-7 h-7 rounded-full bg-foreground text-background flex items-center justify-center font-bold text-xs tracking-tight">
-              VM
+              VN
             </div>
             <span className="text-base font-bold tracking-tight text-foreground">
-              VM <span className="text-muted font-normal">Mobiles</span>
+              VN <span className="text-muted font-normal">Mobiles</span>
             </span>
           </Link>
 
@@ -926,7 +926,7 @@ export default function CheckoutPage() {
               </button>
 
               <p className="text-[11px] text-muted text-center leading-tight">
-                By placing your order, you agree to VM Mobiles.in privacy notice and conditions of use.
+                By placing your order, you agree to VN Mobiles.in privacy notice and conditions of use.
               </p>
 
               <div className="border-t border-border pt-4 space-y-2 text-muted">

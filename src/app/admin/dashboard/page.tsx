@@ -58,7 +58,7 @@ export default function AdminDashboardView() {
           <div>
             <h1 className="text-2xl font-bold text-foreground tracking-tight">Executive Store Dashboard</h1>
             <p className="text-xs text-muted mt-1">
-              Live operational metrics for VM Mobiles smartphone marketplace & inventory.
+              Live operational metrics for VN Mobiles smartphone marketplace & inventory.
             </p>
           </div>
 

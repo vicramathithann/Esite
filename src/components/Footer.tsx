@@ -171,7 +171,7 @@ export default function Footer() {
             <ul className="space-y-2.5 text-muted">
               <li>
                 <Link href="/account/warranties" className="hover:text-accent transition-colors duration-200">
-                  VM Device Shield Warranty
+                  VN Device Shield Warranty
                 </Link>
               </li>
               <li>
@@ -197,10 +197,10 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Column 4: About VM Mobiles */}
+          {/* Column 4: About VN Mobiles */}
           <div className="space-y-3.5">
             <h4 className="font-bold text-sm tracking-tight text-foreground">
-              About VM Mobiles
+              About VN Mobiles
             </h4>
             <ul className="space-y-2.5 text-muted">
               <li>
@@ -218,7 +218,7 @@ export default function Footer() {
               </li>
               <li className="pt-1 flex items-center gap-3">
                 <span className="text-foreground font-semibold">Support:</span>
-                <span className="text-accent font-medium">1800-VM-MOBILE</span>
+                <span className="text-accent font-medium">1800-VN-MOBILE</span>
               </li>
             </ul>
           </div>
@@ -282,7 +282,7 @@ export default function Footer() {
         {/* Bottom Sub-bar: Copyright, Legal & Region */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted">
           <div className="flex flex-wrap items-center gap-4 text-center sm:text-left">
-            <span>© 2026 VM Mobiles India Ltd. All rights reserved.</span>
+            <span>© 2026 VN Mobiles India Ltd. All rights reserved.</span>
             <span className="hidden sm:inline opacity-30">•</span>
             <a href="#" className="hover:text-foreground transition-colors">Privacy Policy</a>
             <a href="#" className="hover:text-foreground transition-colors">Terms of Sale</a>

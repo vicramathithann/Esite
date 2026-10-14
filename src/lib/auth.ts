@@ -160,7 +160,7 @@ export async function ensureAdminUser() {
       const hashedPassword = hashPassword("admin123");
       await prisma.user.create({
         data: {
-          name: "VM Mobiles Administrator",
+          name: "VN Mobiles Administrator",
           email: adminEmail,
           phone: "+91 99999 00000",
           password: hashedPassword,
