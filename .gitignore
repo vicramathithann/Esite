@@ -54,3 +54,5 @@ prisma/dev.db-shm
 # Application logs
 service.log
 *.log
+*.bak
+

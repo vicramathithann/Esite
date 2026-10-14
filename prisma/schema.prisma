@@ -98,6 +98,18 @@ model User {
   otpExpires         DateTime?
   otpAttempts        Int                 @default(0)
   lastOtpSentAt      DateTime?
+  // Login with OTP
+  loginOtpHash       String?
+  loginOtpExpires    DateTime?
+  loginOtpAttempts   Int                 @default(0)
+  lastLoginOtpSentAt DateTime?
+  // Password Reset
+  resetToken         String?
+  resetTokenExpires  DateTime?
+  resetOtpHash       String?
+  resetOtpExpires    DateTime?
+  resetOtpAttempts   Int                 @default(0)
+  lastResetOtpSentAt DateTime?
   createdAt          DateTime            @default(now())
   orders             Order[]
   warranties         Warranty[]

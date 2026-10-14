@@ -21,7 +21,7 @@ export interface SendEmailOptions {
   recipientName: string;
   recipientEmail: string;
   subject: string;
-  emailType: "EMAIL_VERIFICATION" | "ORDER_CONFIRMATION" | "ORDER_STATUS" | "WARRANTY_NOTIFICATION";
+  emailType: "EMAIL_VERIFICATION" | "ORDER_CONFIRMATION" | "ORDER_STATUS" | "WARRANTY_NOTIFICATION" | "LOGIN_OTP" | "PASSWORD_RESET";
   orderId?: string | null;
   productName?: string | null;
   templateId?: string;
@@ -289,6 +289,197 @@ export async function sendUserVerificationEmail(
     recipientEmail: user.email,
     subject: "Your VN Mobiles verification code",
     emailType: "EMAIL_VERIFICATION",
+    contentSummary: plainText,
+    text: plainText,
+    html,
+  });
+}
+
+/**
+ * Sends User Login Verification Code (OTP) via Gmail SMTP for VN Mobiles.
+ */
+export async function sendLoginOtpEmail(
+  user: {
+    id: string;
+    name: string;
+    email: string;
+  },
+  otp: string
+): Promise<EmailSendResult> {
+  const codeDisplay = (otp || "").slice(0, 6);
+
+  const plainText = [
+    "Your VN Mobiles login verification code",
+    "",
+    `Hi ${user.name},`,
+    "",
+    "You requested to sign in to your VN Mobiles account using a one-time verification code.",
+    "",
+    `Login Code: ${codeDisplay}`,
+    "",
+    "This code expires in 5 minutes.",
+    "",
+    "If you did not request this login code, your account is safe. No one can sign in without access to this code.",
+    "",
+    "Thank you,",
+    "VN Mobiles",
+  ].join("\n");
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your VN Mobiles login verification code</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f6f8fa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#24292f;-webkit-font-smoothing:antialiased;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f6f8fa;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width:500px;background-color:#ffffff;border:1px solid #d0d7de;border-radius:12px;overflow:hidden;">
+          <tr>
+            <td style="padding:28px 32px 20px 32px;border-bottom:1px solid #f0f2f5;">
+              <h1 style="margin:0;font-size:20px;font-weight:700;color:#1f2328;letter-spacing:-0.2px;">VN Mobiles</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px 32px;">
+              <p style="margin:0 0 16px 0;font-size:14px;line-height:1.6;color:#24292f;">
+                Hi <strong>${user.name}</strong>,
+              </p>
+              <p style="margin:0 0 20px 0;font-size:14px;line-height:1.6;color:#57606a;">
+                Please enter the following 6-digit code to complete signing in to your VN Mobiles account:
+              </p>
+              <div style="background-color:#f6f8fa;border:1px solid #d0d7de;border-radius:8px;padding:20px;text-align:center;margin:20px 0;">
+                <div style="font-size:11px;font-weight:600;text-transform:uppercase;color:#57606a;letter-spacing:1px;margin-bottom:6px;">Sign In Code</div>
+                <div style="font-size:34px;font-weight:700;letter-spacing:8px;color:#1f2328;font-family:ui-monospace,SFMono-Regular,Consolas,'Liberation Mono',Menlo,monospace;">${codeDisplay}</div>
+                <div style="margin-top:8px;font-size:12px;color:#cf222e;font-weight:600;">Expires in 5 minutes</div>
+              </div>
+              <p style="margin:20px 0 0 0;font-size:13px;line-height:1.5;color:#57606a;">
+                If you did not attempt to sign in, no action is needed. Your account remains protected.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color:#f6f8fa;padding:16px 32px;border-top:1px solid #d0d7de;font-size:12px;color:#57606a;text-align:center;">
+              &copy; ${new Date().getFullYear()} VN Mobiles. All rights reserved.
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  return sendGmailEmail({
+    userId: user.id,
+    recipientName: user.name,
+    recipientEmail: user.email,
+    subject: "Your VN Mobiles login verification code",
+    emailType: "LOGIN_OTP",
+    contentSummary: plainText,
+    text: plainText,
+    html,
+  });
+}
+
+/**
+ * Sends Password Reset Code and Link via Gmail SMTP for VN Mobiles.
+ */
+export async function sendPasswordResetEmail(
+  user: {
+    id: string;
+    name: string;
+    email: string;
+  },
+  otp: string,
+  token?: string
+): Promise<EmailSendResult> {
+  const codeDisplay = (otp || "").slice(0, 6);
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
+  const resetLink = token
+    ? `${appUrl}/reset-password?token=${encodeURIComponent(token)}&email=${encodeURIComponent(user.email)}`
+    : "";
+
+  const plainText = [
+    "Reset your VN Mobiles password",
+    "",
+    `Hi ${user.name},`,
+    "",
+    "We received a request to reset the password for your VN Mobiles account.",
+    "",
+    `Reset Code: ${codeDisplay}`,
+    ...(resetLink ? ["", `Direct Reset Link: ${resetLink}`] : []),
+    "",
+    "This code and link expire in 5 minutes.",
+    "",
+    "If you did not request a password reset, you can safely ignore this email. Your current password will remain unchanged.",
+    "",
+    "Thank you,",
+    "VN Mobiles",
+  ].join("\n");
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reset your VN Mobiles password</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f6f8fa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#24292f;-webkit-font-smoothing:antialiased;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f6f8fa;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width:500px;background-color:#ffffff;border:1px solid #d0d7de;border-radius:12px;overflow:hidden;">
+          <tr>
+            <td style="padding:28px 32px 20px 32px;border-bottom:1px solid #f0f2f5;">
+              <h1 style="margin:0;font-size:20px;font-weight:700;color:#1f2328;letter-spacing:-0.2px;">VN Mobiles</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px 32px;">
+              <p style="margin:0 0 16px 0;font-size:14px;line-height:1.6;color:#24292f;">
+                Hi <strong>${user.name}</strong>,
+              </p>
+              <p style="margin:0 0 20px 0;font-size:14px;line-height:1.6;color:#57606a;">
+                We received a request to reset your VN Mobiles password. Enter the code below or click the reset link to choose a new password:
+              </p>
+              <div style="background-color:#f6f8fa;border:1px solid #d0d7de;border-radius:8px;padding:20px;text-align:center;margin:20px 0;">
+                <div style="font-size:11px;font-weight:600;text-transform:uppercase;color:#57606a;letter-spacing:1px;margin-bottom:6px;">Password Reset Code</div>
+                <div style="font-size:34px;font-weight:700;letter-spacing:8px;color:#1f2328;font-family:ui-monospace,SFMono-Regular,Consolas,'Liberation Mono',Menlo,monospace;">${codeDisplay}</div>
+                <div style="margin-top:8px;font-size:12px;color:#cf222e;font-weight:600;">Expires in 5 minutes</div>
+              </div>
+              ${
+                resetLink
+                  ? `<div style="text-align:center;margin:24px 0;">
+                <a href="${resetLink}" style="display:inline-block;background-color:#C9A66B;color:#ffffff;font-size:13px;font-weight:600;text-decoration:none;padding:12px 28px;border-radius:8px;">Reset Password Directly</a>
+              </div>`
+                  : ""
+              }
+              <p style="margin:20px 0 0 0;font-size:13px;line-height:1.5;color:#57606a;">
+                If you did not request a password reset, you can safely ignore this email. Your password will remain unchanged.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color:#f6f8fa;padding:16px 32px;border-top:1px solid #d0d7de;font-size:12px;color:#57606a;text-align:center;">
+              &copy; ${new Date().getFullYear()} VN Mobiles. All rights reserved.
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  return sendGmailEmail({
+    userId: user.id,
+    recipientName: user.name,
+    recipientEmail: user.email,
+    subject: "Reset your VN Mobiles password",
+    emailType: "PASSWORD_RESET",
     contentSummary: plainText,
     text: plainText,
     html,
