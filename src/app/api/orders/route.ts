@@ -47,9 +47,6 @@ export async function GET(request: Request) {
         emailNotifications: {
           orderBy: { createdAt: "desc" },
         },
-        smsAlerts: {
-          orderBy: { sentAt: "desc" },
-        },
       },
     });
 
@@ -349,23 +346,6 @@ export async function POST(request: Request) {
       });
     } catch (mailErr) {
       console.error("[EMAIL NOTIFICATION WARNING] Could not send confirmation email:", mailErr);
-    }
-
-    // 9. Dispatch SMS Confirmation
-    try {
-      const productSummary = order.items.map((i) => `${i.productName} (${i.selectedStorage})`).join(", ");
-      await prisma.smsAlert.create({
-        data: {
-          orderId: order.id,
-          customerPhone: customerPhone ? customerPhone.trim() : "",
-          alertType: "PURCHASE_CONFIRMATION",
-          title: `Order ${order.orderNumber} Confirmed`,
-          messageBody: `[VN Mobiles] Thank you ${customerName}! Your order ${order.orderNumber} for ${productSummary} (Total: Rs ${order.totalAmount.toLocaleString("en-IN")}) is confirmed. Official 1-Year Device Shield is active. Track: /track/${order.orderNumber}`,
-          isRead: false,
-        },
-      });
-    } catch (smsErr) {
-      console.error("Error creating SMS alert record:", smsErr);
     }
 
     return NextResponse.json({

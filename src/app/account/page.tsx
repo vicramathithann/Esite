@@ -9,7 +9,6 @@ import {
   Clock, 
   AlertTriangle, 
   ShieldAlert, 
-  MessageSquare, 
   RefreshCw, 
   CheckCircle2, 
   ChevronRight,
@@ -31,7 +30,7 @@ import { formatINR, formatDateOnly, getDaysRemaining } from "@/lib/formatters";
 import { useApp } from "@/context/AppContext";
 
 export default function AccountPage() {
-  const { currentUser, logout, fetchSmsAlerts, setIsSmsDrawerOpen, setIsCartOpen } = useApp();
+  const { currentUser, logout, setIsCartOpen } = useApp();
 
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,7 +57,6 @@ export default function AccountPage() {
       if (data.success) {
         setCancelModalOrder(null);
         await loadOrders();
-        await fetchSmsAlerts();
         alert(`Order #${cancelModalOrder.orderNumber} has been successfully cancelled and refunded!`);
       } else {
         alert(data.error || "Failed to cancel order.");
@@ -113,8 +111,7 @@ export default function AccountPage() {
       const data = await res.json();
       if (data.success) {
         await loadOrders();
-        await fetchSmsAlerts();
-        setIsSmsDrawerOpen(true);
+        alert(data.message || "Warranty simulation updated and notification email dispatched!");
       } else {
         alert(data.error || "Simulation failed");
       }
@@ -137,7 +134,7 @@ export default function AccountPage() {
     if (status === "EXPIRING_SOON" || daysLeft <= 7) {
       return (
         <span className="inline-flex items-center gap-1 text-xs font-bold text-[#b12704] bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full animate-pulse">
-          <AlertTriangle className="w-3.5 h-3.5 text-[#e67a00]" /> Expiring in {daysLeft} Days (Alert Sent via SMS)
+          <AlertTriangle className="w-3.5 h-3.5 text-[#e67a00]" /> Expiring in {daysLeft} Days
         </span>
       );
     }
@@ -241,13 +238,6 @@ export default function AccountPage() {
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
               <span>Refresh</span>
             </button>
-            <button
-              onClick={() => setIsSmsDrawerOpen(true)}
-              className="btn-amazon-yellow py-1.5 px-3 text-xs font-bold flex items-center gap-1.5"
-            >
-              <MessageSquare className="w-3.5 h-3.5" />
-              <span>View Buyer SMS Alerts</span>
-            </button>
           </div>
         </div>
 
@@ -301,7 +291,7 @@ export default function AccountPage() {
                 <div className="flex items-center gap-2">
                   <BellRing className="w-4 h-4 text-[#e67a00] shrink-0" />
                   <span>
-                    <strong>VN Mobiles Pre-Expiry Alert System:</strong> Test sending simulated SMS alerts (5 days or 24 hours left) on any smartphone below to verify the delivery on your phone number.
+                    <strong>VN Mobiles Automated Warranty Protection:</strong> You will receive automated email alerts 6 months and 1 day before your hardware warranty expires.
                   </span>
                 </div>
               </div>
@@ -433,13 +423,7 @@ export default function AccountPage() {
 
                     <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-gray-600 pt-1.5 border-t border-amber-200/50">
                       <span>📍 Delivery Destination: <strong>{order.address}, {order.city}, {order.state} - {order.pincode}</strong></span>
-                      <button
-                        onClick={() => setIsSmsDrawerOpen(true)}
-                        className="text-[#007185] hover:underline font-bold flex items-center gap-1 cursor-pointer"
-                      >
-                        <MessageSquare className="w-3 h-3" />
-                        <span>View SMS Alerts & History</span>
-                      </button>
+                      <span className="text-gray-500 font-medium">🛡️ Protected by VN Shield Warranty</span>
                     </div>
                   </div>
                 )}
@@ -505,15 +489,15 @@ export default function AccountPage() {
                               {isExpired
                                 ? "Warranty coverage has expired. Hardware claim window closed."
                                 : isExpiringSoon
-                                ? "⚠️ Pre-expiry SMS warning alert sent to buyer's phone."
-                                : "Active coverage. Automated SMS alert will trigger 7 days before expiry."}
+                                ? "⚠️ Warranty is expiring soon. Reminder email dispatched to buyer."
+                                : "Active coverage. Automated warranty alert emails sent 6 months & 1 day before expiry."}
                             </p>
                           </div>
 
-                          {/* Action Buttons & SMS Simulation Triggers (3 cols) */}
+                          {/* Action Buttons & Warranty Email Simulation Triggers (3 cols) */}
                           <div className="lg:col-span-3 space-y-1.5 text-xs">
                             <span className="text-[10px] uppercase font-bold text-gray-500 block">
-                              Test Expiry SMS Alerts:
+                              Test Warranty Alert Emails:
                             </span>
 
                             <button
@@ -522,9 +506,9 @@ export default function AccountPage() {
                               className="w-full py-1.5 px-3 bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 border border-[#C9A66B]/30 rounded-sm font-medium text-left transition-colors cursor-pointer text-gray-800 disabled:opacity-50"
                             >
                               <div className="flex items-center gap-1 text-[#8C6226] dark:text-[#E5CBA2] font-bold">
-                                <AlertTriangle className="w-3 h-3 text-[#C9A66B]" /> Set 5-Day Expiry
+                                <AlertTriangle className="w-3 h-3 text-[#C9A66B]" /> Set 6-Month Expiry
                               </div>
-                              <span className="text-[10px] text-gray-500">Triggers 7-Day Warning SMS</span>
+                              <span className="text-[10px] text-gray-500">Triggers 6-Month Email Alert</span>
                             </button>
 
                             <button
@@ -535,7 +519,7 @@ export default function AccountPage() {
                               <div className="flex items-center gap-1 text-[#8C6226] dark:text-[#E5CBA2] font-bold">
                                 <ShieldAlert className="w-3 h-3 text-[#C9A66B]" /> Set 24H Expiry
                               </div>
-                              <span className="text-[10px] text-gray-500">Triggers Final Alert SMS</span>
+                              <span className="text-[10px] text-gray-500">Triggers 1-Day Urgent Email</span>
                             </button>
 
                             <button
@@ -546,7 +530,7 @@ export default function AccountPage() {
                               <div className="flex items-center gap-1 text-[#8C6226] dark:text-[#E5CBA2] font-bold">
                                 <Plus className="w-3 h-3 text-[#C9A66B]" /> Extend +1 Year
                               </div>
-                              <span className="text-[10px] text-gray-500">Renew warranty & SMS</span>
+                              <span className="text-[10px] text-gray-500">Renew warranty & alerts</span>
                             </button>
                           </div>
                         </div>
@@ -554,21 +538,6 @@ export default function AccountPage() {
                     );
                   })}
                 </div>
-
-                {/* Card footer */}
-                {order.smsAlerts && order.smsAlerts.length > 0 && (
-                  <div className="bg-gray-50 border-t border-gray-200 px-5 py-2.5 flex items-center justify-between text-xs text-gray-600">
-                    <span>
-                      {order.smsAlerts.length} SMS notification(s) logged for this order.
-                    </span>
-                    <button
-                      onClick={() => setIsSmsDrawerOpen(true)}
-                      className="text-[#007185] hover:underline font-bold"
-                    >
-                      View SMS alerts history &gt;
-                    </button>
-                  </div>
-                )}
               </div>
             ))}
           </div>
@@ -641,7 +610,7 @@ export default function AccountPage() {
               </div>
 
               <div className="text-[11px] text-gray-500 leading-tight">
-                ℹ️ An instant cancellation confirmation SMS alert will be dispatched to <strong>{cancelModalOrder.customerPhone || cancelModalOrder.phone}</strong>.
+                ℹ️ An instant cancellation confirmation email will be dispatched to <strong>{cancelModalOrder.customerEmail || cancelModalOrder.email}</strong>.
               </div>
             </div>
 

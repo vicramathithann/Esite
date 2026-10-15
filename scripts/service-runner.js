@@ -95,7 +95,7 @@ async function ensureNextServer() {
 
 function writeUrlShortcuts(publicUrl) {
   const content = `============================================================
-              VM MOBILES - ONLINE STORE
+              VN MOBILES - ONLINE STORE
 ============================================================
 Status:            ONLINE (24/7 Background Service)
 Public Web Link:   ${publicUrl}

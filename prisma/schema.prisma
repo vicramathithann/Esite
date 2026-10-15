@@ -124,13 +124,13 @@ model Order {
   userId             String?
   user               User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
   customerName       String
-  customerPhone      String
+  customerPhone      String?              @default("")
   phoneVerified      Boolean              @default(true)
   customerEmail      String
   address            String
   city               String
   pincode            String
-  state              String
+  state              String               @default("")
   totalAmount        Int
   paymentMethod      String
   paymentStatus      String               @default("PAID")
@@ -143,7 +143,6 @@ model Order {
   adminNotes         String?
   createdAt          DateTime             @default(now())
   items              OrderItem[]
-  smsAlerts          SmsAlert[]
   statusHistory      OrderStatusHistory[]
   warranties         Warranty[]
   emailNotifications EmailNotification[]
@@ -181,24 +180,26 @@ model OrderStatusHistory {
 }
 
 model Warranty {
-  id                String    @id @default(uuid())
-  orderId           String
-  order             Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  orderItemId       String    @unique
-  orderItem         OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
-  userId            String?
-  user              User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
-  customerName      String
-  customerEmail     String
-  productName       String
-  imeiNumber        String
-  purchaseDate      DateTime  @default(now())
-  warrantyDuration  String    @default("1 Year")
-  warrantyStartDate DateTime  @default(now())
+  id                 String    @id @default(uuid())
+  orderId            String
+  order              Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderItemId        String    @unique
+  orderItem          OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  userId             String?
+  user               User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  customerName       String
+  customerEmail      String
+  productName        String
+  imeiNumber         String
+  purchaseDate       DateTime  @default(now())
+  warrantyDuration   String    @default("1 Year")
+  warrantyStartDate  DateTime  @default(now())
   warrantyExpiryDate DateTime
-  warrantyStatus    String    @default("ACTIVE") // ACTIVE, EXPIRING_SOON, EXPIRED
-  emailSent         Boolean   @default(false)
-  createdAt         DateTime  @default(now())
+  warrantyStatus     String    @default("ACTIVE") // ACTIVE, EXPIRING_SOON, EXPIRED
+  emailSent          Boolean   @default(false)
+  reminded6MonthsAt  DateTime?
+  reminded1DayAt     DateTime?
+  createdAt          DateTime  @default(now())
 }
 
 model EmailNotification {
@@ -207,7 +208,7 @@ model EmailNotification {
   user           User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
   recipientEmail String
   recipientName  String?
-  emailType      String    // EMAIL_VERIFICATION, ORDER_CONFIRMATION, ORDER_STATUS, WARRANTY_NOTIFICATION
+  emailType      String    // EMAIL_VERIFICATION, ORDER_CONFIRMATION, ORDER_STATUS, WARRANTY_NOTIFICATION, WARRANTY_REMINDER_6M, WARRANTY_REMINDER_1D
   orderId        String?
   order          Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
   productName    String?
@@ -242,25 +243,4 @@ model Review {
   rating    Int
   comment   String
   createdAt DateTime      @default(now())
-}
-
-model SmsAlert {
-  id            String    @id @default(uuid())
-  orderId       String?
-  customerPhone String
-  alertType     String
-  title         String
-  messageBody   String
-  isRead        Boolean   @default(false)
-  sentAt        DateTime  @default(now())
-  order         Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
-}
-
-model OtpVerification {
-  id        String   @id @default(uuid())
-  phone     String
-  code      String
-  verified  Boolean  @default(false)
-  expiresAt DateTime
-  createdAt DateTime @default(now())
 }

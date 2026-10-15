@@ -176,7 +176,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link href="/account/warranties" className="hover:text-accent transition-colors duration-200">
-                  Pre-Expiry SMS Alerts
+                  Warranty Protection Alerts
                 </Link>
               </li>
               <li>

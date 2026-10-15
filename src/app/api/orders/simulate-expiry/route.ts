@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { sendWarrantyReminder6MonthsEmail, sendWarrantyReminder1DayEmail } from "@/lib/email";
 
 export async function POST(request: Request) {
   try {
@@ -21,7 +22,7 @@ export async function POST(request: Request) {
 
     const orderItem = await prisma.orderItem.findUnique({
       where: { id: orderItemId },
-      include: { order: true },
+      include: { order: true, warranty: true },
     });
 
     if (!orderItem) {
@@ -31,38 +32,56 @@ export async function POST(request: Request) {
     const now = new Date();
     let newExpiryDate = new Date();
     let newStatus = "ACTIVE";
-    let alertType = "CUSTOM_ALERT";
-    let title = "";
-    let messageBody = "";
+    let emailDispatched = false;
 
     if (action === "SET_NEAR_EXPIRY") {
-      // 5 days left
-      newExpiryDate = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000);
+      // 6 months left
+      newExpiryDate = new Date(now.getTime() + 180 * 24 * 60 * 60 * 1000);
       newStatus = "EXPIRING_SOON";
-      alertType = "EXPIRY_WARNING_7D";
-      title = "⚠️ Warranty Expiring Soon (5 Days Remaining)";
-      messageBody = `[VN Mobiles ALERT] Dear ${orderItem.order.customerName}, warranty for ${orderItem.productName} (IMEI: ${orderItem.imeiNumber}) expires in 5 DAYS on ${newExpiryDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}! Book free inspection or extend coverage at vnmobiles.in`;
+
+      if (orderItem.warranty) {
+        await sendWarrantyReminder6MonthsEmail({
+          id: orderItem.warranty.id,
+          orderId: orderItem.orderId,
+          orderNumber: orderItem.order?.orderNumber,
+          userId: orderItem.order?.userId,
+          customerName: orderItem.order.customerName,
+          customerEmail: orderItem.order.customerEmail,
+          productName: orderItem.productName,
+          imeiNumber: orderItem.imeiNumber,
+          warrantyExpiryDate: newExpiryDate,
+          warrantyDuration: orderItem.warranty.warrantyDuration,
+        });
+        emailDispatched = true;
+      }
     } else if (action === "SET_URGENT_EXPIRY") {
-      // 24 hours left
+      // 24 hours left (1 day before)
       newExpiryDate = new Date(now.getTime() + 24 * 60 * 60 * 1000);
       newStatus = "EXPIRING_SOON";
-      alertType = "EXPIRY_ALERT_24H";
-      title = "🚨 FINAL EXPIRY WARNING: 24 Hours Remaining";
-      messageBody = `[VN Mobiles URGENT] Final 24 hours! Your device shield for ${orderItem.productName} (IMEI: ${orderItem.imeiNumber}) expires TOMORROW! Last chance to claim coverage or extend protection.`;
+
+      if (orderItem.warranty) {
+        await sendWarrantyReminder1DayEmail({
+          id: orderItem.warranty.id,
+          orderId: orderItem.orderId,
+          orderNumber: orderItem.order?.orderNumber,
+          userId: orderItem.order?.userId,
+          customerName: orderItem.order.customerName,
+          customerEmail: orderItem.order.customerEmail,
+          productName: orderItem.productName,
+          imeiNumber: orderItem.imeiNumber,
+          warrantyExpiryDate: newExpiryDate,
+          warrantyDuration: orderItem.warranty.warrantyDuration,
+        });
+        emailDispatched = true;
+      }
     } else if (action === "SET_EXPIRED") {
       // Expired yesterday
       newExpiryDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
       newStatus = "EXPIRED";
-      alertType = "EXPIRED_NOTICE";
-      title = "❌ Device Protection Expired";
-      messageBody = `[VN Mobiles Notice] Your device protection for ${orderItem.productName} (IMEI: ${orderItem.imeiNumber}) has EXPIRED. Hardware repair protection is now void. Renew coverage at vnmobiles.in`;
     } else if (action === "EXTEND_WARRANTY") {
       // Extend 1 year from now
       newExpiryDate = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
       newStatus = "ACTIVE";
-      alertType = "CUSTOM_ALERT";
-      title = "🛡️ Warranty Extended (+12 Months)";
-      messageBody = `[VN Mobiles] Great news! Device shield for your ${orderItem.productName} (IMEI: ${orderItem.imeiNumber}) has been extended for 12 additional months until ${newExpiryDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.`;
     } else {
       return NextResponse.json({ success: false, error: "Invalid action" }, { status: 400 });
     }
@@ -75,22 +94,23 @@ export async function POST(request: Request) {
       },
     });
 
-    const smsAlert = await prisma.smsAlert.create({
-      data: {
-        orderId: orderItem.orderId,
-        customerPhone: orderItem.order.customerPhone,
-        alertType,
-        title,
-        messageBody,
-        isRead: false,
-      },
-    });
+    if (orderItem.warranty) {
+      await prisma.warranty.update({
+        where: { id: orderItem.warranty.id },
+        data: {
+          warrantyExpiryDate: newExpiryDate,
+          warrantyStatus: newStatus,
+          ...(action === "SET_NEAR_EXPIRY" ? { reminded6MonthsAt: now } : {}),
+          ...(action === "SET_URGENT_EXPIRY" ? { reminded1DayAt: now } : {}),
+        },
+      });
+    }
 
     return NextResponse.json({
       success: true,
       updatedItem,
-      smsAlert,
-      message: `Expiry status updated & SMS notification dispatched to ${orderItem.order.customerPhone}`,
+      emailDispatched,
+      message: `Warranty status updated to ${newStatus}.${emailDispatched ? " Reminder email dispatched to customer." : ""}`,
     });
   } catch (error) {
     console.error("Failed to simulate expiry:", error);

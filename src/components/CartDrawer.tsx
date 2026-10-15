@@ -54,7 +54,7 @@ export default function CartDrawer() {
         {/* Free Delivery & Protection Banner */}
         <div className="px-6 py-3 bg-tile border-b border-border flex items-center gap-2.5 text-xs text-foreground">
           <ShieldCheck className="w-4 h-4 text-accent shrink-0" />
-          <span>Free express shipping & automated SMS warranty protection included.</span>
+          <span>Free express shipping & automated warranty protection included.</span>
         </div>
 
         {/* Items List */}

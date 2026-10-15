@@ -488,14 +488,14 @@ export default function MobileDetailPage({
                 >
                   <div className="flex items-center gap-2.5">
                     <ShieldCheck className="w-4 h-4 text-accent" />
-                    <span>1-Year Brand Warranty & SMS Protection</span>
+                    <span>1-Year Brand Warranty & Protection</span>
                   </div>
                   <ChevronDown className={`w-4 h-4 text-muted transition-transform duration-200 ${openAccordions.warranty ? "rotate-180" : ""}`} />
                 </button>
                 {openAccordions.warranty && (
                   <div className="px-4 pb-4 pt-1 text-xs text-muted space-y-2">
                     <p>• 1-Year official manufacturer warranty honored at all brand service centers.</p>
-                    <p>• Automated SMS alert dispatched 7 days and 24 hours prior to warranty expiry.</p>
+                    <p>• Automated email alerts dispatched 6 months and 1 day prior to warranty expiry.</p>
                   </div>
                 )}
               </div>
@@ -558,7 +558,7 @@ export default function MobileDetailPage({
                   We apologize, <strong>{product.name}</strong> is currently out of stock.
                 </p>
                 <p className="text-xs text-[#8C6226] dark:text-[#D4B483] bg-[#C9A66B]/15 p-2.5 rounded-[12px] border border-[#C9A66B]/30 mt-2">
-                  📢 We will alert you via SMS once restocked.
+                  📢 We will alert you via email once restocked.
                 </p>
               </div>
             </div>

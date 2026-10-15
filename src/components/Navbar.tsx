@@ -8,7 +8,6 @@ import {
   Search, 
   ShoppingBag, 
   Layers, 
-  MessageSquareText, 
   ShieldCheck, 
   ChevronDown,
   Heart,
@@ -79,8 +78,6 @@ export default function Navbar() {
     logout,
     cartCount, 
     setIsCartOpen, 
-    unreadSmsCount, 
-    setIsSmsDrawerOpen, 
     compareList,
     wishlistCount 
   } = useApp();
@@ -219,20 +216,6 @@ export default function Navbar() {
               </span>
             )}
           </Link>
-
-          {/* SMS Alerts Drawer Button */}
-          <button
-            onClick={() => setIsSmsDrawerOpen(true)}
-            className="relative p-2 text-muted hover:text-[#8C6226] dark:hover:text-[#D4B483] hover:bg-[#C9A66B]/15 rounded-full transition-all duration-200 cursor-pointer"
-            title="SMS Alerts"
-          >
-            <MessageSquareText className="w-4 h-4" />
-            {unreadSmsCount > 0 && (
-              <span className="absolute top-0.5 right-0.5 bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center ring-2 ring-card shadow-2xs">
-                {unreadSmsCount}
-              </span>
-            )}
-          </button>
 
           {/* Slide-in Mini Cart Trigger */}
           <button

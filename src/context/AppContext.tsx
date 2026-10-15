@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { CartItem, MobileProductData, SmsAlertData } from "@/lib/types";
+import { CartItem, MobileProductData } from "@/lib/types";
 
 export interface UserProfile {
   id: string;
@@ -37,16 +37,6 @@ interface AppContextType {
   addToCompare: (product: MobileProductData) => boolean;
   removeFromCompare: (productId: string) => void;
   clearCompare: () => void;
-
-  isSmsDrawerOpen: boolean;
-  setIsSmsDrawerOpen: (open: boolean) => void;
-  smsAlerts: SmsAlertData[];
-  unreadSmsCount: number;
-  fetchSmsAlerts: () => Promise<void>;
-  markSmsAsRead: (id: string) => Promise<void>;
-  markAllSmsAsRead: () => Promise<void>;
-  lastIncomingSms: SmsAlertData | null;
-  dismissToast: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -57,10 +47,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [compareList, setCompareList] = useState<MobileProductData[]>([]);
-  const [isSmsDrawerOpen, setIsSmsDrawerOpen] = useState(false);
-  const [smsAlerts, setSmsAlerts] = useState<SmsAlertData[]>([]);
-  const [unreadSmsCount, setUnreadSmsCount] = useState(0);
-  const [lastIncomingSms, setLastIncomingSms] = useState<SmsAlertData | null>(null);
 
   // Load user, cart, wishlist, and compare list from localStorage
   useEffect(() => {
@@ -122,40 +108,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       console.error("Failed to refresh user:", e);
     }
   }, [currentUser?.id]);
-
-  // Fetch SMS alerts from backend
-  const fetchSmsAlerts = useCallback(async () => {
-    if (!currentUser) {
-      setSmsAlerts([]);
-      setUnreadSmsCount(0);
-      return;
-    }
-    try {
-      let queryUrl = "/api/sms";
-      if (currentUser.role === "ADMIN") {
-        queryUrl = "/api/sms?admin=true";
-      } else {
-        const params = new URLSearchParams();
-        if (currentUser.id) params.set("userId", currentUser.id);
-        if (currentUser.phone) params.set("phone", currentUser.phone);
-        queryUrl = `/api/sms?${params.toString()}`;
-      }
-      const res = await fetch(queryUrl);
-      const data = await res.json();
-      if (data.success) {
-        setSmsAlerts(data.alerts || []);
-        setUnreadSmsCount(data.unreadCount || 0);
-      }
-    } catch (e) {
-      console.error("Failed to fetch SMS alerts", e);
-    }
-  }, [currentUser]);
-
-  useEffect(() => {
-    fetchSmsAlerts();
-    const interval = setInterval(fetchSmsAlerts, 15000);
-    return () => clearInterval(interval);
-  }, [fetchSmsAlerts]);
 
   const addToCart = (item: CartItem) => {
     setCart((prev) => {
@@ -224,40 +176,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setCompareList([]);
   };
 
-  const markSmsAsRead = async (id: string) => {
-    try {
-      await fetch("/api/sms", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "MARK_READ", id }),
-      });
-      setSmsAlerts((prev) =>
-        prev.map((sms) => (sms.id === id ? { ...sms, isRead: true } : sms))
-      );
-      setUnreadSmsCount((prev) => Math.max(0, prev - 1));
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const markAllSmsAsRead = async () => {
-    try {
-      await fetch("/api/sms", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "MARK_ALL_READ" }),
-      });
-      setSmsAlerts((prev) => prev.map((sms) => ({ ...sms, isRead: true })));
-      setUnreadSmsCount(0);
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const dismissToast = () => {
-    setLastIncomingSms(null);
-  };
-
   const login = (user: UserProfile) => {
     setCurrentUser(user);
     try {
@@ -296,15 +214,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         addToCompare,
         removeFromCompare,
         clearCompare,
-        isSmsDrawerOpen,
-        setIsSmsDrawerOpen,
-        smsAlerts,
-        unreadSmsCount,
-        fetchSmsAlerts,
-        markSmsAsRead,
-        markAllSmsAsRead,
-        lastIncomingSms,
-        dismissToast,
       }}
     >
       {children}

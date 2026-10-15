@@ -1537,7 +1537,6 @@ async function seed() {
 
   // Clear existing records to ensure fresh state
   await prisma.orderItem.deleteMany({});
-  await prisma.smsAlert.deleteMany({});
   await prisma.mobileProduct.deleteMany({});
   await prisma.mobile.deleteMany({});
 

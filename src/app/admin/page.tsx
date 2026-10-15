@@ -1299,7 +1299,7 @@ export default function AdminDashboardPage() {
               </div>
 
               <p className="text-[11px] text-gray-500 bg-amber-50 p-2.5 rounded border border-amber-200">
-                ⚡ Saving will update order status to <strong>SHIPPED</strong> and automatically dispatch an SMS tracking update to the buyer.
+                ⚡ Saving will update order status to <strong>SHIPPED</strong> and automatically dispatch an email tracking update to the buyer.
               </p>
 
               <div className="flex justify-end gap-2 pt-2">

@@ -94,8 +94,7 @@ export interface OrderData {
   id: string;
   orderNumber: string;
   customerName: string;
-  customerPhone: string;
-  phoneVerified?: boolean;
+  customerPhone?: string;
   customerEmail: string;
   address: string;
   city: string;
@@ -107,15 +106,4 @@ export interface OrderData {
   orderStatus: string;
   createdAt: string;
   items: OrderItemData[];
-}
-
-export interface SmsAlertData {
-  id: string;
-  orderId?: string | null;
-  customerPhone: string;
-  alertType: "PURCHASE_CONFIRMATION" | "OTP_VERIFICATION" | "EXPIRY_WARNING_7D" | "EXPIRY_ALERT_24H" | "EXPIRED_NOTICE" | "CUSTOM_ALERT";
-  title: string;
-  messageBody: string;
-  isRead: boolean;
-  sentAt: string;
 }

@@ -21,7 +21,7 @@ export interface SendEmailOptions {
   recipientName: string;
   recipientEmail: string;
   subject: string;
-  emailType: "EMAIL_VERIFICATION" | "ORDER_CONFIRMATION" | "ORDER_STATUS" | "WARRANTY_NOTIFICATION" | "LOGIN_OTP" | "PASSWORD_RESET";
+  emailType: "EMAIL_VERIFICATION" | "ORDER_CONFIRMATION" | "ORDER_STATUS" | "WARRANTY_NOTIFICATION" | "WARRANTY_REMINDER_6M" | "WARRANTY_REMINDER_1D" | "LOGIN_OTP" | "PASSWORD_RESET";
   orderId?: string | null;
   productName?: string | null;
   templateId?: string;
@@ -810,6 +810,344 @@ export async function sendWarrantyActivationEmail(warranty: {
     text: plainText,
     html,
   });
+}
+
+/**
+ * Sends 6-Month Warranty Expiry Reminder Email.
+ * Triggered exactly 6 months prior to coverage expiration.
+ */
+export async function sendWarrantyReminder6MonthsEmail(warranty: {
+  id: string;
+  orderId: string;
+  orderNumber?: string;
+  userId?: string | null;
+  customerName: string;
+  customerEmail: string;
+  productName: string;
+  imeiNumber: string;
+  warrantyExpiryDate: Date;
+  warrantyDuration?: string;
+}): Promise<EmailSendResult> {
+  const expiryFormatted = new Date(warranty.warrantyExpiryDate).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
+  const plainText = `Hi ${warranty.customerName},\n\nImportant Update: Your ${warranty.productName} Device Shield has 6 months of coverage remaining.\n\nProduct: ${warranty.productName}\nIMEI: ${warranty.imeiNumber}\nCoverage Expiry Date: ${expiryFormatted}\n\nYour smartphone remains fully protected against hardware and manufacturing defects. We recommend checking your battery health and scheduling any complimentary hardware inspections before expiration.\n\nView your full warranty status anytime at VN Mobiles.\n\nWarm regards,\nVN Mobiles Customer Care`;
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>6-Month Warranty Reminder</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #F8F9FA; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1F2937;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #F8F9FA; padding: 40px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width: 540px; background-color: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+          <tr>
+            <td style="background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%); padding: 28px 32px; text-align: center;">
+              <div style="display: inline-block; background-color: #3B82F6; color: #FFFFFF; font-weight: 800; font-size: 13px; padding: 4px 12px; border-radius: 9999px; margin-bottom: 8px; letter-spacing: 0.05em;">🛡️ 6-MONTH NOTICE</div>
+              <h1 style="margin: 0; color: #FFFFFF; font-size: 20px; font-weight: 700;">Warranty Coverage Reminder</h1>
+              <p style="margin: 6px 0 0 0; color: #94A3B8; font-size: 13px;">6 months remaining on your Device Shield</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 32px;">
+              <p style="margin: 0 0 16px 0; font-size: 14px; line-height: 1.6; color: #334155;">
+                Dear <strong>${warranty.customerName}</strong>,<br><br>
+                This is a friendly reminder that your <strong>${warranty.productName}</strong> has <strong>6 months of official warranty coverage remaining</strong>.
+              </p>
+
+              <table role="presentation" width="100%" style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; font-size: 13px; margin: 20px 0;">
+                <tr>
+                  <td style="color: #64748B; padding: 6px 0;">Smartphone Model:</td>
+                  <td style="font-weight: 600; color: #0F172A; text-align: right; padding: 6px 0;">${warranty.productName}</td>
+                </tr>
+                <tr>
+                  <td style="color: #64748B; padding: 6px 0;">Registered IMEI:</td>
+                  <td style="font-family: monospace; font-weight: 700; color: #2563EB; text-align: right; padding: 6px 0;">${warranty.imeiNumber}</td>
+                </tr>
+                ${warranty.orderNumber ? `
+                <tr>
+                  <td style="color: #64748B; padding: 6px 0;">Original Order:</td>
+                  <td style="font-weight: 600; color: #0F172A; text-align: right; padding: 6px 0;">#${warranty.orderNumber}</td>
+                </tr>` : ""}
+                <tr>
+                  <td style="color: #64748B; padding: 6px 0;">Coverage Expiry Date:</td>
+                  <td style="font-weight: 700; color: #D97706; text-align: right; padding: 6px 0;">${expiryFormatted}</td>
+                </tr>
+                <tr>
+                  <td style="color: #64748B; padding: 6px 0;">Current Status:</td>
+                  <td style="font-weight: 700; color: #16A34A; text-align: right; padding: 6px 0;">ACTIVE (6 Months Left)</td>
+                </tr>
+              </table>
+
+              <div style="background-color: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 10px; padding: 16px; margin: 20px 0;">
+                <h4 style="margin: 0 0 8px 0; color: #1E40AF; font-size: 13px; font-weight: 700;">💡 Mid-Term Hardware Recommendations:</h4>
+                <ul style="margin: 0; padding-left: 20px; font-size: 12px; color: #1E3A8A; line-height: 1.6;">
+                  <li>Check your battery health capacity in system settings.</li>
+                  <li>Verify screen touch sensitivity and charging port functionality.</li>
+                  <li>In case of any unexpected glitches, enjoy free repairs covered under your active warranty.</li>
+                </ul>
+              </div>
+
+              <p style="margin: 20px 0 0 0; font-size: 13px; line-height: 1.5; color: #64748B; text-align: center;">
+                Need help or wish to inspect your smartphone? Simply reply to this email or visit your VN Mobiles account.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color: #F8FAFC; border-top: 1px solid #E2E8F0; padding: 18px 32px; text-align: center; font-size: 11px; color: #94A3B8;">
+              &copy; ${new Date().getFullYear()} VN Mobiles India. All rights reserved.
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+
+  return sendGmailEmail({
+    userId: warranty.userId,
+    recipientName: warranty.customerName,
+    recipientEmail: warranty.customerEmail,
+    subject: `🛡️ 6-Month Coverage Notice: Your ${warranty.productName} Warranty (Expires ${expiryFormatted})`,
+    emailType: "WARRANTY_REMINDER_6M",
+    orderId: warranty.orderId,
+    productName: warranty.productName,
+    contentSummary: plainText,
+    text: plainText,
+    html,
+  });
+}
+
+/**
+ * Sends 1-Day Final Warranty Expiry Reminder Email.
+ * Triggered exactly 24 hours prior to coverage expiration.
+ */
+export async function sendWarrantyReminder1DayEmail(warranty: {
+  id: string;
+  orderId: string;
+  orderNumber?: string;
+  userId?: string | null;
+  customerName: string;
+  customerEmail: string;
+  productName: string;
+  imeiNumber: string;
+  warrantyExpiryDate: Date;
+  warrantyDuration?: string;
+}): Promise<EmailSendResult> {
+  const expiryFormatted = new Date(warranty.warrantyExpiryDate).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
+  const plainText = `Hi ${warranty.customerName},\n\nURGENT NOTICE: Your ${warranty.productName} warranty coverage expires TOMORROW on ${expiryFormatted}!\n\nProduct: ${warranty.productName}\nIMEI: ${warranty.imeiNumber}\nExpiry Date: ${expiryFormatted}\n\nThis is your final 24-hour notice before warranty coverage ends. Once expired, complimentary manufacturer repairs and replacement parts will no longer be covered.\n\nIf your phone has any hardware issues or if you wish to renew your protection, please contact us immediately.\n\nThank you,\nVN Mobiles Team`;
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Final 24-Hour Warranty Alert</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #F8F9FA; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1F2937;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #F8F9FA; padding: 40px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width: 540px; background-color: #FFFFFF; border: 1px solid #FECACA; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+          <tr>
+            <td style="background: linear-gradient(135deg, #991B1B 0%, #7F1D1D 100%); padding: 28px 32px; text-align: center;">
+              <div style="display: inline-block; background-color: #EF4444; color: #FFFFFF; font-weight: 800; font-size: 13px; padding: 4px 12px; border-radius: 9999px; margin-bottom: 8px; letter-spacing: 0.05em;">🚨 FINAL 24 HOURS</div>
+              <h1 style="margin: 0; color: #FFFFFF; font-size: 20px; font-weight: 700;">Warranty Expires Tomorrow!</h1>
+              <p style="margin: 6px 0 0 0; color: #FECACA; font-size: 13px;">Last day of Device Shield protection</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 32px;">
+              <p style="margin: 0 0 16px 0; font-size: 14px; line-height: 1.6; color: #334155;">
+                Dear <strong>${warranty.customerName}</strong>,<br><br>
+                Please note that manufacturer warranty protection for your <strong>${warranty.productName}</strong> will officially <strong>expire tomorrow (${expiryFormatted})</strong>.
+              </p>
+
+              <table role="presentation" width="100%" style="background-color: #FEF2F2; border: 1px solid #FEE2E2; border-radius: 12px; padding: 18px; font-size: 13px; margin: 20px 0;">
+                <tr>
+                  <td style="color: #991B1B; padding: 6px 0;">Device:</td>
+                  <td style="font-weight: 700; color: #111827; text-align: right; padding: 6px 0;">${warranty.productName}</td>
+                </tr>
+                <tr>
+                  <td style="color: #991B1B; padding: 6px 0;">IMEI Number:</td>
+                  <td style="font-family: monospace; font-weight: 700; color: #991B1B; text-align: right; padding: 6px 0;">${warranty.imeiNumber}</td>
+                </tr>
+                <tr>
+                  <td style="color: #991B1B; padding: 6px 0;">Expiration Date:</td>
+                  <td style="font-weight: 800; color: #DC2626; text-align: right; padding: 6px 0;">${expiryFormatted} (Tomorrow)</td>
+                </tr>
+                <tr>
+                  <td style="color: #991B1B; padding: 6px 0;">Coverage Status:</td>
+                  <td style="font-weight: 700; color: #DC2626; text-align: right; padding: 6px 0;">EXPIRES IN 24 HOURS</td>
+                </tr>
+              </table>
+
+              <div style="background-color: #FFFBEB; border: 1px solid #FDE68A; border-radius: 10px; padding: 14px; font-size: 12px; color: #92400E; line-height: 1.5; margin: 20px 0;">
+                ⚠️ <strong>What happens after tomorrow?</strong><br>
+                Complimentary repairs, display replacements, and authorized service center claim coverage will no longer be available under this policy.
+              </div>
+
+              <p style="margin: 20px 0 0 0; font-size: 13px; line-height: 1.5; color: #64748B; text-align: center;">
+                Have questions or need assistance before expiration? Reply directly to this email or contact VN Mobiles support.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color: #F8FAFC; border-top: 1px solid #E2E8F0; padding: 18px 32px; text-align: center; font-size: 11px; color: #94A3B8;">
+              &copy; ${new Date().getFullYear()} VN Mobiles India. All rights reserved.
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+
+  return sendGmailEmail({
+    userId: warranty.userId,
+    recipientName: warranty.customerName,
+    recipientEmail: warranty.customerEmail,
+    subject: `🚨 FINAL 24H ALERT: Your ${warranty.productName} Warranty Expires Tomorrow!`,
+    emailType: "WARRANTY_REMINDER_1D",
+    orderId: warranty.orderId,
+    productName: warranty.productName,
+    contentSummary: plainText,
+    text: plainText,
+    html,
+  });
+}
+
+/**
+ * Scans all warranties in the system and automatically sends:
+ * 1. Email 6 months before expiry date
+ * 2. Email 1 day before expiry date
+ * 3. Updates warrantyStatus to "EXPIRING_SOON" or "EXPIRED"
+ */
+export async function checkAndDispatchWarrantyReminders(): Promise<{
+  scanned: number;
+  reminders6mSent: number;
+  reminders1dSent: number;
+  expiredMarked: number;
+  errors: string[];
+}> {
+  const now = new Date();
+  const errors: string[] = [];
+  let reminders6mSent = 0;
+  let reminders1dSent = 0;
+  let expiredMarked = 0;
+
+  const warranties = await prisma.warranty.findMany({
+    where: {
+      warrantyStatus: { not: "EXPIRED" },
+    },
+    include: {
+      order: {
+        select: { orderNumber: true },
+      },
+    },
+  });
+
+  for (const w of warranties) {
+    try {
+      const expiry = new Date(w.warrantyExpiryDate).getTime();
+      const sixMonthsBefore = expiry - (180 * 24 * 60 * 60 * 1000);
+      const oneDayBefore = expiry - (24 * 60 * 60 * 1000);
+      const nowTime = now.getTime();
+
+      // Check 1: Past expiry date
+      if (nowTime >= expiry) {
+        await prisma.warranty.update({
+          where: { id: w.id },
+          data: { warrantyStatus: "EXPIRED" },
+        });
+        expiredMarked++;
+        continue;
+      }
+
+      // Check 2: Within 24 hours of expiry (1 day before)
+      if (nowTime >= oneDayBefore && !w.reminded1DayAt) {
+        const sendResult = await sendWarrantyReminder1DayEmail({
+          id: w.id,
+          orderId: w.orderId,
+          orderNumber: w.order?.orderNumber,
+          userId: w.userId,
+          customerName: w.customerName,
+          customerEmail: w.customerEmail,
+          productName: w.productName,
+          imeiNumber: w.imeiNumber,
+          warrantyExpiryDate: w.warrantyExpiryDate,
+          warrantyDuration: w.warrantyDuration,
+        });
+
+        if (sendResult.success) {
+          await prisma.warranty.update({
+            where: { id: w.id },
+            data: {
+              reminded1DayAt: new Date(),
+              warrantyStatus: "EXPIRING_SOON",
+            },
+          });
+          reminders1dSent++;
+        } else {
+          errors.push(`Failed to send 1-day reminder to ${w.customerEmail}: ${sendResult.error}`);
+        }
+      }
+      // Check 3: Within 6 months of expiry (6 months before)
+      else if (nowTime >= sixMonthsBefore && !w.reminded6MonthsAt) {
+        const sendResult = await sendWarrantyReminder6MonthsEmail({
+          id: w.id,
+          orderId: w.orderId,
+          orderNumber: w.order?.orderNumber,
+          userId: w.userId,
+          customerName: w.customerName,
+          customerEmail: w.customerEmail,
+          productName: w.productName,
+          imeiNumber: w.imeiNumber,
+          warrantyExpiryDate: w.warrantyExpiryDate,
+          warrantyDuration: w.warrantyDuration,
+        });
+
+        if (sendResult.success) {
+          await prisma.warranty.update({
+            where: { id: w.id },
+            data: {
+              reminded6MonthsAt: new Date(),
+              warrantyStatus: "EXPIRING_SOON",
+            },
+          });
+          reminders6mSent++;
+        } else {
+          errors.push(`Failed to send 6-month reminder to ${w.customerEmail}: ${sendResult.error}`);
+        }
+      }
+    } catch (itemErr: any) {
+      errors.push(`Error processing warranty ${w.id}: ${itemErr?.message || String(itemErr)}`);
+    }
+  }
+
+  return {
+    scanned: warranties.length,
+    reminders6mSent,
+    reminders1dSent,
+    expiredMarked,
+    errors,
+  };
 }
 
 /**

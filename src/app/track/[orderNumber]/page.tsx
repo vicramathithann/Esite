@@ -10,7 +10,7 @@ import {
   Clock,
   MapPin,
   ShieldCheck,
-  MessageSquareText,
+  Mail,
   Copy,
   Check,
   ArrowLeft,
@@ -136,7 +136,7 @@ export default function TrackOrderPage({ params }: TrackPageProps) {
   const isDelivered = status === "DELIVERED";
 
   const steps = [
-    { title: "Order Placed", done: isConfirmed, desc: "Order received & verified via SMS" },
+    { title: "Order Placed", done: isConfirmed, desc: "Order received & confirmed via email" },
     { title: "Processing", done: isProcessing, desc: "Quality check & IMEI registered" },
     { title: "Shipped", done: isShipped, desc: order.shippingCarrier ? `In transit with ${order.shippingCarrier}` : "Dispatched from warehouse" },
     { title: "Out for Delivery", done: isOutForDelivery, desc: "Courier partner delivering today" },
@@ -378,7 +378,7 @@ export default function TrackOrderPage({ params }: TrackPageProps) {
             </div>
           </div>
 
-          {/* Right Column: Destination & SMS Dispatch History (5 cols) */}
+          {/* Right Column: Destination & Warranty Protection (5 cols) */}
           <div className="md:col-span-5 space-y-4 text-xs">
             {/* Delivery Destination */}
             <div className="bg-card border border-border rounded-2xl p-5 space-y-2 shadow-sm">
@@ -391,40 +391,33 @@ export default function TrackOrderPage({ params }: TrackPageProps) {
                 <p className="text-muted leading-relaxed mt-1">
                   {order.address}, {order.city}, {order.state} - {order.pincode}
                 </p>
-                <div className="mt-2 text-[11px] text-muted font-mono">
-                  Phone: {order.customerPhone}
-                </div>
+                {order.customerPhone ? (
+                  <div className="mt-2 text-[11px] text-muted font-mono">
+                    Phone: {order.customerPhone}
+                  </div>
+                ) : null}
               </div>
             </div>
 
-            {/* Live SMS History for this Shipment */}
+            {/* Warranty & Email Protection Information */}
             <div className="bg-card border border-border rounded-2xl p-5 space-y-3 shadow-sm">
               <h3 className="font-bold text-foreground pb-2 border-b border-border flex items-center justify-between">
                 <span className="flex items-center gap-1.5">
-                  <MessageSquareText className="w-3.5 h-3.5 text-accent" />
-                  <span>Shipment SMS Log ({order.smsAlerts?.length || 0})</span>
+                  <ShieldCheck className="w-3.5 h-3.5 text-accent" />
+                  <span>Warranty & Protection Notice</span>
                 </span>
-                <span className="text-[10px] text-muted">Delivered to {order.customerPhone}</span>
+                <span className="text-[10px] text-muted">1-Year Shield Active</span>
               </h3>
 
-              <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                {order.smsAlerts?.map((sms: any) => (
-                  <div
-                    key={sms.id}
-                    className="p-3 bg-tile border border-border rounded-xl space-y-1 text-[11px]"
-                  >
-                    <div className="flex justify-between items-center text-muted text-[10px]">
-                      <span className="font-semibold text-accent">{sms.title}</span>
-                      <span>
-                        {new Date(sms.sentAt).toLocaleTimeString("en-IN", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                    </div>
-                    <p className="text-foreground leading-relaxed font-sans">{sms.messageBody}</p>
-                  </div>
-                ))}
+              <div className="space-y-2.5 text-xs text-muted leading-relaxed">
+                <div className="p-3 bg-tile border border-border rounded-xl space-y-1">
+                  <span className="font-semibold text-accent block">Order Confirmation:</span>
+                  <p className="text-foreground">Dispatched to {order.customerEmail}</p>
+                </div>
+                <div className="p-3 bg-tile border border-border rounded-xl space-y-1">
+                  <span className="font-semibold text-accent block">Automated Warranty Alerts:</span>
+                  <p className="text-foreground">Reminder emails will be sent 6 months and 1 day before expiration.</p>
+                </div>
               </div>
             </div>
           </div>
@@ -494,7 +487,7 @@ export default function TrackOrderPage({ params }: TrackPageProps) {
               </div>
 
               <div className="text-[11px] text-muted leading-tight">
-                ℹ️ An instant cancellation confirmation SMS alert will be dispatched to <strong className="text-foreground">{order.customerPhone || order.phone}</strong>.
+                ℹ️ An instant cancellation confirmation email will be dispatched to <strong className="text-foreground">{order.customerEmail}</strong>.
               </div>
             </div>
 

@@ -169,7 +169,7 @@ const phones = [
     screenGradientA: '#0d2830',
     screenGradientB: '#041014',
     cameraStyle: 'circular-dial',
-    specs: 'Verified Phone IMEI Security | Pre-Expiry SMS Alerts'
+    specs: 'Verified Phone IMEI Security | Automated Warranty Email Alerts'
   }
 ];
 

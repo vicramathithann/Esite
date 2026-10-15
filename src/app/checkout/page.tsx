@@ -9,14 +9,12 @@ import {
   Lock, 
   CheckCircle2, 
   ArrowLeft, 
-  MessageSquareText, 
   Truck, 
   Sparkles,
-  KeyRound,
-  Send,
   RefreshCw,
   AlertCircle,
   ShieldCheck,
+  Mail,
   X
 } from "lucide-react";
 import { formatINR } from "@/lib/formatters";
@@ -24,13 +22,12 @@ import confetti from "canvas-confetti";
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { currentUser, cart, cartTotal, clearCart, fetchSmsAlerts, setIsSmsDrawerOpen } = useApp();
+  const { currentUser, cart, cartTotal, clearCart } = useApp();
 
   const [authChecking, setAuthChecking] = useState(true);
 
   const [formData, setFormData] = useState({
     customerName: "",
-    customerPhone: "",
     customerEmail: "",
     address: "Flat 402, Skyline Tech Park, Outer Ring Road",
     city: "Bengaluru",
@@ -70,27 +67,10 @@ export default function CheckoutPage() {
       setFormData((prev) => ({
         ...prev,
         customerName: currentUser.name || prev.customerName,
-        customerPhone: currentUser.phone || prev.customerPhone,
         customerEmail: currentUser.email || prev.customerEmail,
-      }));
-    } else {
-      // Default placeholder values for guest checkout
-      setFormData((prev) => ({
-        ...prev,
-        customerName: prev.customerName || "Customer",
-        customerPhone: prev.customerPhone || "+91 98765 43210",
-        customerEmail: prev.customerEmail || "customer@example.com",
       }));
     }
   }, [currentUser]);
-
-  // SMS OTP Verification State
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpCode, setOtpCode] = useState("");
-  const [isPhoneVerified, setIsPhoneVerified] = useState(false);
-  const [sendingOtp, setSendingOtp] = useState(false);
-  const [verifyingOtp, setVerifyingOtp] = useState(false);
-  const [otpError, setOtpError] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [orderComplete, setOrderComplete] = useState<any>(null);
@@ -116,7 +96,6 @@ export default function CheckoutPage() {
       if (data.success) {
         setCancelModalOpen(false);
         setOrderCancelled(true);
-        await fetchSmsAlerts();
         alert(`Order #${orderComplete.order.orderNumber} has been successfully cancelled and refunded!`);
       } else {
         alert(data.error || "Failed to cancel order.");
@@ -129,44 +108,12 @@ export default function CheckoutPage() {
     }
   };
 
-  const [autoSubmitOrder, setAutoSubmitOrder] = useState(true);
-
-  // Send SMS OTP
-  const handleSendOtp = async () => {
-    if (!formData.customerPhone || formData.customerPhone.trim().length < 8) {
-      alert("Please enter a valid mobile number.");
-      return;
-    }
-
-    try {
-      setSendingOtp(true);
-      setOtpError(null);
-      const res = await fetch("/api/sms/send-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: formData.customerPhone }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setOtpSent(true);
-        await fetchSmsAlerts();
-      } else {
-        setOtpError(data.error || "Failed to send verification SMS.");
-      }
-    } catch (e) {
-      console.error(e);
-      setOtpError("Failed to dispatch verification SMS.");
-    } finally {
-      setSendingOtp(false);
-    }
-  };
-
   const hasOutOfStock = cart.some(
     (item) => item.inStock === false || (item.stock !== undefined && item.stock <= 0)
   );
 
   // Place Order Core Logic
-  const executeOrderPlacement = async (isVerified = isPhoneVerified) => {
+  const executeOrderPlacement = async () => {
     if (!currentUser) {
       alert("Please log in to complete your purchase.");
       router.push("/login?redirect=/checkout");
@@ -187,13 +134,8 @@ export default function CheckoutPage() {
       return;
     }
 
-    if (!isVerified) {
-      alert("Please verify your mobile number via SMS OTP before placing your order.");
-      return;
-    }
-
-    if (!formData.customerName || !formData.address) {
-      alert("Please fill in your delivery details.");
+    if (!formData.address || !formData.city || !formData.pincode) {
+      alert("Please fill in your delivery address (Street Address, City, and Pincode).");
       return;
     }
 
@@ -203,16 +145,16 @@ export default function CheckoutPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          customerName: formData.customerName || currentUser?.name || "Customer",
-          customerPhone: formData.customerPhone || currentUser?.phone || "+91 98765 43210",
-          customerEmail: currentUser?.email || formData.customerEmail || "customer@example.com",
+          customerName: currentUser.name || formData.customerName || "Customer",
+          customerPhone: currentUser.phone || "",
+          customerEmail: currentUser.email || formData.customerEmail,
           address: formData.address,
           city: formData.city,
           pincode: formData.pincode,
           state: formData.state,
           totalAmount: cartTotal,
           paymentMethod: formData.paymentMethod,
-          userId: currentUser?.id || null,
+          userId: currentUser.id,
           items: cart.map((i) => ({
             productId: i.productId,
             productName: i.name,
@@ -235,7 +177,7 @@ export default function CheckoutPage() {
 
       if (res.status === 403) {
         alert("Email verification required. Please verify your email before placing an order.");
-        router.push(`/verify-email?email=${encodeURIComponent(currentUser?.email || formData.customerEmail)}&redirect=/checkout`);
+        router.push(`/verify-email?email=${encodeURIComponent(currentUser.email)}&redirect=/checkout`);
         return;
       }
 
@@ -243,7 +185,6 @@ export default function CheckoutPage() {
       if (data.success) {
         setOrderComplete(data);
         clearCart();
-        await fetchSmsAlerts();
 
         confetti({
           particleCount: 120,
@@ -258,44 +199,6 @@ export default function CheckoutPage() {
       alert("Something went wrong placing the order.");
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Verify OTP (with optional automatic order submission)
-  const handleVerifyOtp = async (codeToVerify?: string, shouldAutoSubmit = autoSubmitOrder) => {
-    const code = codeToVerify || otpCode;
-    if (!code || code.trim().length !== 6) {
-      setOtpError("Please enter the 6-digit OTP sent via SMS.");
-      return;
-    }
-
-    try {
-      setVerifyingOtp(true);
-      setOtpError(null);
-      const res = await fetch("/api/sms/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          phone: formData.customerPhone,
-          code: code.trim(),
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setIsPhoneVerified(true);
-        setOtpError(null);
-        if (shouldAutoSubmit) {
-          // Automatically place the order right away!
-          await executeOrderPlacement(true);
-        }
-      } else {
-        setOtpError(data.error || "Invalid verification code.");
-      }
-    } catch (e) {
-      console.error(e);
-      setOtpError("Error verifying OTP.");
-    } finally {
-      setVerifyingOtp(false);
     }
   };
 
@@ -316,7 +219,6 @@ export default function CheckoutPage() {
 
   if (orderComplete) {
     const order = orderComplete.order;
-    const sms = orderComplete.smsAlert;
 
     return (
       <div className="min-h-screen py-10 bg-background text-foreground max-w-4xl mx-auto px-4">
@@ -372,7 +274,7 @@ export default function CheckoutPage() {
                   REFUND & INVENTORY RESTOCK COMPLETED
                 </h4>
                 <p className="text-muted leading-relaxed font-sans">
-                  The ordered smartphone stock has been restored to warehouse inventory. A cancellation confirmation SMS was sent to <strong className="text-foreground">{order.customerPhone}</strong>.
+                  The ordered smartphone stock has been restored to warehouse inventory. A cancellation confirmation email was sent to <strong className="text-foreground">{order.customerEmail}</strong>.
                 </p>
               </div>
             </div>
@@ -404,27 +306,22 @@ export default function CheckoutPage() {
               </div>
             ))}
 
-            <div className="p-3 bg-card border border-border rounded-lg text-xs text-muted flex items-start gap-2">
-              <MessageSquareText className="w-4 h-4 text-accent shrink-0 mt-0.5" />
+            <div className="p-3 bg-card border border-border rounded-lg text-xs text-muted flex items-start gap-2.5">
+              <Mail className="w-4 h-4 text-accent shrink-0 mt-0.5" />
               <div>
-                <strong className="text-foreground">SMS Dispatch Confirmed:</strong> Confirmation SMS delivered to verified phone{" "}
-                <span className="font-mono font-bold text-foreground underline">{order.customerPhone}</span>.
+                <strong className="text-foreground">Order Confirmation Dispatched:</strong> An official receipt has been delivered to{" "}
+                <span className="font-mono font-bold text-foreground underline">{order.customerEmail}</span>.
+              </div>
+            </div>
+
+            <div className="p-3 bg-accent/5 border border-accent/20 rounded-lg text-xs text-muted flex items-start gap-2.5">
+              <ShieldCheck className="w-4 h-4 text-accent shrink-0 mt-0.5" />
+              <div>
+                <strong className="text-foreground">1-Year Warranty Active:</strong> Automated email notifications will be sent to{" "}
+                <span className="font-medium text-foreground">{order.customerEmail}</span> <strong>6 months</strong> and <strong>1 day</strong> before your warranty expires.
               </div>
             </div>
           </div>
-
-          {/* Simulated SMS Card */}
-          {sms && (
-            <div className="bg-tile border border-border rounded-xl p-4 text-left space-y-1.5">
-              <div className="flex justify-between text-[11px] text-muted font-mono">
-                <span className="text-accent font-semibold">Delivered to {order.customerPhone}:</span>
-                <span>Just Now</span>
-              </div>
-              <div className="bg-card border border-border p-3 rounded-lg text-xs text-foreground font-sans leading-relaxed">
-                {sms.messageBody}
-              </div>
-            </div>
-          )}
 
           {/* Action Links */}
           <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
@@ -458,13 +355,6 @@ export default function CheckoutPage() {
             >
               View All Orders & Warranty
             </Link>
-
-            <button
-              onClick={() => setIsSmsDrawerOpen(true)}
-              className="bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 dark:hover:bg-[#D4B483]/20 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 py-2.5 px-5 text-xs font-semibold text-[#8C6226] dark:text-[#E5CBA2] rounded-xl cursor-pointer transition-all"
-            >
-              Open Buyer SMS Inbox
-            </button>
 
             <Link href="/" className="text-xs text-[#8C6226] dark:text-[#E5CBA2] hover:underline font-medium px-4">
               Continue Shopping on VN Mobiles
@@ -535,7 +425,7 @@ export default function CheckoutPage() {
                 </div>
 
                 <div className="text-[11px] text-muted leading-tight">
-                  ℹ️ An instant cancellation confirmation SMS alert will be dispatched to <strong className="text-foreground">{order.customerPhone}</strong>.
+                  ℹ️ An instant cancellation confirmation email will be dispatched to <strong className="text-foreground">{order.customerEmail}</strong>.
                 </div>
               </div>
 
@@ -622,166 +512,66 @@ export default function CheckoutPage() {
           {/* Left Column: 3 Steps (8 cols) */}
           <div className="lg:col-span-8 space-y-5">
             <form onSubmit={handleSubmitOrder} className="space-y-5">
-              {/* Step 1: Delivery Address & Phone Number SMS Verification */}
+              {/* Step 1: Delivery Address */}
               <div className="bg-card border border-border rounded-2xl p-6 space-y-5 shadow-xs">
                 <div className="flex items-center justify-between border-b border-border pb-3">
                   <div className="flex items-center gap-2.5 font-bold text-base text-foreground">
                     <span className="w-6 h-6 rounded-full bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] flex items-center justify-center text-xs font-bold">1</span>
-                    <span>Delivery Address & Phone SMS Verification</span>
+                    <span>Delivery Address</span>
                   </div>
-                  {isPhoneVerified && (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-500 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Phone Verified ✓
-                    </span>
-                  )}
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-500 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Account Verified ✓
+                  </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                  <div className="space-y-1.5">
-                    <label className="font-semibold text-foreground">Full Name</label>
+                  {/* Full Name: Read-Only from Profile */}
+                  <div className="sm:col-span-2 space-y-1.5">
+                    <label className="font-semibold text-foreground flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Lock className="w-3.5 h-3.5 text-[#C9A66B] dark:text-[#D4B483]" /> Full Name
+                      </span>
+                      <span className="text-[10px] text-muted">From profile (Read-only)</span>
+                    </label>
                     <input
                       type="text"
-                      required
-                      value={formData.customerName}
-                      onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
-                      className="w-full bg-tile border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20 transition-all placeholder:text-muted"
-                      placeholder="Full Name"
+                      readOnly
+                      value={currentUser?.name || formData.customerName}
+                      className="w-full bg-tile/70 border border-border text-foreground font-medium rounded-xl px-3.5 py-2.5 text-sm cursor-not-allowed select-none opacity-90 focus:outline-none"
                     />
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="font-semibold text-foreground flex justify-between">
-                      <span>Mobile Number</span>
-                      <span className="text-[10px] text-[#8C6226] dark:text-[#E5CBA2]">For SMS Expiry Alerts</span>
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="tel"
-                        required
-                        disabled={isPhoneVerified}
-                        value={formData.customerPhone}
-                        onChange={(e) => {
-                          setFormData({ ...formData, customerPhone: e.target.value });
-                          setIsPhoneVerified(false);
-                          setOtpSent(false);
-                        }}
-                        className={`flex-1 border rounded-xl px-3.5 py-2.5 text-sm font-mono focus:outline-none transition-all ${
-                          isPhoneVerified
-                            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500 font-bold"
-                            : "bg-tile border-border text-foreground focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20"
-                        }`}
-                        placeholder="+91 98765 43210"
-                      />
-                      {!isPhoneVerified && (
-                        <button
-                          type="button"
-                          onClick={handleSendOtp}
-                          disabled={sendingOtp}
-                          className="bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] px-3.5 py-2 text-xs font-semibold rounded-xl shrink-0 disabled:opacity-50 flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
-                        >
-                          {sendingOtp ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                          <span>{otpSent ? "Resend OTP" : "Send OTP"}</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* OTP Verification Tray */}
-                  {!isPhoneVerified && otpSent && (
-                    <div className="sm:col-span-2 p-4 bg-tile border border-border rounded-xl space-y-3 text-xs">
-                      <div className="flex flex-wrap justify-between items-center gap-2">
-                        <span className="font-semibold text-foreground flex items-center gap-1.5">
-                          <KeyRound className="w-3.5 h-3.5 text-[#C9A66B] dark:text-[#D4B483]" />
-                          Enter 6-digit OTP sent via SMS to {formData.customerPhone}:
-                        </span>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-2.5">
-                        <input
-                          type="text"
-                          maxLength={6}
-                          value={otpCode}
-                          onChange={(e) => {
-                            const val = e.target.value.replace(/\D/g, "");
-                            setOtpCode(val);
-                            if (val.length === 6) {
-                              handleVerifyOtp(val, autoSubmitOrder);
-                            }
-                          }}
-                          placeholder="••••••"
-                          className="w-36 border-2 border-[#C9A66B] dark:border-[#D4B483] rounded-xl px-3 py-2 text-center font-mono text-lg font-bold bg-card text-foreground tracking-[0.25em] shadow-inner focus:outline-none focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleVerifyOtp(otpCode, autoSubmitOrder)}
-                          disabled={verifyingOtp || otpCode.length !== 6}
-                          className="bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] px-4 py-2 text-xs font-semibold rounded-xl disabled:opacity-50 flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
-                        >
-                          {verifyingOtp ? (
-                            <>
-                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                              <span>{autoSubmitOrder ? "Verifying & Placing..." : "Verifying..."}</span>
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                              <span>{autoSubmitOrder ? "Verify & Auto-Submit" : "Verify OTP"}</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-
-                      <div className="flex items-center gap-2 pt-2 border-t border-border text-[11px]">
-                        <label className="flex items-center gap-1.5 text-muted cursor-pointer select-none font-medium">
-                          <input
-                            type="checkbox"
-                            checked={autoSubmitOrder}
-                            onChange={(e) => setAutoSubmitOrder(e.target.checked)}
-                            className="rounded border-border text-accent focus:ring-accent accent-current"
-                          />
-                          <span>⚡ Auto-submit order immediately when 6 digits are entered</span>
-                        </label>
-                      </div>
-
-                      {otpError && (
-                        <p className="text-red-500 font-medium flex items-center gap-1">
-                          <AlertCircle className="w-3.5 h-3.5" /> {otpError}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
                   <div className="sm:col-span-2 space-y-1.5">
-                    <label className="font-semibold text-foreground">Street Address</label>
+                    <label className="font-semibold text-foreground">Street Address <span className="text-red-500">*</span></label>
                     <input
                       type="text"
                       required
                       value={formData.address}
                       onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                      className="w-full bg-tile border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all placeholder:text-muted"
+                      className="w-full bg-tile border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20 transition-all placeholder:text-muted"
                       placeholder="Flat, House no., Building, Company, Apartment"
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="font-semibold text-foreground">City</label>
+                    <label className="font-semibold text-foreground">City <span className="text-red-500">*</span></label>
                     <input
                       type="text"
                       required
                       value={formData.city}
                       onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                      className="w-full bg-tile border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all placeholder:text-muted"
+                      className="w-full bg-tile border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20 transition-all placeholder:text-muted"
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="font-semibold text-foreground">Pincode</label>
+                    <label className="font-semibold text-foreground">Pincode <span className="text-red-500">*</span></label>
                     <input
                       type="text"
                       required
                       value={formData.pincode}
                       onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
-                      className="w-full bg-tile border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm font-mono focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all placeholder:text-muted"
+                      className="w-full bg-tile border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm font-mono focus:outline-none focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20 transition-all placeholder:text-muted"
                     />
                   </div>
                 </div>
@@ -869,24 +659,20 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              {/* Mobile Place Order Button */}
+              {/* Place Order Button */}
               <button
                 type="submit"
-                disabled={loading || !isPhoneVerified || hasOutOfStock}
+                disabled={loading || hasOutOfStock}
                 className={`w-full py-3.5 px-6 text-sm font-semibold rounded-xl shadow-xs transition-all ${
                   hasOutOfStock
                     ? "bg-tile text-muted cursor-not-allowed border border-border"
-                    : isPhoneVerified
-                    ? "bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] cursor-pointer shadow-md"
-                    : "bg-tile text-muted cursor-not-allowed border border-border"
+                    : "bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] cursor-pointer shadow-md"
                 }`}
               >
                 {hasOutOfStock 
                   ? "Cannot Place Order (Items Out of Stock)" 
                   : loading 
-                  ? "Registering IMEI & Placing Order..." 
-                  : !isPhoneVerified 
-                  ? "Verify Phone via SMS OTP to Place Order" 
+                  ? "Registering Warranty & Placing Order..." 
                   : `Place your order and pay (₹${cartTotal.toLocaleString("en-IN")})`}
               </button>
             </form>
@@ -898,13 +684,11 @@ export default function CheckoutPage() {
               <button
                 type="button"
                 onClick={handleSubmitOrder}
-                disabled={loading || !isPhoneVerified || hasOutOfStock}
+                disabled={loading || hasOutOfStock}
                 className={`w-full py-3 px-4 text-xs font-semibold rounded-xl shadow-xs transition-all ${
                   hasOutOfStock
                     ? "bg-tile text-muted cursor-not-allowed border border-border"
-                    : isPhoneVerified
-                    ? "bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] cursor-pointer shadow-md"
-                    : "bg-tile text-muted cursor-not-allowed border border-border"
+                    : "bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] cursor-pointer shadow-md"
                 }`}
               >
                 {hasOutOfStock ? "Out of Stock" : loading ? "Processing..." : "Place your order"}
@@ -929,8 +713,8 @@ export default function CheckoutPage() {
                   <span className="text-emerald-500 font-semibold">FREE (Included)</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Pre-Expiry SMS Alerts:</span>
-                  <span className="text-emerald-500 font-semibold">FREE (Included)</span>
+                  <span>Pre-Expiry Warranty Alerts:</span>
+                  <span className="text-emerald-500 font-semibold">FREE (6M & 1D via Email)</span>
                 </div>
                 <div className="flex justify-between text-base font-bold text-foreground pt-3 border-t border-border">
                   <span>Order Total:</span>
@@ -943,7 +727,7 @@ export default function CheckoutPage() {
                   <ShieldCheck className="w-3.5 h-3.5" /> 100% Purchase Protection
                 </span>
                 <p>
-                  Genuine Indian brand warranty with unique IMEI database registration and automated SMS alerts 7 days & 24h before expiry.
+                  Genuine Indian brand warranty with unique IMEI database registration and automated email alerts 6 months & 1 day before expiry.
                 </p>
               </div>
             </div>

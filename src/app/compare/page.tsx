@@ -253,15 +253,15 @@ export default function ComparePage() {
                   ))}
                 </div>
 
-                {/* Warranty & SMS Protection */}
+                {/* Warranty & Device Protection */}
                 <div className="grid grid-cols-4 gap-6 py-4 items-center bg-tile rounded-[14px] px-3">
                   <div className="font-bold text-foreground flex items-center gap-2">
                     <ShieldCheck className="w-4 h-4 text-accent" />
-                    <span>Warranty & SMS Protection</span>
+                    <span>Warranty & Protection</span>
                   </div>
                   {compareList.map((item) => (
                     <div key={item.id} className="text-accent font-semibold">
-                      {item.warrantyMonths} Months + Pre-Expiry SMS
+                      {item.warrantyMonths} Months + Email Alerts
                     </div>
                   ))}
                 </div>

@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthenticatedUser } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/rateLimit";
 
-function maskName(name: string): string {
+function maskName(name?: string | null): string {
   if (!name) return "Customer";
   return name
     .trim()
@@ -12,13 +12,13 @@ function maskName(name: string): string {
     .join(" ");
 }
 
-function maskPhone(phone: string): string {
+function maskPhone(phone?: string | null): string {
   if (!phone) return "";
   const cleaned = phone.trim();
   return cleaned.replace(/\d(?=\d{3})/g, "*");
 }
 
-function maskEmail(email: string): string {
+function maskEmail(email?: string | null): string {
   if (!email || !email.includes("@")) return "";
   const [local, domain] = email.split("@");
   const maskedLocal = local.length > 2 ? `${local[0]}${"*".repeat(local.length - 2)}${local.slice(-1)}` : `${local[0]}*`;
@@ -51,8 +51,8 @@ export async function GET(
       where: { orderNumber: cleanOrderNumber },
       include: {
         items: true,
-        smsAlerts: {
-          orderBy: { sentAt: "desc" },
+        statusHistory: {
+          orderBy: { createdAt: "asc" },
         },
       },
     });
@@ -69,7 +69,7 @@ export async function GET(
       (authUser.role || "").toUpperCase() === "ADMIN" ||
       authUser.id === order.userId ||
       authUser.email.toLowerCase() === order.customerEmail.toLowerCase() ||
-      authUser.phone.trim() === order.customerPhone.trim()
+      (authUser.phone && order.customerPhone && authUser.phone.trim() === order.customerPhone.trim())
     );
 
     if (isOwnerOrAdmin) {
@@ -84,12 +84,6 @@ export async function GET(
       customerEmail: maskEmail(order.customerEmail),
       address: "Residential Address (Protected for Privacy)",
       pincode: order.pincode ? `${order.pincode.slice(0, 3)}***` : "",
-      smsAlerts: order.smsAlerts
-        .filter((alert) => alert.alertType !== "OTP_VERIFICATION")
-        .map((alert) => ({
-          ...alert,
-          customerPhone: maskPhone(alert.customerPhone),
-        })),
     };
 
     return NextResponse.json({ success: true, order: maskedOrder });

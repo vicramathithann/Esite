@@ -25,9 +25,6 @@ export async function GET(
         emailNotifications: {
           orderBy: { createdAt: "desc" },
         },
-        smsAlerts: {
-          orderBy: { sentAt: "desc" },
-        },
       },
     });
 
@@ -222,22 +219,6 @@ export async function PATCH(
       } catch (emailErr) {
         console.error("[STATUS EMAIL WARNING] Failed to send status update email:", emailErr);
       }
-
-      // Dispatch SMS
-      try {
-        await prisma.smsAlert.create({
-          data: {
-            orderId: updatedOrder.id,
-            customerPhone: updatedOrder.customerPhone,
-            alertType: newStatus,
-            title: `Order #${updatedOrder.orderNumber} Status: ${newStatus}`,
-            messageBody: `[VM Mobiles] Your order #${updatedOrder.orderNumber} status is now: ${newStatus}. Note: ${note} - VM Mobiles.in`,
-            isRead: false,
-          },
-        });
-      } catch (smsErr) {
-        console.error("Error creating status SMS:", smsErr);
-      }
     }
 
     return NextResponse.json({
@@ -263,8 +244,7 @@ export async function DELETE(
 
     const { id } = await params;
 
-    // Delete associated alerts, status history, warranties, email logs
-    await prisma.smsAlert.deleteMany({ where: { orderId: id } });
+    // Delete associated status history, warranties, email logs
     await prisma.orderStatusHistory.deleteMany({ where: { orderId: id } });
     await prisma.warranty.deleteMany({ where: { orderId: id } });
     await prisma.emailNotification.deleteMany({ where: { orderId: id } });

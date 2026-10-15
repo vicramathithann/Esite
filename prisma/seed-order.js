@@ -14,13 +14,13 @@ async function main() {
   const order = await prisma.order.create({
     data: {
       orderNumber: "NOVA-928104",
-      customerName: "Vikram R.",
+      customerName: "Vicram",
       customerPhone: "+91 98765 43210",
-      customerEmail: "vikram@example.com",
+      customerEmail: "vicram@example.com",
       address: "24, Indiranagar 100ft Road",
-      city: "Bengaluru",
-      pincode: "560038",
-      state: "Karnataka",
+      city: "Tamil Nadu",
+      pincode: "600001",
+      state: "chennai",
       totalAmount: 144900,
       paymentMethod: "UPI (PhonePe)",
       paymentStatus: "PAID",
@@ -44,23 +44,11 @@ async function main() {
             warrantyStatus: "ACTIVE",
           }
         ]
-      },
-      smsAlerts: {
-        create: [
-          {
-            customerPhone: "+91 98765 43210",
-            alertType: "PURCHASE_CONFIRMATION",
-            title: "Order & Device Protection Confirmed",
-            messageBody: `[NovaMobile] Order #NOVA-928104 Confirmed! Dear Vikram, your purchase of Apple iPhone 16 Pro Max (256GB) for Rs 1,44,900 is successful. Registered IMEI: 867492019482014. Your 1-Year Device Protection is ACTIVE until ${expiry.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}. We will alert you via SMS before your warranty expires!`,
-            isRead: true,
-            sentAt: new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000),
-          }
-        ]
       }
     }
   });
 
-  console.log("Sample order created with IMEI & SMS alert:", order.orderNumber);
+  console.log("Sample order created with IMEI:", order.orderNumber);
 }
 
 main().finally(async () => {
