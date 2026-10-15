@@ -1,8 +1,16 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { enforceRateLimit } from "@/lib/rateLimit";
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
+    const rateLimitError = enforceRateLimit(request, {
+      keyPrefix: "sms_check_expiry",
+      maxRequests: 5,
+      windowSeconds: 60,
+    });
+    if (rateLimitError) return rateLimitError;
+
     const now = new Date();
     const in7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 

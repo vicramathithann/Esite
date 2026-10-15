@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/auth";
 
 export async function GET(
   request: Request,
@@ -33,6 +34,11 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAdmin(request);
+    if (auth instanceof Response) {
+      return auth;
+    }
+
     const { id } = await params;
     const body = await request.json();
 
@@ -66,7 +72,12 @@ export async function PATCH(
         where: { id },
         data: {
           ...(body.price !== undefined ? { basePrice: parseInt(String(body.price), 10) } : {}),
-          ...(body.stock !== undefined ? { inStock: parseInt(String(body.stock), 10) > 0 } : {}),
+          ...(body.stock !== undefined
+            ? {
+                stock: Math.max(0, parseInt(String(body.stock), 10)),
+                inStock: parseInt(String(body.stock), 10) > 0,
+              }
+            : {}),
           ...(body.inStock !== undefined ? { inStock: Boolean(body.inStock) } : {}),
         },
       });
@@ -87,10 +98,15 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAdmin(request);
+    if (auth instanceof Response) {
+      return auth;
+    }
+
     const { id } = await params;
 
     await prisma.mobile.delete({

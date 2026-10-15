@@ -1,9 +1,18 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, verifyOtp, createSessionToken } from "@/lib/auth";
+import { enforceRateLimit } from "@/lib/rateLimit";
+import { logSecurityEvent, getClientIp } from "@/lib/securityLogger";
 
 export async function POST(request: Request) {
   try {
+    const rateLimitError = enforceRateLimit(request, {
+      keyPrefix: "auth_reset_password",
+      maxRequests: 10,
+      windowSeconds: 60,
+    });
+    if (rateLimitError) return rateLimitError;
+
     const body = await request.json();
     const { email, otp, token, newPassword, confirmPassword } = body;
 
@@ -170,6 +179,14 @@ export async function POST(request: Request) {
         emailVerified: true,
         createdAt: true,
       },
+    });
+
+    logSecurityEvent("AUTH_PASSWORD_RESET_COMPLETED", "INFO", {
+      ip: getClientIp(request),
+      route: "/api/auth/reset-password",
+      method: "POST",
+      userId: updatedUser.id,
+      email: updatedUser.email,
     });
 
     const sessionToken = createSessionToken(updatedUser);

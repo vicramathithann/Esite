@@ -3,9 +3,18 @@ import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { sendPasswordResetEmail } from "@/lib/email";
 import { generateSecureOtp, hashOtp, isValidEmail } from "@/lib/auth";
+import { enforceRateLimit } from "@/lib/rateLimit";
+import { logSecurityEvent, getClientIp } from "@/lib/securityLogger";
 
 export async function POST(request: Request) {
   try {
+    const rateLimitError = enforceRateLimit(request, {
+      keyPrefix: "auth_forgot_password",
+      maxRequests: 5,
+      windowSeconds: 60,
+    });
+    if (rateLimitError) return rateLimitError;
+
     const body = await request.json();
     const rawEmail = body.email;
 
@@ -96,6 +105,14 @@ export async function POST(request: Request) {
         { status: 502 }
       );
     }
+
+    logSecurityEvent("AUTH_PASSWORD_RESET_REQUESTED", "INFO", {
+      ip: getClientIp(request),
+      route: "/api/auth/forgot-password",
+      method: "POST",
+      userId: user.id,
+      email: cleanEmail,
+    });
 
     // Never return the OTP or reset token in response
     return NextResponse.json({

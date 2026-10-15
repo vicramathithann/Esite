@@ -1,17 +1,27 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getAuthenticatedUser, requireAuth } from "@/lib/auth";
 
 export async function GET(request: Request) {
   try {
+    const authUser = await getAuthenticatedUser(request);
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get("userId");
+    const requestedUserId = searchParams.get("userId");
 
-    if (!userId) {
+    // Must be authenticated to access private wishlist
+    const targetUserId = authUser ? authUser.id : requestedUserId;
+
+    if (!targetUserId) {
       return NextResponse.json({ success: true, wishlist: [] });
     }
 
+    // IDOR Protection: regular users can only see their own wishlist
+    if (authUser && requestedUserId && requestedUserId !== authUser.id && (authUser.role || "").toUpperCase() !== "ADMIN") {
+      return NextResponse.json({ success: true, count: 0, products: [] });
+    }
+
     const items = await prisma.wishlist.findMany({
-      where: { userId },
+      where: { userId: targetUserId },
       include: {
         product: true,
       },
@@ -38,15 +48,24 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { userId, productId } = body;
+    const auth = await requireAuth(request);
+    if (auth instanceof Response) {
+      return auth;
+    }
+    const authUser = auth;
 
-    if (!userId || !productId) {
+    const body = await request.json();
+    const { productId } = body;
+
+    if (!productId) {
       return NextResponse.json(
-        { success: false, error: "userId and productId are required." },
+        { success: false, error: "productId is required." },
         { status: 400 }
       );
     }
+
+    // Always use session identity to prevent IDOR
+    const userId = authUser.id;
 
     const existing = await prisma.wishlist.findUnique({
       where: {

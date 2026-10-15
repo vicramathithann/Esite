@@ -1,9 +1,21 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword, createSessionToken, ensureAdminUser } from "@/lib/auth";
+import { enforceRateLimit } from "@/lib/rateLimit";
+import { logSecurityEvent, getClientIp } from "@/lib/securityLogger";
+
+const GENERIC_LOGIN_ERROR = "Invalid email/phone or password. Please check and try again.";
+const DUMMY_PBKDF2_HASH = "100000:0123456789abcdef0123456789abcdef:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
 export async function POST(request: Request) {
   try {
+    const rateLimitError = enforceRateLimit(request, {
+      keyPrefix: "auth_login",
+      maxRequests: 5,
+      windowSeconds: 60,
+    });
+    if (rateLimitError) return rateLimitError;
+
     const body = await request.json();
     const { emailOrPhone, email, phone, password, requiredRole } = body;
     const targetIdentifier = (emailOrPhone || email || phone || "").trim();
@@ -38,16 +50,33 @@ export async function POST(request: Request) {
     });
 
     if (!user) {
+      // Timing attack mitigation: run constant-time hash calculation
+      verifyPassword(password, DUMMY_PBKDF2_HASH);
+      logSecurityEvent("AUTH_LOGIN_FAILED", "WARN", {
+        ip: getClientIp(request),
+        route: "/api/auth/login",
+        method: "POST",
+        email: cleanEmail,
+        details: { reason: "User not found" },
+      });
       return NextResponse.json(
-        { success: false, error: "Invalid login credentials. No account found for this username/email." },
+        { success: false, error: GENERIC_LOGIN_ERROR },
         { status: 401 }
       );
     }
 
     const passwordMatches = verifyPassword(password, user.password);
     if (!passwordMatches) {
+      logSecurityEvent("AUTH_LOGIN_FAILED", "WARN", {
+        ip: getClientIp(request),
+        route: "/api/auth/login",
+        method: "POST",
+        userId: user.id,
+        email: user.email,
+        details: { reason: "Password mismatch" },
+      });
       return NextResponse.json(
-        { success: false, error: "Invalid password. Please check and try again." },
+        { success: false, error: GENERIC_LOGIN_ERROR },
         { status: 401 }
       );
     }
@@ -55,6 +84,14 @@ export async function POST(request: Request) {
     // REAL EMAIL VERIFICATION GATE:
     // Reject login if email is not verified
     if (!user.emailVerified) {
+      logSecurityEvent("AUTH_LOGIN_FAILED", "WARN", {
+        ip: getClientIp(request),
+        route: "/api/auth/login",
+        method: "POST",
+        userId: user.id,
+        email: user.email,
+        details: { reason: "Email unverified" },
+      });
       return NextResponse.json(
         {
           success: false,
@@ -67,11 +104,28 @@ export async function POST(request: Request) {
     }
 
     if (requiredRole && user.role !== requiredRole) {
+      logSecurityEvent("ACCESS_DENIED_FORBIDDEN", "WARN", {
+        ip: getClientIp(request),
+        route: "/api/auth/login",
+        method: "POST",
+        userId: user.id,
+        email: user.email,
+        details: { requiredRole, actualRole: user.role },
+      });
       return NextResponse.json(
         { success: false, error: `Access denied. This action requires ${requiredRole} privileges.` },
         { status: 403 }
       );
     }
+
+    logSecurityEvent("AUTH_LOGIN_SUCCESS", "INFO", {
+      ip: getClientIp(request),
+      route: "/api/auth/login",
+      method: "POST",
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+    });
 
     const sessionToken = createSessionToken(user);
     const response = NextResponse.json({

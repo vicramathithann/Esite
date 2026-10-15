@@ -1,36 +1,35 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getAuthenticatedUser, requireAuth } from "@/lib/auth";
 
 export async function GET(request: Request) {
   try {
+    const authUser = await getAuthenticatedUser(request);
     const { searchParams } = new URL(request.url);
     const phone = searchParams.get("phone");
-    const userId = searchParams.get("userId");
-    const admin = searchParams.get("admin");
-    const role = searchParams.get("role");
 
     let where: Record<string, unknown> = {};
 
-    if (admin === "true" || role === "ADMIN") {
-      where = {};
-    } else if (userId) {
-      const user = await prisma.user.findUnique({ where: { id: userId } });
-      if (!user) {
-        return NextResponse.json({ success: true, count: 0, unreadCount: 0, alerts: [] });
-      }
-      if (user.role === "ADMIN") {
-        where = {};
+    // 1. Admin: verified by session role
+    if (authUser && (authUser.role || "").toUpperCase() === "ADMIN") {
+      if (phone) {
+        const cleanPhone = phone.trim();
+        where = { customerPhone: { contains: cleanPhone } };
       } else {
-        const cleanPhone = user.phone.trim();
-        const withoutCountryCode = cleanPhone.replace(/^\+91\s*/, "").trim();
-        where = {
-          OR: [
-            { customerPhone: { equals: cleanPhone } },
-            ...(withoutCountryCode ? [{ customerPhone: { contains: withoutCountryCode } }] : []),
-          ],
-        };
+        where = {};
       }
+    } else if (authUser) {
+      // 2. Regular User: strictly isolated to their own authenticated phone
+      const cleanPhone = authUser.phone.trim();
+      const withoutCountryCode = cleanPhone.replace(/^\+91\s*/, "").trim();
+      where = {
+        OR: [
+          { customerPhone: { equals: cleanPhone } },
+          ...(withoutCountryCode ? [{ customerPhone: { contains: withoutCountryCode } }] : []),
+        ],
+      };
     } else if (phone) {
+      // 3. Guest lookup strictly for their own matching phone
       const cleanPhone = phone.trim();
       const withoutCountryCode = cleanPhone.replace(/^\+91\s*/, "").trim();
       where = {
@@ -65,10 +64,30 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const auth = await requireAuth(request);
+    if (auth instanceof Response) {
+      return auth;
+    }
+    const authUser = auth;
+    const isAdmin = (authUser.role || "").toUpperCase() === "ADMIN";
+
     const body = await request.json();
     const { action, id } = body;
 
+    const userPhone = authUser.phone.trim();
+    const withoutCountryCode = userPhone.replace(/^\+91\s*/, "").trim();
+
     if (action === "MARK_READ" && id) {
+      // IDOR Protection: ensure alert belongs to user or user is admin
+      const alert = await prisma.smsAlert.findUnique({ where: { id } });
+      if (!alert) {
+        return NextResponse.json({ success: false, error: "Alert not found" }, { status: 404 });
+      }
+
+      if (!isAdmin && alert.customerPhone !== userPhone && !alert.customerPhone.includes(withoutCountryCode)) {
+        return NextResponse.json({ success: false, error: "Forbidden: You cannot modify this alert" }, { status: 403 });
+      }
+
       await prisma.smsAlert.update({
         where: { id },
         data: { isRead: true },
@@ -77,8 +96,18 @@ export async function POST(request: Request) {
     }
 
     if (action === "MARK_ALL_READ") {
+      const condition = isAdmin
+        ? { isRead: false }
+        : {
+            isRead: false,
+            OR: [
+              { customerPhone: { equals: userPhone } },
+              ...(withoutCountryCode ? [{ customerPhone: { contains: withoutCountryCode } }] : []),
+            ],
+          };
+
       await prisma.smsAlert.updateMany({
-        where: { isRead: false },
+        where: condition,
         data: { isRead: true },
       });
       return NextResponse.json({ success: true, message: "All marked as read" });

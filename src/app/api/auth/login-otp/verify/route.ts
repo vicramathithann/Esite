@@ -1,9 +1,18 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyOtp, createSessionToken } from "@/lib/auth";
+import { enforceRateLimit } from "@/lib/rateLimit";
+import { logSecurityEvent, getClientIp } from "@/lib/securityLogger";
 
 export async function POST(request: Request) {
   try {
+    const rateLimitError = enforceRateLimit(request, {
+      keyPrefix: "auth_login_otp_verify",
+      maxRequests: 10,
+      windowSeconds: 60,
+    });
+    if (rateLimitError) return rateLimitError;
+
     const body = await request.json();
     const { email, otp } = body;
 
@@ -77,6 +86,15 @@ export async function POST(request: Request) {
         data: { loginOtpAttempts: newAttempts },
       });
 
+      logSecurityEvent("AUTH_OTP_FAILED", "WARN", {
+        ip: getClientIp(request),
+        route: "/api/auth/login-otp/verify",
+        method: "POST",
+        userId: user.id,
+        email: cleanEmail,
+        details: { attempts: newAttempts },
+      });
+
       const remaining = Math.max(0, 5 - newAttempts);
       return NextResponse.json(
         {
@@ -110,6 +128,14 @@ export async function POST(request: Request) {
         emailVerified: true,
         createdAt: true,
       },
+    });
+
+    logSecurityEvent("AUTH_OTP_VERIFIED", "INFO", {
+      ip: getClientIp(request),
+      route: "/api/auth/login-otp/verify",
+      method: "POST",
+      userId: updatedUser.id,
+      email: updatedUser.email,
     });
 
     // Generate authenticated session token

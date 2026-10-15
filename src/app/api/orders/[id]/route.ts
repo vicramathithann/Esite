@@ -1,12 +1,18 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendOrderStatusEmail, sendOrderConfirmationEmail } from "@/lib/email";
+import { getAuthenticatedUser, requireAuth, requireAdmin } from "@/lib/auth";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authUser = await getAuthenticatedUser(request);
+    if (!authUser) {
+      return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+    }
+
     const { id } = await params;
     const order = await prisma.order.findUnique({
       where: { id },
@@ -29,6 +35,17 @@ export async function GET(
       return NextResponse.json({ success: false, error: "Order not found" }, { status: 404 });
     }
 
+    // IDOR Protection: Caller must be order owner or administrator
+    const isAdmin = (authUser.role || "").toUpperCase() === "ADMIN";
+    const isOwner = order.userId === authUser.id || order.customerEmail.toLowerCase() === authUser.email.toLowerCase();
+
+    if (!isAdmin && !isOwner) {
+      return NextResponse.json(
+        { success: false, error: "Forbidden: You are not authorized to view this order." },
+        { status: 403 }
+      );
+    }
+
     return NextResponse.json({ success: true, order });
   } catch (error) {
     console.error("Failed to fetch order:", error);
@@ -41,6 +58,13 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAuth(request);
+    if (auth instanceof Response) {
+      return auth;
+    }
+    const authUser = auth;
+    const isAdmin = (authUser.role || "").toUpperCase() === "ADMIN";
+
     const { id } = await params;
     const body = await request.json();
 
@@ -54,6 +78,28 @@ export async function PATCH(
 
     if (!existingOrder) {
       return NextResponse.json({ success: false, error: "Order not found" }, { status: 404 });
+    }
+
+    const isOwner =
+      existingOrder.userId === authUser.id ||
+      existingOrder.customerEmail.toLowerCase() === authUser.email.toLowerCase();
+
+    // Check authorization: must be admin or order owner
+    if (!isAdmin && !isOwner) {
+      return NextResponse.json(
+        { success: false, error: "Forbidden: You cannot modify this order." },
+        { status: 403 }
+      );
+    }
+
+    // Non-admin customers can ONLY cancel their own order
+    if (!isAdmin) {
+      if (body.action !== "CANCEL_ORDER" && body.orderStatus !== "Cancelled") {
+        return NextResponse.json(
+          { success: false, error: "Forbidden: Only administrators can update tracking or status." },
+          { status: 403 }
+        );
+      }
     }
 
     // Action 1: Resend confirmation email
@@ -102,7 +148,7 @@ export async function PATCH(
       updateData.orderStatus = "Cancelled";
       updateData.paymentStatus = "Refund Initiated";
 
-      // Restore inventory stock
+      // Restore inventory stock (MobileProduct is single source of truth)
       if (oldStatus !== "Cancelled" && oldStatus !== "CANCELLED") {
         for (const item of existingOrder.items) {
           if (item.productId) {
@@ -115,13 +161,6 @@ export async function PATCH(
                     stock: product.stock + (item.quantity || 1),
                     inStock: true,
                   },
-                });
-              }
-              const mobile = await prisma.mobile.findUnique({ where: { id: item.productId } });
-              if (mobile) {
-                await prisma.mobile.update({
-                  where: { id: item.productId },
-                  data: { stock: mobile.stock + (item.quantity || 1) },
                 });
               }
             } catch (stockErr) {
@@ -213,10 +252,15 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAdmin(request);
+    if (auth instanceof Response) {
+      return auth;
+    }
+
     const { id } = await params;
 
     // Delete associated alerts, status history, warranties, email logs

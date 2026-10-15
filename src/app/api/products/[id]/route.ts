@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/auth";
 
 export async function GET(
   _request: Request,
@@ -41,6 +42,11 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAdmin(request);
+    if (auth instanceof Response) {
+      return auth;
+    }
+
     const { id } = await params;
     const body = await request.json();
 
@@ -102,10 +108,15 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAdmin(request);
+    if (auth instanceof Response) {
+      return auth;
+    }
+
     const { id } = await params;
 
     // Delete variants and reviews first

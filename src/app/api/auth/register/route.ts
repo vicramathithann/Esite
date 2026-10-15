@@ -2,10 +2,19 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, generateSecureOtp, hashOtp, isValidEmail } from "@/lib/auth";
 import { sendUserVerificationEmail } from "@/lib/email";
+import { enforceRateLimit } from "@/lib/rateLimit";
+import { logSecurityEvent, getClientIp } from "@/lib/securityLogger";
 import crypto from "crypto";
 
 export async function POST(request: Request) {
   try {
+    const rateLimitError = enforceRateLimit(request, {
+      keyPrefix: "auth_register",
+      maxRequests: 5,
+      windowSeconds: 600,
+    });
+    if (rateLimitError) return rateLimitError;
+
     const body = await request.json();
     const { name, email, phone, password, confirmPassword } = body;
 
@@ -155,6 +164,14 @@ export async function POST(request: Request) {
         { status: 502 }
       );
     }
+
+    logSecurityEvent("AUTH_REGISTER_SUCCESS", "INFO", {
+      ip: getClientIp(request),
+      route: "/api/auth/register",
+      method: "POST",
+      userId: user.id,
+      email: cleanEmail,
+    });
 
     // Never return the OTP or token in the public JSON response
     return NextResponse.json({

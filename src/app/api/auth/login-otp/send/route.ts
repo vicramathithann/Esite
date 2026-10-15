@@ -2,9 +2,18 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendLoginOtpEmail } from "@/lib/email";
 import { generateSecureOtp, hashOtp, isValidEmail } from "@/lib/auth";
+import { enforceRateLimit } from "@/lib/rateLimit";
+import { logSecurityEvent, getClientIp } from "@/lib/securityLogger";
 
 export async function POST(request: Request) {
   try {
+    const rateLimitError = enforceRateLimit(request, {
+      keyPrefix: "auth_login_otp_send",
+      maxRequests: 5,
+      windowSeconds: 60,
+    });
+    if (rateLimitError) return rateLimitError;
+
     const body = await request.json();
     const rawEmail = body.email;
 
@@ -101,6 +110,14 @@ export async function POST(request: Request) {
         { status: 502 }
       );
     }
+
+    logSecurityEvent("AUTH_OTP_REQUESTED", "INFO", {
+      ip: getClientIp(request),
+      route: "/api/auth/login-otp/send",
+      method: "POST",
+      userId: user.id,
+      email: cleanEmail,
+    });
 
     // Never return the OTP in the API response
     return NextResponse.json({

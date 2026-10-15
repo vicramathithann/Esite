@@ -1,0 +1,17 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "security-team"
+    labels:
+      - "dependencies"
+      - "security"
+    ignore:
+      # Major breaking changes can be pinned for manual review
+      - dependency-name: "next"
+        update-types: ["version-update:semver-major"]
+

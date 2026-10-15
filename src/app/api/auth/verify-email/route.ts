@@ -1,9 +1,17 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyOtp, createSessionToken } from "@/lib/auth";
+import { enforceRateLimit } from "@/lib/rateLimit";
 
 export async function GET(request: Request) {
   try {
+    const rateLimitError = enforceRateLimit(request, {
+      keyPrefix: "auth_verify_email_get",
+      maxRequests: 10,
+      windowSeconds: 60,
+    });
+    if (rateLimitError) return rateLimitError;
+
     const { searchParams } = new URL(request.url);
     const token = searchParams.get("token")?.trim();
 
@@ -85,6 +93,13 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const rateLimitError = enforceRateLimit(request, {
+      keyPrefix: "auth_verify_email_post",
+      maxRequests: 10,
+      windowSeconds: 60,
+    });
+    if (rateLimitError) return rateLimitError;
+
     const body = await request.json();
     const { email, otp, token } = body;
 

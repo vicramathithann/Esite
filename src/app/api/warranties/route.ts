@@ -1,20 +1,27 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendWarrantyActivationEmail } from "@/lib/email";
+import { getAuthenticatedUser, requireAuth } from "@/lib/auth";
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get("userId");
-    const email = searchParams.get("email");
-    const role = searchParams.get("role");
-    const admin = searchParams.get("admin");
     const search = searchParams.get("search");
+
+    // Authenticate caller via session cookie
+    const authUser = await getAuthenticatedUser(request);
+
+    if (!authUser) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required to access warranties." },
+        { status: 401 }
+      );
+    }
 
     let where: Record<string, unknown> = {};
 
-    if (admin === "true" || role === "ADMIN") {
-      // Admin can search by order, customer, product, imei
+    // 1. Admin: verified by session role (not by unverified query parameters)
+    if ((authUser.role || "").toUpperCase() === "ADMIN") {
       if (search) {
         where = {
           OR: [
@@ -25,29 +32,19 @@ export async function GET(request: Request) {
             { order: { orderNumber: { contains: search } } },
           ],
         };
-      }
-    } else if (userId) {
-      const user = await prisma.user.findUnique({ where: { id: userId } });
-      if (!user) {
-        return NextResponse.json({ success: true, count: 0, warranties: [] });
-      }
-
-      if (user.role === "ADMIN") {
-        where = {};
       } else {
-        // Normal user only sees their own warranties
-        where = {
-          OR: [
-            { userId: user.id },
-            { customerEmail: { equals: user.email } },
-          ],
-        };
+        where = {};
       }
-    } else if (email) {
-      where = { customerEmail: { equals: email.trim().toLowerCase() } };
     } else {
-      return NextResponse.json({ success: true, count: 0, warranties: [] });
+      // 2. Regular User: strictly isolated to their own warranties based on session identity
+      where = {
+        OR: [
+          { userId: authUser.id },
+          { customerEmail: { equals: authUser.email } },
+        ],
+      };
     }
+
 
     const warranties = await prisma.warranty.findMany({
       where,
@@ -81,6 +78,12 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const auth = await requireAuth(request);
+    if (auth instanceof Response) {
+      return auth;
+    }
+    const authUser = auth;
+
     const body = await request.json();
     const { warrantyId, action } = body;
 
@@ -100,6 +103,17 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { success: false, error: "Warranty record not found" },
         { status: 404 }
+      );
+    }
+
+    // IDOR Protection: User must own the warranty or be an administrator
+    const isAdmin = (authUser.role || "").toUpperCase() === "ADMIN";
+    const isOwner = warranty.userId === authUser.id || warranty.customerEmail.toLowerCase() === authUser.email.toLowerCase();
+
+    if (!isAdmin && !isOwner) {
+      return NextResponse.json(
+        { success: false, error: "Forbidden: You are not authorized to manage this warranty." },
+        { status: 403 }
       );
     }
 

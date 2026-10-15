@@ -2,9 +2,18 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { verifyOtp } from "@/lib/auth";
+import { enforceRateLimit } from "@/lib/rateLimit";
+import { logSecurityEvent, getClientIp } from "@/lib/securityLogger";
 
 export async function POST(request: Request) {
   try {
+    const rateLimitError = enforceRateLimit(request, {
+      keyPrefix: "auth_forgot_otp_verify",
+      maxRequests: 10,
+      windowSeconds: 60,
+    });
+    if (rateLimitError) return rateLimitError;
+
     const body = await request.json();
     const { email, otp } = body;
 

@@ -2,10 +2,18 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendUserVerificationEmail } from "@/lib/email";
 import { generateSecureOtp, hashOtp } from "@/lib/auth";
+import { enforceRateLimit } from "@/lib/rateLimit";
 import crypto from "crypto";
 
 export async function POST(request: Request) {
   try {
+    const rateLimitError = enforceRateLimit(request, {
+      keyPrefix: "auth_resend_verification",
+      maxRequests: 5,
+      windowSeconds: 60,
+    });
+    if (rateLimitError) return rateLimitError;
+
     const body = await request.json();
     const email = body.email?.trim().toLowerCase();
 

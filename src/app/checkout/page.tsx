@@ -90,7 +90,6 @@ export default function CheckoutPage() {
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
   const [sendingOtp, setSendingOtp] = useState(false);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
-  const [lastDispatchedOtp, setLastDispatchedOtp] = useState<string | null>(null);
   const [otpError, setOtpError] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
@@ -150,7 +149,6 @@ export default function CheckoutPage() {
       const data = await res.json();
       if (data.success) {
         setOtpSent(true);
-        setLastDispatchedOtp(data.otp);
         await fetchSmsAlerts();
       } else {
         setOtpError(data.error || "Failed to send verification SMS.");
@@ -696,19 +694,6 @@ export default function CheckoutPage() {
                           <KeyRound className="w-3.5 h-3.5 text-[#C9A66B] dark:text-[#D4B483]" />
                           Enter 6-digit OTP sent via SMS to {formData.customerPhone}:
                         </span>
-                        {lastDispatchedOtp && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setOtpCode(lastDispatchedOtp);
-                              handleVerifyOtp(lastDispatchedOtp, autoSubmitOrder);
-                            }}
-                            className="text-[11px] text-[#8C6226] dark:text-[#E5CBA2] hover:underline font-semibold bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 px-2.5 py-1 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 rounded-lg shadow-2xs flex items-center gap-1 cursor-pointer transition-all"
-                          >
-                            <Sparkles className="w-3 h-3 text-[#C9A66B] dark:text-[#D4B483]" />
-                            Auto-fill & Submit ({lastDispatchedOtp})
-                          </button>
-                        )}
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2.5">

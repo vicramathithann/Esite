@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 
@@ -6,20 +7,50 @@ const SESSION_SECRET =
   process.env.GMAIL_APP_PASSWORD ||
   "vn-mobiles-auth-session-signing-key-2026";
 
+const PBKDF2_ITERATIONS = 100000;
+const PBKDF2_KEYLEN = 64;
+const PBKDF2_DIGEST = "sha512";
+
 export function hashPassword(password: string): string {
   const salt = crypto.randomBytes(16).toString("hex");
-  const hash = crypto.pbkdf2Sync(password, salt, 1000, 64, "sha512").toString("hex");
-  return `${salt}:${hash}`;
+  const hash = crypto.pbkdf2Sync(password, salt, PBKDF2_ITERATIONS, PBKDF2_KEYLEN, PBKDF2_DIGEST).toString("hex");
+  return `${PBKDF2_ITERATIONS}:${salt}:${hash}`;
 }
 
 export function verifyPassword(password: string, storedHash: string): boolean {
-  if (!storedHash || !storedHash.includes(":")) {
-    // Fallback for simple legacy test passwords if any
-    return password === storedHash;
+  if (!storedHash || typeof storedHash !== "string") {
+    return false;
   }
-  const [salt, originalHash] = storedHash.split(":");
-  const hash = crypto.pbkdf2Sync(password, salt, 1000, 64, "sha512").toString("hex");
-  return hash === originalHash;
+  const parts = storedHash.split(":");
+
+  // Format 1 (Modern): iterations:salt:hash
+  if (parts.length === 3) {
+    const [iterStr, salt, originalHash] = parts;
+    const iterations = parseInt(iterStr, 10);
+    if (isNaN(iterations) || iterations <= 0 || !salt || !originalHash) return false;
+    const hash = crypto.pbkdf2Sync(password, salt, iterations, PBKDF2_KEYLEN, PBKDF2_DIGEST).toString("hex");
+    return hash.length === originalHash.length && crypto.timingSafeEqual(Buffer.from(hash), Buffer.from(originalHash));
+  }
+
+  // Format 2 (Legacy): salt:hash (check 100,000 iterations first, then fallback to 1,000)
+  if (parts.length === 2) {
+    const [salt, originalHash] = parts;
+    if (!salt || !originalHash) return false;
+    // Check with 100,000 iterations
+    const hash100k = crypto.pbkdf2Sync(password, salt, 100000, PBKDF2_KEYLEN, PBKDF2_DIGEST).toString("hex");
+    if (hash100k.length === originalHash.length && crypto.timingSafeEqual(Buffer.from(hash100k), Buffer.from(originalHash))) {
+      return true;
+    }
+    // Check with legacy 1,000 iterations
+    const hash1k = crypto.pbkdf2Sync(password, salt, 1000, PBKDF2_KEYLEN, PBKDF2_DIGEST).toString("hex");
+    if (hash1k.length === originalHash.length && crypto.timingSafeEqual(Buffer.from(hash1k), Buffer.from(originalHash))) {
+      return true;
+    }
+    return false;
+  }
+
+  // Fallback for simple legacy test passwords if any
+  return password === storedHash;
 }
 
 /**
@@ -30,24 +61,42 @@ export function generateSecureOtp(): string {
 }
 
 /**
- * Hashes an OTP with a random salt using PBKDF2/SHA-512 to prevent plaintext storage in DB.
+ * Hashes an OTP with a random salt using PBKDF2/SHA-512 (100,000 iterations) to prevent plaintext storage in DB.
  */
 export function hashOtp(otp: string): string {
   const salt = crypto.randomBytes(16).toString("hex");
-  const hash = crypto.pbkdf2Sync(otp.trim(), salt, 1000, 64, "sha512").toString("hex");
-  return `${salt}:${hash}`;
+  const hash = crypto.pbkdf2Sync(otp.trim(), salt, PBKDF2_ITERATIONS, PBKDF2_KEYLEN, PBKDF2_DIGEST).toString("hex");
+  return `${PBKDF2_ITERATIONS}:${salt}:${hash}`;
 }
 
 /**
- * Verifies a submitted OTP against the stored PBKDF2 hash.
+ * Verifies a submitted OTP against the stored PBKDF2 hash (supports both 100,000 and legacy 1,000 iterations).
  */
 export function verifyOtp(otp: string, storedHash: string): boolean {
-  if (!storedHash || !storedHash.includes(":")) {
+  if (!storedHash || typeof storedHash !== "string") {
     return false;
   }
-  const [salt, originalHash] = storedHash.split(":");
-  const hash = crypto.pbkdf2Sync(otp.trim(), salt, 1000, 64, "sha512").toString("hex");
-  return hash === originalHash;
+  const parts = storedHash.split(":");
+  if (parts.length === 3) {
+    const [iterStr, salt, originalHash] = parts;
+    const iterations = parseInt(iterStr, 10);
+    if (isNaN(iterations) || iterations <= 0 || !salt || !originalHash) return false;
+    const hash = crypto.pbkdf2Sync(otp.trim(), salt, iterations, PBKDF2_KEYLEN, PBKDF2_DIGEST).toString("hex");
+    return hash.length === originalHash.length && crypto.timingSafeEqual(Buffer.from(hash), Buffer.from(originalHash));
+  }
+  if (parts.length === 2) {
+    const [salt, originalHash] = parts;
+    if (!salt || !originalHash) return false;
+    const hash100k = crypto.pbkdf2Sync(otp.trim(), salt, 100000, PBKDF2_KEYLEN, PBKDF2_DIGEST).toString("hex");
+    if (hash100k.length === originalHash.length && crypto.timingSafeEqual(Buffer.from(hash100k), Buffer.from(originalHash))) {
+      return true;
+    }
+    const hash1k = crypto.pbkdf2Sync(otp.trim(), salt, 1000, PBKDF2_KEYLEN, PBKDF2_DIGEST).toString("hex");
+    if (hash1k.length === originalHash.length && crypto.timingSafeEqual(Buffer.from(hash1k), Buffer.from(originalHash))) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -146,6 +195,52 @@ export async function getAuthenticatedUser(request?: Request) {
     },
   });
 
+  return user;
+}
+
+export type AuthUser = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  role: string;
+  emailVerified: boolean;
+  createdAt: Date;
+};
+
+/**
+ * Enforces that the incoming request has a valid authenticated session cookie.
+ * Returns the Authenticated User object, or a 401 Unauthorized NextResponse.
+ */
+export async function requireAuth(request: Request): Promise<AuthUser | NextResponse> {
+  const user = await getAuthenticatedUser(request);
+  if (!user) {
+    return NextResponse.json(
+      { success: false, error: "Authentication required. Please sign in." },
+      { status: 401 }
+    );
+  }
+  return user;
+}
+
+/**
+ * Enforces that the incoming request is from an authenticated user with administrative privileges (role === 'ADMIN').
+ * Returns the Authenticated Admin User object, or a 401/403 NextResponse.
+ */
+export async function requireAdmin(request: Request): Promise<AuthUser | NextResponse> {
+  const user = await getAuthenticatedUser(request);
+  if (!user) {
+    return NextResponse.json(
+      { success: false, error: "Authentication required. Please sign in as an administrator." },
+      { status: 401 }
+    );
+  }
+  if ((user.role || "").toUpperCase() !== "ADMIN") {
+    return NextResponse.json(
+      { success: false, error: "Forbidden: Administrator privileges required." },
+      { status: 403 }
+    );
+  }
   return user;
 }
 

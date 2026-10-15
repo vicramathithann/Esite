@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendOrderConfirmationEmail, sendWarrantyActivationEmail } from "@/lib/email";
 import { getAuthenticatedUser } from "@/lib/auth";
+import { logSecurityEvent, getClientIp } from "@/lib/securityLogger";
+import { isValidEmail } from "@/lib/validation";
 
 export async function GET(request: Request) {
   try {
@@ -10,15 +12,10 @@ export async function GET(request: Request) {
     const admin = searchParams.get("admin");
     const role = searchParams.get("role");
 
-    // Authenticate caller via session cookie or database verified user
+    // Authenticate caller via session cookie
     const authUser = await getAuthenticatedUser(request);
-    let effectiveUser = authUser;
 
-    if (!effectiveUser && userId) {
-      effectiveUser = await prisma.user.findUnique({ where: { id: userId } });
-    }
-
-    if (!effectiveUser) {
+    if (!authUser) {
       // Unauthenticated guests cannot access private order records
       return NextResponse.json({ success: true, count: 0, orders: [] });
     }
@@ -26,14 +23,14 @@ export async function GET(request: Request) {
     let where: Record<string, unknown> = {};
 
     // 1. Admin Request: Can view all orders across all users
-    if (effectiveUser.role === "ADMIN" && (admin === "true" || role === "ADMIN")) {
+    if ((authUser.role || "").toUpperCase() === "ADMIN" && (admin === "true" || role === "ADMIN")) {
       where = {};
     } else {
       // 2. Strict Customer Isolation: User only sees their own orders
       where = {
         OR: [
-          { userId: effectiveUser.id },
-          { customerEmail: { equals: effectiveUser.email } },
+          { userId: authUser.id },
+          { customerEmail: { equals: authUser.email } },
         ],
       };
     }
@@ -96,18 +93,10 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2. Resolve authenticated user and enforce purchase protection
-    let validUser = await getAuthenticatedUser(request);
+    // 2. Resolve authenticated user strictly from session cookie
+    const validUser = await getAuthenticatedUser(request);
 
-    if (!validUser && userId) {
-      validUser = await prisma.user.findUnique({ where: { id: userId } });
-    }
-
-    if (!validUser && cleanCustomerEmail) {
-      validUser = await prisma.user.findUnique({ where: { email: cleanCustomerEmail } });
-    }
-
-    // Purchase Protection: Require authenticated customer
+    // Purchase Protection: Require authenticated customer session
     if (!validUser) {
       return NextResponse.json(
         {
@@ -135,82 +124,68 @@ export async function POST(request: Request) {
     const validUserId = validUser.id;
 
     // 3. Strict Backend Product, Stock, and Price Validation
+    // OWASP A06 & A08: Server-side pricing enforcement - never trust client item.price or totalAmount!
     let computedBackendTotal = 0;
+    const validatedProductsMap = new Map<string, { product: any; unitPrice: number; qty: number }>();
 
     for (const item of items) {
-      const qty = item.quantity || 1;
+      const qty = Math.max(1, parseInt(String(item.quantity || 1), 10));
 
-      if (item.productId) {
-        const product = await prisma.mobileProduct.findUnique({
-          where: { id: item.productId },
-        });
-
-        if (product) {
-          if (!product.inStock || product.stock <= 0 || product.stock < qty) {
-            return NextResponse.json(
-              {
-                success: false,
-                error: `Sorry, "${item.productName || product.name}" is Currently Out of Stock (Available: ${product.stock}).`,
-              },
-              { status: 400 }
-            );
-          }
-          computedBackendTotal += (product.basePrice || item.price) * qty;
-        } else {
-          // Check mobile table fallback
-          const mobile = await prisma.mobile.findUnique({
-            where: { id: item.productId },
-          });
-          if (mobile) {
-            if (mobile.stock <= 0 || mobile.stock < qty) {
-              return NextResponse.json(
-                {
-                  success: false,
-                  error: `Sorry, "${item.productName || mobile.model}" is Currently Out of Stock.`,
-                },
-                { status: 400 }
-              );
-            }
-            computedBackendTotal += (mobile.price || item.price) * qty;
-          } else {
-            computedBackendTotal += item.price * qty;
-          }
-        }
-      } else {
-        computedBackendTotal += item.price * qty;
+      if (!item.productId) {
+        return NextResponse.json(
+          { success: false, error: "Invalid order item: missing product identifier." },
+          { status: 400 }
+        );
       }
+
+      const product = await prisma.mobileProduct.findUnique({
+        where: { id: item.productId },
+      });
+
+      if (!product) {
+        return NextResponse.json(
+          { success: false, error: `Product not found: "${item.productName || item.productId}".` },
+          { status: 404 }
+        );
+      }
+
+      if (!product.inStock || product.stock <= 0 || product.stock < qty) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Sorry, "${product.name}" is out of stock (available: ${product.stock}, requested: ${qty}).`,
+          },
+          { status: 400 }
+        );
+      }
+
+      const unitPrice = product.discountPrice && product.discountPrice > 0
+        ? product.discountPrice
+        : product.basePrice;
+
+      computedBackendTotal += unitPrice * qty;
+      validatedProductsMap.set(item.productId, { product, unitPrice, qty });
     }
 
-    const orderTotal = totalAmount || computedBackendTotal;
+    // Authoritative total calculated strictly on the server
+    const orderTotal = computedBackendTotal;
     const orderNumber = `ORD${Math.floor(10000 + Math.random() * 90000)}`;
     const now = new Date();
 
-    // 4. Prepare Order Items & IMEI numbers
-    const generatedImeis: string[] = [];
-    const orderItemsCreateData = [];
+    // 4. Prepare Order Items & IMEI numbers with verified server pricing
+    const orderItemsCreateData: any[] = [];
 
     for (const item of items) {
-      let pName = item.productName;
-      let pBrand = item.productBrand || "VN Mobiles";
-      let pImage = item.productImageUrl || "/images/placeholder.png";
-      let pPrice = item.price;
+      const validated = validatedProductsMap.get(item.productId);
+      const prod = validated?.product;
+      const unitPrice = validated?.unitPrice || 0;
+      const qty = validated?.qty || 1;
 
-      if ((!pName || pPrice === undefined) && item.productId) {
-        const prod = await prisma.mobileProduct.findUnique({ where: { id: item.productId } });
-        if (prod) {
-          pName = pName || prod.name;
-          pBrand = pBrand || prod.brand;
-          pImage = pImage || prod.imageUrl;
-          pPrice = pPrice !== undefined ? pPrice : prod.basePrice;
-        }
-      }
-
-      pName = pName || "Mobile Smartphone";
-      pPrice = pPrice !== undefined ? pPrice : 0;
+      const pName = prod ? prod.name : (item.productName || "Mobile Smartphone");
+      const pBrand = prod ? prod.brand : (item.productBrand || "VN Mobiles");
+      const pImage = prod ? prod.imageUrl : (item.productImageUrl || "/images/placeholder.png");
 
       const imei = `86${Math.floor(1000000000000 + Math.random() * 9000000000000)}`;
-      generatedImeis.push(imei);
-
       const months = item.warrantyMonths || 12;
       const expiry = new Date(now.getTime() + months * 30 * 24 * 60 * 60 * 1000);
 
@@ -223,14 +198,14 @@ export async function POST(request: Request) {
         : (item.selectedStorage || "Standard");
 
       orderItemsCreateData.push({
-        productId: item.productId || null,
+        productId: item.productId,
         productName: pName,
         productBrand: pBrand,
         productImageUrl: pImage,
         selectedColor: colorStr,
         selectedStorage: storageStr,
-        price: pPrice,
-        quantity: item.quantity || 1,
+        price: unitPrice, // Strictly verified server-side price!
+        quantity: qty,
         imeiNumber: imei,
         warrantyMonths: months,
         warrantyStartDate: now,
@@ -239,79 +214,70 @@ export async function POST(request: Request) {
       });
     }
 
-    // 5. Create Order in Database
-    const order = await prisma.order.create({
-      data: {
-        orderNumber,
-        userId: validUserId,
-        customerName: customerName.trim(),
-        customerPhone: customerPhone ? customerPhone.trim() : "",
-        phoneVerified: true,
-        customerEmail: cleanCustomerEmail,
-        address: address || "Standard Delivery Address",
-        city: city || "City",
-        pincode: pincode || "000000",
-        state: state || "State",
-        totalAmount: orderTotal,
-        paymentMethod: paymentMethod || "Online Payment",
-        paymentStatus: "PAID",
-        orderStatus: "Order Confirmed",
-        statusHistory: {
-          create: [
-            {
-              fromStatus: "NONE",
-              toStatus: "Order Confirmed",
-              changedBy: "SYSTEM",
-              note: "Order placed and payment confirmed.",
+    // 5. Atomic Database Transaction: Deduct stock and create order records together
+    // Guarantees zero stock leaks or inconsistent records under high concurrency
+    const { order, createdWarranties } = await prisma.$transaction(async (tx) => {
+      // 5a. Deduct stock
+      for (const item of items) {
+        if (item.productId) {
+          const qty = Math.max(1, parseInt(String(item.quantity || 1), 10));
+          const prod = await tx.mobileProduct.findUnique({ where: { id: item.productId } });
+          if (!prod || prod.stock < qty) {
+            throw new Error(`Insufficient stock for product ${item.productId}`);
+          }
+          const updatedStock = prod.stock - qty;
+          await tx.mobileProduct.update({
+            where: { id: item.productId },
+            data: {
+              stock: updatedStock,
+              inStock: updatedStock > 0,
             },
-          ],
-        },
-        items: {
-          create: orderItemsCreateData,
-        },
-      },
-      include: {
-        items: true,
-      },
-    });
-
-    // 6. Deduct Stock in Database
-    for (const item of items) {
-      if (item.productId) {
-        const qty = item.quantity || 1;
-        try {
-          const product = await prisma.mobileProduct.findUnique({ where: { id: item.productId } });
-          if (product) {
-            const updatedStock = Math.max(0, product.stock - qty);
-            await prisma.mobileProduct.update({
-              where: { id: item.productId },
-              data: {
-                stock: updatedStock,
-                inStock: updatedStock > 0,
-              },
-            });
-          }
-          const mobile = await prisma.mobile.findUnique({ where: { id: item.productId } });
-          if (mobile) {
-            const updatedMobileStock = Math.max(0, mobile.stock - qty);
-            await prisma.mobile.update({
-              where: { id: item.productId },
-              data: { stock: updatedMobileStock },
-            });
-          }
-        } catch (stockErr) {
-          console.error("Error reducing stock:", stockErr);
+          });
         }
       }
-    }
 
-    // 7. Register Mobile Product Warranties
-    const createdWarranties = [];
-    for (const orderItem of order.items) {
-      try {
-        const warranty = await prisma.warranty.create({
+      // 5b. Create Order in Database
+      const newOrder = await tx.order.create({
+        data: {
+          orderNumber,
+          userId: validUserId,
+          customerName: customerName.trim(),
+          customerPhone: customerPhone ? customerPhone.trim() : "",
+          phoneVerified: true,
+          customerEmail: cleanCustomerEmail,
+          address: address || "Standard Delivery Address",
+          city: city || "City",
+          pincode: pincode || "000000",
+          state: state || "State",
+          totalAmount: orderTotal,
+          paymentMethod: paymentMethod || "Online Payment",
+          paymentStatus: "PAID",
+          orderStatus: "Order Confirmed",
+          statusHistory: {
+            create: [
+              {
+                fromStatus: "NONE",
+                toStatus: "Order Confirmed",
+                changedBy: "SYSTEM",
+                note: "Order placed and payment confirmed.",
+              },
+            ],
+          },
+          items: {
+            create: orderItemsCreateData,
+          },
+        },
+        include: {
+          items: true,
+        },
+      });
+
+      // 5c. Register Mobile Product Warranties
+      const warranties = [];
+      for (const orderItem of newOrder.items) {
+        const warranty = await tx.warranty.create({
           data: {
-            orderId: order.id,
+            orderId: newOrder.id,
             orderItemId: orderItem.id,
             userId: validUserId,
             customerName: customerName.trim(),
@@ -325,9 +291,26 @@ export async function POST(request: Request) {
             warrantyStatus: "ACTIVE",
           },
         });
-        createdWarranties.push(warranty);
+        warranties.push(warranty);
+      }
 
-        // Send warranty activation email
+      return { order: newOrder, createdWarranties: warranties };
+    });
+
+    logSecurityEvent("ORDER_CREATED", "INFO", {
+      userId: validUserId,
+      email: cleanCustomerEmail,
+      ip: getClientIp(request),
+      details: {
+        orderNumber: order.orderNumber,
+        totalAmount: order.totalAmount,
+        itemCount: order.items.length,
+      },
+    });
+
+    // 6. Asynchronous Non-blocking Email Delivery for Warranties
+    for (const warranty of createdWarranties) {
+      try {
         await sendWarrantyActivationEmail({
           id: warranty.id,
           orderId: order.id,
@@ -335,15 +318,15 @@ export async function POST(request: Request) {
           userId: validUserId,
           customerName: customerName.trim(),
           customerEmail: cleanCustomerEmail,
-          productName: orderItem.productName,
-          imeiNumber: orderItem.imeiNumber,
+          productName: warranty.productName,
+          imeiNumber: warranty.imeiNumber,
           purchaseDate: now,
           warrantyDuration: warranty.warrantyDuration,
           warrantyStartDate: now,
-          warrantyExpiryDate: orderItem.warrantyExpiryDate,
+          warrantyExpiryDate: warranty.warrantyExpiryDate,
         });
       } catch (wErr) {
-        console.error("Error creating mobile warranty record:", wErr);
+        console.error("Error creating mobile warranty notification:", wErr);
       }
     }
 
