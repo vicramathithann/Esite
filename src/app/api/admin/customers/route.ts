@@ -65,10 +65,11 @@ export async function GET(request: Request) {
     return NextResponse.json({
       success: true,
       count: customers.length,
+      users: customers,
       customers,
     });
   } catch (error) {
-    console.error("Customers fetch error:", error);
-    return NextResponse.json({ success: false, error: "Failed to fetch customer list" }, { status: 500 });
+    console.error("Users/Customers fetch error:", error);
+    return NextResponse.json({ success: false, error: "Failed to fetch user list" }, { status: 500 });
   }
 }

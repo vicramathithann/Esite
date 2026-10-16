@@ -88,10 +88,10 @@ export async function PATCH(
       mobile: updated,
       message: "Product updated successfully!",
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Failed to update mobile:", error);
     return NextResponse.json(
-      { success: false, error: "Failed to update product details" },
+      { success: false, error: error?.message || "Failed to update product details" },
       { status: 500 }
     );
   }

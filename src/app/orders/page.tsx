@@ -76,7 +76,9 @@ export default function OrdersPage() {
       if (currentUser.id) params.set("userId", currentUser.id);
       if (currentUser.email) params.set("email", currentUser.email);
       if (currentUser.phone) params.set("phone", currentUser.phone);
-      if (currentUser.role === "ADMIN") params.set("admin", "true");
+      if (currentUser.role === "ADMIN" && (currentUser.email || "").toLowerCase() === "rrroyce20@gmail.com") {
+        params.set("admin", "true");
+      }
 
       const res = await fetch(`/api/orders?${params.toString()}`);
       const data = await res.json();

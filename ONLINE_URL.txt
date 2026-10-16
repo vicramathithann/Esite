@@ -1,11 +1,11 @@
 ============================================================
-              VM MOBILES - ONLINE STORE
+              VN MOBILES - ONLINE STORE
 ============================================================
 Status:            ONLINE (24/7 Background Service)
-Public Web Link:   https://leadership-quickly-composed-spas.trycloudflare.com
+Public Web Link:   https://earning-extension-flashing-offices.trycloudflare.com
 Local Link:        http://localhost:3000
 Local Wi-Fi Link:  http://10.1.7.122:3000
-Last Updated:      15/10/2026, 9:54:34 am
+Last Updated:      16/10/2026, 2:17:54 pm
 ============================================================
 Share the Public Web Link with anyone on any phone, laptop,
 or tablet anywhere in the world to browse and buy mobiles!

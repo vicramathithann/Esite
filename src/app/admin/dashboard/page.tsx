@@ -120,13 +120,13 @@ export default function AdminDashboardView() {
 
           <div className="bg-card border border-border rounded-2xl p-5 space-y-2 shadow-xs transition-all duration-200 hover:-translate-y-0.5">
             <div className="flex items-center justify-between text-muted">
-              <span className="text-xs font-medium">Registered Customers</span>
+              <span className="text-xs font-medium">Registered Users</span>
               <Users className="w-4 h-4 text-[#C9A66B] dark:text-[#D4B483]" />
             </div>
             <div className="text-2xl font-bold text-foreground">
-              {metrics ? metrics.totalCustomers : "..."}
+              {metrics ? (metrics.totalUsers ?? metrics.totalCustomers) : "..."}
             </div>
-            <p className="text-[11px] text-muted">Verified buyer accounts</p>
+            <p className="text-[11px] text-muted">Verified user accounts</p>
           </div>
         </div>
 

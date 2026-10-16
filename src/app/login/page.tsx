@@ -253,11 +253,13 @@ function LoginForm() {
       const data = await res.json();
       if (data.success && data.user) {
         login(data.user);
-        const isAdmin = data.user.role === "ADMIN";
+        const isAdmin =
+          data.user.role === "ADMIN" &&
+          (data.user.email || "").toLowerCase() === "rrroyce20@gmail.com";
 
         setSuccessInfo({
           name: data.user.name,
-          role: data.user.role,
+          role: isAdmin ? "ADMIN" : "USER",
           message: isAdmin
             ? "👑 Administrator verified! Opening Admin Control Center..."
             : `✓ Welcome, ${data.user.name}! Accessing your account...`,
@@ -266,9 +268,12 @@ function LoginForm() {
         setTimeout(() => {
           const targetUrl = isAdmin
             ? "/admin"
-            : (redirectParam && redirectParam !== "/admin" ? redirectParam : "/user");
+            : (redirectParam && redirectParam !== "/admin" && !redirectParam.startsWith("/admin")
+                ? redirectParam
+                : "/user");
           window.location.href = targetUrl;
         }, 500);
+
       } else {
         if (data.requiresVerification || res.status === 403) {
           setError("Please verify your email address before logging in.");
@@ -406,14 +411,6 @@ function LoginForm() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleQuickFillAdmin = () => {
-    setLoginMode("password");
-    setError(null);
-    setUnverifiedEmail(null);
-    setEmailOrPhone("admin");
-    setPassword("admin123");
   };
 
   return (
@@ -942,36 +939,11 @@ function LoginForm() {
           </div>
         )}
 
-        {/* 1-Click Quick Demo Accounts (Only for Password tab) */}
-        {loginMode === "password" && (
-          <div className="mt-6 pt-5 border-t border-border">
-            <div className="flex items-center justify-between mb-2.5">
-              <span className="text-[11px] font-semibold text-muted uppercase tracking-wide">
-                ⚡ Administrator Shortcut:
-              </span>
-              <span className="text-[10px] text-muted">Click to fill</span>
-            </div>
-
-            <div className="text-xs">
-              <button
-                type="button"
-                onClick={handleQuickFillAdmin}
-                className="w-full p-3 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 dark:hover:bg-[#D4B483]/20 rounded-xl flex items-center justify-center gap-2 text-center transition-all cursor-pointer group"
-                title="Fill Admin Credentials"
-              >
-                <span className="text-base group-hover:scale-110 transition-transform">👑</span>
-                <span className="font-semibold text-[#8C6226] dark:text-[#E5CBA2] text-xs">Store Administrator</span>
-                <span className="text-[10px] text-muted font-mono">(admin / admin123)</span>
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Security Note */}
         <p className="text-[11px] text-muted mt-5 text-center leading-relaxed">
           {loginMode === "otp"
             ? "Signing in with OTP creates your secure customer session. Your existing password is never modified."
-            : "Admin logins automatically route to the Admin Control Center. Customer logins open your cart, orders, and storefront."}
+            : "Authorized store administrator logins route directly to the Admin Dashboard. Customer accounts access personal orders, cart, and profile."}
         </p>
       </div>
 

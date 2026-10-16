@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, Suspense } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
@@ -83,6 +83,23 @@ export default function Navbar() {
   } = useApp();
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [siteSettings, setSiteSettings] = useState<Record<string, string>>({
+    showWishlist: "true",
+    showCompare: "true",
+    showAnnouncement: "true",
+    announcementText: "⚡ Free Express Delivery across India | 1-Year Official Brand Warranty",
+  });
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.settings) {
+          setSiteSettings(data.settings);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,6 +112,13 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 w-full backdrop-blur-md bg-card/85 border-b border-border transition-all duration-200">
+      {/* Top Announcement Bar (Controllable by Admin) */}
+      {siteSettings.showAnnouncement === "true" && (
+        <div className="bg-[#C9A66B]/15 dark:bg-[#D4B483]/10 border-b border-[#C9A66B]/20 py-1.5 px-4 text-center text-[11px] font-semibold text-[#8C6226] dark:text-[#E5CBA2] flex items-center justify-center gap-1.5 transition-all">
+          <span>{siteSettings.announcementText || "⚡ Free Express Delivery across India | 1-Year Official Brand Warranty"}</span>
+        </div>
+      )}
+
       {/* Primary Top Bar */}
       <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         {/* Brand Logo */}
@@ -163,12 +187,12 @@ export default function Navbar() {
                   <Link href="/orders" className="block px-4 py-2 hover:bg-tile text-foreground hover:text-accent transition-colors">
                     Orders & Tracking
                   </Link>
-                  {currentUser.role === "ADMIN" && (
+                  {currentUser.role === "ADMIN" && (currentUser.email || "").toLowerCase() === "rrroyce20@gmail.com" && (
                     <Link
                       href="/admin"
-                      className="block px-4 py-2 text-accent bg-accent/5 hover:bg-accent/10 font-medium flex items-center gap-1.5 border-t border-border"
+                      className="block px-4 py-2 text-[#8C6226] dark:text-[#E5CBA2] bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 font-semibold flex items-center gap-1.5 border-t border-border"
                     >
-                      <ShieldCheck className="w-3.5 h-3.5" /> Admin Portal
+                      <ShieldCheck className="w-3.5 h-3.5 text-[#C9A66B]" /> Admin Portal
                     </Link>
                   )}
                   <button
@@ -189,33 +213,37 @@ export default function Navbar() {
             )}
           </div>
 
-          {/* Compare Link */}
-          <Link
-            href="/compare"
-            className="relative p-2 text-muted hover:text-[#8C6226] dark:hover:text-[#D4B483] hover:bg-[#C9A66B]/15 rounded-full transition-all duration-200"
-            title="Compare Mobiles"
-          >
-            <Layers className="w-4 h-4" />
-            {compareList.length > 0 && (
-              <span className="absolute top-0.5 right-0.5 bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center ring-2 ring-card shadow-2xs">
-                {compareList.length}
-              </span>
-            )}
-          </Link>
+          {/* Compare Link (Controllable by Admin) */}
+          {siteSettings.showCompare === "true" && (
+            <Link
+              href="/compare"
+              className="relative p-2 text-muted hover:text-[#8C6226] dark:hover:text-[#D4B483] hover:bg-[#C9A66B]/15 rounded-full transition-all duration-200"
+              title="Compare Mobiles"
+            >
+              <Layers className="w-4 h-4" />
+              {compareList.length > 0 && (
+                <span className="absolute top-0.5 right-0.5 bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center ring-2 ring-card shadow-2xs">
+                  {compareList.length}
+                </span>
+              )}
+            </Link>
+          )}
 
-          {/* Wishlist Link */}
-          <Link
-            href="/account/wishlist"
-            className="relative p-2 text-muted hover:text-[#8C6226] dark:hover:text-[#D4B483] hover:bg-[#C9A66B]/15 rounded-full transition-all duration-200"
-            title="Wishlist"
-          >
-            <Heart className="w-4 h-4" />
-            {wishlistCount > 0 && (
-              <span className="absolute top-0.5 right-0.5 bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center ring-2 ring-card shadow-2xs">
-                {wishlistCount}
-              </span>
-            )}
-          </Link>
+          {/* Wishlist Link (Controllable by Admin) */}
+          {siteSettings.showWishlist === "true" && (
+            <Link
+              href="/account/wishlist"
+              className="relative p-2 text-muted hover:text-[#8C6226] dark:hover:text-[#D4B483] hover:bg-[#C9A66B]/15 rounded-full transition-all duration-200"
+              title="Wishlist"
+            >
+              <Heart className="w-4 h-4" />
+              {wishlistCount > 0 && (
+                <span className="absolute top-0.5 right-0.5 bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center ring-2 ring-card shadow-2xs">
+                  {wishlistCount}
+                </span>
+              )}
+            </Link>
+          )}
 
           {/* Slide-in Mini Cart Trigger */}
           <button

@@ -81,8 +81,9 @@ export default function AccountPage() {
       const params = new URLSearchParams();
       if (currentUser.id) params.set("userId", currentUser.id);
       if (currentUser.email) params.set("email", currentUser.email);
-      if (currentUser.phone) params.set("phone", currentUser.phone);
-      if (currentUser.role === "ADMIN") params.set("admin", "true");
+      if (currentUser.role === "ADMIN" && (currentUser.email || "").toLowerCase() === "rrroyce20@gmail.com") {
+        params.set("admin", "true");
+      }
 
       const res = await fetch(`/api/orders?${params.toString()}`);
       const data = await res.json();
@@ -177,7 +178,7 @@ export default function AccountPage() {
             </div>
 
             <div className="flex items-center gap-2">
-              {currentUser.role === "ADMIN" && (
+              {currentUser.role === "ADMIN" && (currentUser.email || "").toLowerCase() === "rrroyce20@gmail.com" && (
                 <Link
                   href="/admin"
                   className="px-3 py-1.5 bg-[#C9A66B] hover:bg-[#B8914A] active:bg-[#A67C3D] text-[#FFFCFA] text-xs font-bold rounded-md flex items-center gap-1.5 shadow"

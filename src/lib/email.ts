@@ -134,19 +134,37 @@ export async function sendGmailEmail(options: SendEmailOptions): Promise<EmailSe
 
   // 3. Dispatch email via Nodemailer
   try {
-    // VN Mobiles display name with authenticated Gmail sender address
-    const fromAddress = `"VN Mobiles" <${userEmail}>`;
+    // Support custom sender / domain or fallback to authenticated Gmail account
+    const customFrom = process.env.EMAIL_FROM?.trim();
+    const fromAddress = customFrom || `"VN Mobiles" <${userEmail}>`;
+    const replyTo = process.env.EMAIL_REPLY_TO?.trim() || userEmail;
+
+    // Standard RFC deliverability headers - strictly NO artificial high-priority spam markers
+    const deliverabilityHeaders: Record<string, string> = {
+      "X-Mailer": "VN Mobiles Transactional Mailer",
+      "Auto-Submitted": "auto-generated",
+      "X-Auto-Response-Suppress": "All",
+    };
+
+    // RFC 8058 compliant List-Unsubscribe for recurring notification types
+    if (
+      options.emailType === "WARRANTY_REMINDER_6M" ||
+      options.emailType === "WARRANTY_REMINDER_1D" ||
+      options.emailType === "ORDER_STATUS"
+    ) {
+      const siteUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://vnmobiles.in").replace(/\/$/, "");
+      deliverabilityHeaders["List-Unsubscribe"] = `<mailto:${replyTo}?subject=Unsubscribe-Notification>, <${siteUrl}/account/profile>`;
+      deliverabilityHeaders["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click";
+    }
+
     const mailOptions = {
       from: fromAddress,
       to: `"${recipientName}" <${cleanRecipientEmail}>`,
+      replyTo,
       subject: options.subject,
       text: options.text || options.contentSummary || options.subject,
       html: options.html,
-      headers: {
-        "X-Priority": "1",
-        "X-MSMail-Priority": "High",
-        "Importance": "high",
-      },
+      headers: deliverabilityHeaders,
     };
 
     console.log(`[GMAIL SMTP] Dispatching ${options.emailType} to ${cleanRecipientEmail} via smtp.gmail.com:465`);
@@ -195,6 +213,61 @@ export async function sendGmailEmail(options: SendEmailOptions): Promise<EmailSe
   }
 }
 
+/**
+ * Shared, compliant transactional email footer with physical address,
+ * support links, and legal disclaimers to ensure high inbox placement.
+ */
+export function getEmailFooterHtml(options?: { showNotificationPreferences?: boolean }): string {
+  const currentYear = new Date().getFullYear();
+  const siteUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://vnmobiles.in").replace(/\/$/, "");
+
+  return `
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #F9FAFB; border-top: 1px solid #E5E7EB; padding: 24px 32px; text-align: center; font-size: 11px; line-height: 1.6; color: #6B7280;">
+      <tr>
+        <td align="center">
+          <p style="margin: 0 0 6px 0; font-weight: 600; color: #374151; font-size: 12px;">VN Mobiles India</p>
+          <p style="margin: 0 0 8px 0; color: #6B7280;">
+            Electronics City Phase 1, Hosur Road, Bengaluru, Karnataka 560100, India
+          </p>
+          <p style="margin: 0 0 10px 0;">
+            <a href="${siteUrl}/account" style="color: #4B5563; text-decoration: underline; margin: 0 8px;">Your Account</a> &bull;
+            <a href="${siteUrl}/orders" style="color: #4B5563; text-decoration: underline; margin: 0 8px;">Track Orders</a> &bull;
+            <a href="mailto:support@vnmobiles.in" style="color: #4B5563; text-decoration: underline; margin: 0 8px;">Customer Support</a>
+          </p>
+          ${options?.showNotificationPreferences ? `
+          <p style="margin: 0 0 8px 0; font-size: 10px; color: #9CA3AF;">
+            You received this warranty notification because you purchased a smartphone with active Device Shield coverage on VN Mobiles.
+            To manage notification preferences, visit your <a href="${siteUrl}/account/profile" style="color: #6B7280; text-decoration: underline;">Notification Settings</a>.
+          </p>` : `
+          <p style="margin: 0 0 8px 0; font-size: 10px; color: #9CA3AF;">
+            This is an automated transactional message regarding your order or account activity on VN Mobiles.
+          </p>`}
+          <p style="margin: 0; font-size: 10px; color: #9CA3AF;">
+            &copy; ${currentYear} VN Mobiles India. All rights reserved.
+          </p>
+        </td>
+      </tr>
+    </table>
+  `;
+}
+
+export function getEmailFooterText(options?: { showNotificationPreferences?: boolean }): string {
+  const currentYear = new Date().getFullYear();
+  const siteUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://vnmobiles.in").replace(/\/$/, "");
+
+  return [
+    "",
+    "---",
+    "VN Mobiles India",
+    "Electronics City Phase 1, Hosur Road, Bengaluru, Karnataka 560100, India",
+    `Customer Support: support@vnmobiles.in | Your Account: ${siteUrl}/account`,
+    options?.showNotificationPreferences
+      ? `Manage warranty notifications: ${siteUrl}/account/profile`
+      : "This is an automated transactional message regarding your order or account on VN Mobiles.",
+    `(c) ${currentYear} VN Mobiles India. All rights reserved.`,
+  ].join("\n");
+}
+
 // Backward-compatible alias for existing callers
 export const sendMsg91Email = sendGmailEmail;
 export const sendEmail = sendGmailEmail;
@@ -232,8 +305,7 @@ export async function sendUserVerificationEmail(
     "",
     "If you did not request this verification code, please ignore this email. No changes have been made to your account.",
     "",
-    "Thank you,",
-    "VN Mobiles",
+    getEmailFooterText(),
   ].join("\n");
 
   const html = `<!DOCTYPE html>
@@ -272,8 +344,8 @@ export async function sendUserVerificationEmail(
             </td>
           </tr>
           <tr>
-            <td style="background-color:#f6f8fa;padding:16px 32px;border-top:1px solid #d0d7de;font-size:12px;color:#57606a;text-align:center;">
-              &copy; ${new Date().getFullYear()} VN Mobiles. All rights reserved.
+            <td>
+              ${getEmailFooterHtml()}
             </td>
           </tr>
         </table>
@@ -319,10 +391,9 @@ export async function sendLoginOtpEmail(
     "",
     "This code expires in 5 minutes.",
     "",
-    "If you did not request this login code, your account is safe. No one can sign in without access to this code.",
+    "If you did not attempt to sign in, no action is needed. Your account remains protected.",
     "",
-    "Thank you,",
-    "VN Mobiles",
+    getEmailFooterText(),
   ].join("\n");
 
   const html = `<!DOCTYPE html>
@@ -361,8 +432,8 @@ export async function sendLoginOtpEmail(
             </td>
           </tr>
           <tr>
-            <td style="background-color:#f6f8fa;padding:16px 32px;border-top:1px solid #d0d7de;font-size:12px;color:#57606a;text-align:center;">
-              &copy; ${new Date().getFullYear()} VN Mobiles. All rights reserved.
+            <td>
+              ${getEmailFooterHtml()}
             </td>
           </tr>
         </table>
@@ -416,8 +487,7 @@ export async function sendPasswordResetEmail(
     "",
     "If you did not request a password reset, you can safely ignore this email. Your current password will remain unchanged.",
     "",
-    "Thank you,",
-    "VN Mobiles",
+    getEmailFooterText(),
   ].join("\n");
 
   const html = `<!DOCTYPE html>
@@ -463,8 +533,8 @@ export async function sendPasswordResetEmail(
             </td>
           </tr>
           <tr>
-            <td style="background-color:#f6f8fa;padding:16px 32px;border-top:1px solid #d0d7de;font-size:12px;color:#57606a;text-align:center;">
-              &copy; ${new Date().getFullYear()} VN Mobiles. All rights reserved.
+            <td>
+              ${getEmailFooterHtml()}
             </td>
           </tr>
         </table>
@@ -502,30 +572,69 @@ export async function sendOrderConfirmationEmail(order: {
     price: number;
     selectedStorage?: string;
     selectedColor?: string;
+    imeiNumber?: string;
   }>;
+  address?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
 }): Promise<EmailSendResult> {
+  const siteUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://vnmobiles.in").replace(/\/$/, "");
   const primaryItem = order.items[0];
-  const productSummary = order.items
-    .map((i) => `${i.productName}${i.selectedStorage ? ` (${i.selectedStorage})` : ""}`)
-    .join(", ");
-  const totalQty = order.items.reduce((s, i) => s + (i.quantity || 1), 0);
   const formattedTotal = `₹${order.totalAmount.toLocaleString("en-IN")}`;
+  const totalQty = order.items.reduce((s, i) => s + (i.quantity || 1), 0);
+  const formattedDate = new Date().toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 
-  const plainText = `Hi ${order.customerName},\n\nThank you for your order!\n\nYour order ${order.orderNumber} has been successfully confirmed.\n\nProduct: ${productSummary}\nQuantity: ${totalQty}\nOrder Total: ${formattedTotal}\n\nWe will notify you when your order is shipped.\n\nThank you,\nVN Mobiles`;
+  const plainTextItems = order.items
+    .map(
+      (item) =>
+        `- ${item.productName}${item.selectedStorage ? ` (${item.selectedStorage})` : ""}${item.selectedColor ? ` [${item.selectedColor}]` : ""} x ${item.quantity || 1} = ₹${((item.price || 0) * (item.quantity || 1)).toLocaleString("en-IN")}`
+    )
+    .join("\n");
+
+  const plainText = [
+    `Order Confirmation #${order.orderNumber} - VN Mobiles`,
+    "",
+    `Hi ${order.customerName},`,
+    "",
+    `Thank you for shopping with VN Mobiles! We have received your order #${order.orderNumber} placed on ${formattedDate}.`,
+    "",
+    "ORDER SUMMARY:",
+    plainTextItems,
+    "",
+    `Total Items: ${totalQty}`,
+    `Total Amount: ${formattedTotal} (Inclusive of all taxes)`,
+    `Payment Method: Prepaid / Online Verification`,
+    "",
+    "DELIVERY & PROTECTION:",
+    order.address ? `Shipping Address: ${order.address}, ${order.city || ""} ${order.pincode || ""}` : "",
+    "Device Protection: 1-Year Official Manufacturer Warranty is activated for your purchased smartphone(s).",
+    `Track your shipment: ${siteUrl}/track/${order.orderNumber}`,
+    "",
+    "We are preparing your shipment with tamper-evident packaging and will notify you with courier tracking information once dispatched.",
+    "",
+    getEmailFooterText(),
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   const itemsHtml = order.items
     .map(
       (item) => `
     <tr>
-      <td style="padding: 10px 0; border-bottom: 1px solid #E5E7EB; font-size: 13px; color: #1F2937;">
-        <strong>${item.productName}</strong>
-        ${item.selectedStorage ? `<span style="color: #6B7280; font-size: 12px;"> - ${item.selectedStorage}</span>` : ""}
-        ${item.selectedColor ? `<span style="color: #6B7280; font-size: 12px;"> (${item.selectedColor})</span>` : ""}
+      <td style="padding: 12px 0; border-bottom: 1px solid #E5E7EB; font-size: 13px; color: #1F2937;">
+        <strong style="color: #111827;">${item.productName}</strong>
+        ${item.selectedStorage ? `<span style="color: #6B7280; font-size: 12px;"> &bull; ${item.selectedStorage}</span>` : ""}
+        ${item.selectedColor ? `<span style="color: #6B7280; font-size: 12px;"> &bull; ${item.selectedColor}</span>` : ""}
       </td>
-      <td style="padding: 10px 0; border-bottom: 1px solid #E5E7EB; font-size: 13px; text-align: center; color: #4B5563;">
+      <td style="padding: 12px 0; border-bottom: 1px solid #E5E7EB; font-size: 13px; text-align: center; color: #4B5563;">
         ${item.quantity || 1}
       </td>
-      <td style="padding: 10px 0; border-bottom: 1px solid #E5E7EB; font-size: 13px; text-align: right; font-weight: 600; color: #111827;">
+      <td style="padding: 12px 0; border-bottom: 1px solid #E5E7EB; font-size: 13px; text-align: right; font-weight: 600; color: #111827;">
         ₹${((item.price || 0) * (item.quantity || 1)).toLocaleString("en-IN")}
       </td>
     </tr>
@@ -533,56 +642,106 @@ export async function sendOrderConfirmationEmail(order: {
     )
     .join("");
 
-  const html = `
-<!DOCTYPE html>
+  const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Order ${order.orderNumber} Confirmed</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Order Confirmation #${order.orderNumber}</title>
 </head>
-<body style="margin: 0; padding: 0; background-color: #F8F9FA; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1F2937;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #F8F9FA; padding: 40px 16px;">
+<body style="margin: 0; padding: 0; background-color: #F8F9FA; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1F2937; -webkit-font-smoothing: antialiased;">
+  <!-- Preheader preview text for inbox -->
+  <div style="display: none; max-height: 0; overflow: hidden; mso-hide: all; font-size: 1px; line-height: 1px; color: #FFFFFF;">
+    Thank you for your order! Your VN Mobiles order #${order.orderNumber} is confirmed and being prepared for shipment.
+  </div>
+
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #F8F9FA; padding: 32px 16px;">
     <tr>
       <td align="center">
-        <table role="presentation" width="100%" style="max-width: 560px; background-color: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+        <table role="presentation" width="100%" style="max-width: 580px; background-color: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);">
+          <!-- Header -->
           <tr>
-            <td style="background: linear-gradient(135deg, #232F3E 0%, #131921 100%); padding: 28px 32px; text-align: center;">
-              <h1 style="margin: 0; color: #FFFFFF; font-size: 20px; font-weight: 700;">Order Confirmed!</h1>
-              <p style="margin: 4px 0 0 0; color: #D4B483; font-size: 12px;">Order ID: ${order.orderNumber}</p>
+            <td style="background-color: #111827; padding: 24px 32px; border-bottom: 3px solid #C9A66B;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td>
+                    <span style="display: inline-block; width: 28px; height: 28px; line-height: 28px; text-align: center; background-color: #C9A66B; color: #FFFFFF; font-weight: 800; font-size: 13px; border-radius: 50%; vertical-align: middle; margin-right: 8px;">VN</span>
+                    <span style="color: #FFFFFF; font-size: 18px; font-weight: 700; vertical-align: middle; letter-spacing: -0.3px;">VN Mobiles</span>
+                  </td>
+                  <td align="right" style="color: #9CA3AF; font-size: 12px;">
+                    Order #${order.orderNumber}
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
+
+          <!-- Main Content -->
           <tr>
             <td style="padding: 32px;">
-              <p style="margin: 0 0 16px 0; font-size: 14px; line-height: 1.6; color: #4B5563;">
-                Hi <strong>${order.customerName}</strong>,<br>
-                Thank you for your order. Your order <strong>${order.orderNumber}</strong> has been successfully placed and confirmed.
+              <div style="font-size: 12px; font-weight: 600; text-transform: uppercase; color: #059669; letter-spacing: 0.5px; margin-bottom: 4px;">
+                Order Confirmed
+              </div>
+              <h2 style="margin: 0 0 16px 0; font-size: 20px; font-weight: 700; color: #111827;">
+                Thank you for your purchase, ${order.customerName}
+              </h2>
+              <p style="margin: 0 0 24px 0; font-size: 14px; line-height: 1.6; color: #4B5563;">
+                We have received your order <strong style="color: #111827;">#${order.orderNumber}</strong> placed on ${formattedDate}. Your smartphone is currently being prepared for dispatch with insured courier shipping.
               </p>
 
+              <!-- Order Summary Table -->
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 20px 0; border-collapse: collapse;">
                 <thead>
-                  <tr style="border-bottom: 2px solid #E5E7EB; text-align: left; font-size: 12px; color: #6B7280; text-transform: uppercase;">
-                    <th style="padding-bottom: 8px;">Item</th>
-                    <th style="padding-bottom: 8px; text-align: center;">Qty</th>
-                    <th style="padding-bottom: 8px; text-align: right;">Price</th>
+                  <tr style="border-bottom: 2px solid #E5E7EB; text-align: left; font-size: 11px; font-weight: 700; color: #6B7280; text-transform: uppercase; letter-spacing: 0.5px;">
+                    <th style="padding-bottom: 10px;">Item Description</th>
+                    <th style="padding-bottom: 10px; text-align: center;">Qty</th>
+                    <th style="padding-bottom: 10px; text-align: right;">Amount</th>
                   </tr>
                 </thead>
                 <tbody>
                   ${itemsHtml}
                   <tr>
-                    <td colspan="2" style="padding-top: 16px; font-size: 14px; font-weight: 700; color: #111827;">Total Amount</td>
-                    <td style="padding-top: 16px; font-size: 16px; font-weight: 800; color: #8C6226; text-align: right;">${formattedTotal}</td>
+                    <td colspan="2" style="padding-top: 14px; font-size: 13px; color: #6B7280;">Subtotal</td>
+                    <td style="padding-top: 14px; font-size: 13px; color: #111827; text-align: right; font-weight: 500;">${formattedTotal}</td>
+                  </tr>
+                  <tr>
+                    <td colspan="2" style="padding-top: 6px; font-size: 13px; color: #6B7280;">Shipping & Express Insurance</td>
+                    <td style="padding-top: 6px; font-size: 13px; color: #059669; text-align: right; font-weight: 600;">FREE</td>
+                  </tr>
+                  <tr>
+                    <td colspan="2" style="padding-top: 12px; border-top: 1px solid #E5E7EB; font-size: 14px; font-weight: 700; color: #111827;">Total Paid</td>
+                    <td style="padding-top: 12px; border-top: 1px solid #E5E7EB; font-size: 16px; font-weight: 800; color: #111827; text-align: right;">${formattedTotal}</td>
                   </tr>
                 </tbody>
               </table>
 
-              <div style="background-color: #F9FAFB; border-left: 4px solid #C9A66B; padding: 14px 16px; border-radius: 0 8px 8px 0; margin-top: 24px; font-size: 13px; color: #4B5563;">
-                We are preparing your package for shipment. We will notify you with tracking details as soon as it is dispatched.
+              <!-- Device Shield Info Box -->
+              <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin: 24px 0;">
+                <div style="font-weight: 700; font-size: 13px; color: #1E293B; margin-bottom: 4px;">
+                  Device Shield 1-Year Warranty Included
+                </div>
+                <div style="font-size: 12px; color: #64748B; line-height: 1.5;">
+                  Your device is covered by official manufacturer warranty starting today. Registered IMEI details and warranty status are available anytime in your VN Mobiles account.
+                </div>
               </div>
+
+              <!-- Button CTA -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 28px 0 12px 0;">
+                <tr>
+                  <td align="center">
+                    <a href="${siteUrl}/orders" style="display: inline-block; background-color: #111827; color: #FFFFFF; font-size: 13px; font-weight: 600; text-decoration: none; padding: 12px 28px; border-radius: 6px;">
+                      View Order & Track Delivery
+                    </a>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
+
+          <!-- Compliant Footer -->
           <tr>
-            <td style="background-color: #F9FAFB; border-top: 1px solid #E5E7EB; padding: 20px 32px; text-align: center; font-size: 11px; color: #9CA3AF;">
-              &copy; ${new Date().getFullYear()} VN Mobiles. Thank you for shopping with us!
+            <td>
+              ${getEmailFooterHtml()}
             </td>
           </tr>
         </table>
@@ -590,14 +749,13 @@ export async function sendOrderConfirmationEmail(order: {
     </tr>
   </table>
 </body>
-</html>
-  `.trim();
+</html>`.trim();
 
   return sendGmailEmail({
     userId: order.userId,
     recipientName: order.customerName,
     recipientEmail: order.customerEmail,
-    subject: `Order ${order.orderNumber} Confirmed`,
+    subject: `Order Confirmation #${order.orderNumber} - VN Mobiles`,
     emailType: "ORDER_CONFIRMATION",
     orderId: order.id,
     productName: primaryItem ? primaryItem.productName : "Mobile Phone",
@@ -630,34 +788,63 @@ export async function sendOrderStatusEmail(
     ? `\nCarrier: ${order.shippingCarrier || "Standard Delivery"}\nTracking Number: ${order.trackingNumber}`
     : "";
 
-  const plainText = `Hi ${order.customerName},\n\nYour order ${order.orderNumber} status has been updated to: ${readableStatus}.${trackingInfo}\n${note ? `\nNote: ${note}\n` : ""}\nYou can track your order anytime on VN Mobiles.\n\nThank you,\nVN Mobiles`;
+    const plainText = [
+      `Order #${order.orderNumber} Status: ${readableStatus} - VN Mobiles`,
+      "",
+      `Hi ${order.customerName},`,
+      "",
+      `The status of your order #${order.orderNumber} has been updated to: ${readableStatus}.`,
+      trackingInfo,
+      note ? `Update Note: ${note}` : "",
+      "",
+      "You can view complete shipment tracking details in your account anytime.",
+      "",
+      getEmailFooterText(),
+    ]
+      .filter(Boolean)
+      .join("\n");
 
-  const html = `
-<!DOCTYPE html>
+  const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Order ${order.orderNumber} Update: ${readableStatus}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Order #${order.orderNumber} Update</title>
 </head>
-<body style="margin: 0; padding: 0; background-color: #F8F9FA; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1F2937;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #F8F9FA; padding: 40px 16px;">
+<body style="margin: 0; padding: 0; background-color: #F8F9FA; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1F2937; -webkit-font-smoothing: antialiased;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #F8F9FA; padding: 32px 16px;">
     <tr>
       <td align="center">
-        <table role="presentation" width="100%" style="max-width: 540px; background-color: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+        <table role="presentation" width="100%" style="max-width: 560px; background-color: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);">
           <tr>
-            <td style="background: linear-gradient(135deg, #232F3E 0%, #131921 100%); padding: 28px 32px; text-align: center;">
-              <h1 style="margin: 0; color: #FFFFFF; font-size: 20px; font-weight: 700;">Order Status Update</h1>
-              <p style="margin: 4px 0 0 0; color: #D4B483; font-size: 12px;">Order ID: ${order.orderNumber}</p>
+            <td style="background-color: #111827; padding: 24px 32px; border-bottom: 3px solid #C9A66B;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td>
+                    <span style="display: inline-block; width: 28px; height: 28px; line-height: 28px; text-align: center; background-color: #C9A66B; color: #FFFFFF; font-weight: 800; font-size: 13px; border-radius: 50%; vertical-align: middle; margin-right: 8px;">VN</span>
+                    <span style="color: #FFFFFF; font-size: 18px; font-weight: 700; vertical-align: middle;">VN Mobiles</span>
+                  </td>
+                  <td align="right" style="color: #9CA3AF; font-size: 12px;">
+                    Order #${order.orderNumber}
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
           <tr>
             <td style="padding: 32px;">
+              <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #059669; letter-spacing: 0.5px; margin-bottom: 4px;">
+                Shipment & Order Status
+              </div>
+              <h2 style="margin: 0 0 16px 0; font-size: 20px; font-weight: 700; color: #111827;">
+                Order Status Update
+              </h2>
               <p style="margin: 0 0 16px 0; font-size: 14px; line-height: 1.6; color: #4B5563;">
                 Hi <strong>${order.customerName}</strong>,<br>
-                The status of your order <strong>${order.orderNumber}</strong> has been updated:
+                The fulfillment status of your order <strong>#${order.orderNumber}</strong> has been updated:
               </p>
 
-              <div style="background-color: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 10px; padding: 16px; text-align: center; margin: 20px 0;">
+              <div style="background-color: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; padding: 16px; text-align: center; margin: 20px 0;">
                 <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #166534; display: block; margin-bottom: 4px;">Current Status</span>
                 <span style="font-size: 18px; font-weight: 800; color: #15803D;">${readableStatus}</span>
               </div>
@@ -671,14 +858,14 @@ export async function sendOrderStatusEmail(
 
               ${note ? `
                 <div style="background-color: #FFFDF9; border-left: 3px solid #C9A66B; padding: 12px 14px; margin: 16px 0; font-size: 13px; color: #4B5563;">
-                  <strong>Note:</strong> ${note}
+                  <strong>Customer Note:</strong> ${note}
                 </div>
               ` : ""}
             </td>
           </tr>
           <tr>
-            <td style="background-color: #F9FAFB; border-top: 1px solid #E5E7EB; padding: 20px 32px; text-align: center; font-size: 11px; color: #9CA3AF;">
-              &copy; ${new Date().getFullYear()} VN Mobiles.
+            <td>
+              ${getEmailFooterHtml()}
             </td>
           </tr>
         </table>
@@ -686,14 +873,13 @@ export async function sendOrderStatusEmail(
     </tr>
   </table>
 </body>
-</html>
-  `.trim();
+</html>`.trim();
 
   return sendGmailEmail({
     userId: order.userId,
     recipientName: order.customerName,
     recipientEmail: order.customerEmail,
-    subject: `Order ${order.orderNumber} Update: ${readableStatus}`,
+    subject: `Order #${order.orderNumber} Status: ${readableStatus} - VN Mobiles`,
     emailType: "ORDER_STATUS",
     orderId: order.id,
     contentSummary: plainText,
@@ -730,53 +916,87 @@ export async function sendWarrantyActivationEmail(warranty: {
     year: "numeric",
   });
 
-  const plainText = `Hi ${warranty.customerName},\n\nOfficial Mobile Warranty Activated!\n\nProduct: ${warranty.productName}\nOrder: ${warranty.orderNumber}\nIMEI Number: ${warranty.imeiNumber}\nPurchase Date: ${purchaseFormatted}\nWarranty: ${warranty.warrantyDuration}\nWarranty Expiry: ${expiryFormatted}\nWarranty Status: ACTIVE\n\nYour smartphone is protected by VN Mobiles Device Shield.\n\nThank you,\nVN Mobiles`;
+  const plainText = [
+    `Warranty Certificate for ${warranty.productName} - VN Mobiles`,
+    "",
+    `Hi ${warranty.customerName},`,
+    "",
+    `Your official 1-year manufacturer warranty is active for ${warranty.productName}.`,
+    "",
+    "WARRANTY DETAILS:",
+    `- Device Model: ${warranty.productName}`,
+    `- Order Number: #${warranty.orderNumber}`,
+    `- Registered IMEI: ${warranty.imeiNumber}`,
+    `- Purchase Date: ${purchaseFormatted}`,
+    `- Warranty Coverage: ${warranty.warrantyDuration}`,
+    `- Expiration Date: ${expiryFormatted}`,
+    "- Coverage Status: Active",
+    "",
+    "Your smartphone is protected by VN Mobiles Device Shield against manufacturing defects.",
+    "",
+    getEmailFooterText({ showNotificationPreferences: true }),
+  ].join("\n");
 
-  const html = `
-<!DOCTYPE html>
+  const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Warranty Activated for ${warranty.productName}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Warranty Certificate - VN Mobiles</title>
 </head>
-<body style="margin: 0; padding: 0; background-color: #F8F9FA; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1F2937;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #F8F9FA; padding: 40px 16px;">
+<body style="margin: 0; padding: 0; background-color: #F8F9FA; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1F2937; -webkit-font-smoothing: antialiased;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #F8F9FA; padding: 32px 16px;">
     <tr>
       <td align="center">
-        <table role="presentation" width="100%" style="max-width: 540px; background-color: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+        <table role="presentation" width="100%" style="max-width: 560px; background-color: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);">
           <tr>
-            <td style="background: linear-gradient(135deg, #232F3E 0%, #131921 100%); padding: 28px 32px; text-align: center;">
-              <div style="display: inline-block; background-color: #C9A66B; color: #FFFFFF; font-weight: 800; font-size: 16px; padding: 4px 10px; border-radius: 6px; margin-bottom: 8px;">🛡️ DEVICE SHIELD</div>
-              <h1 style="margin: 0; color: #FFFFFF; font-size: 20px; font-weight: 700;">Warranty Certificate</h1>
+            <td style="background-color: #111827; padding: 24px 32px; border-bottom: 3px solid #C9A66B;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td>
+                    <span style="display: inline-block; width: 28px; height: 28px; line-height: 28px; text-align: center; background-color: #C9A66B; color: #FFFFFF; font-weight: 800; font-size: 13px; border-radius: 50%; vertical-align: middle; margin-right: 8px;">VN</span>
+                    <span style="color: #FFFFFF; font-size: 18px; font-weight: 700; vertical-align: middle;">VN Mobiles</span>
+                  </td>
+                  <td align="right" style="color: #9CA3AF; font-size: 12px;">
+                    Device Shield
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
           <tr>
             <td style="padding: 32px;">
-              <p style="margin: 0 0 16px 0; font-size: 14px; line-height: 1.6; color: #4B5563;">
+              <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #059669; letter-spacing: 0.5px; margin-bottom: 4px;">
+                Protection Activated
+              </div>
+              <h2 style="margin: 0 0 16px 0; font-size: 20px; font-weight: 700; color: #111827;">
+                Warranty Certificate
+              </h2>
+              <p style="margin: 0 0 20px 0; font-size: 14px; line-height: 1.6; color: #4B5563;">
                 Hi <strong>${warranty.customerName}</strong>,<br>
-                Your official manufacturer warranty coverage has been activated on VN Mobiles Device Shield.
+                Official manufacturer warranty protection has been activated on your purchased smartphone.
               </p>
 
-              <table role="presentation" width="100%" style="background-color: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 10px; padding: 16px; font-size: 13px; margin: 20px 0;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; font-size: 13px; margin: 20px 0;">
                 <tr>
-                  <td style="color: #6B7280; padding: 6px 0;">Product:</td>
-                  <td style="font-weight: 600; color: #111827; text-align: right; padding: 6px 0;">${warranty.productName}</td>
+                  <td style="color: #64748B; padding: 6px 0;">Product:</td>
+                  <td style="font-weight: 600; color: #0F172A; text-align: right; padding: 6px 0;">${warranty.productName}</td>
                 </tr>
                 <tr>
-                  <td style="color: #6B7280; padding: 6px 0;">Order Number:</td>
-                  <td style="font-weight: 600; color: #111827; text-align: right; padding: 6px 0;">${warranty.orderNumber}</td>
+                  <td style="color: #64748B; padding: 6px 0;">Order Number:</td>
+                  <td style="font-weight: 600; color: #0F172A; text-align: right; padding: 6px 0;">#${warranty.orderNumber}</td>
                 </tr>
                 <tr>
-                  <td style="color: #6B7280; padding: 6px 0;">IMEI:</td>
-                  <td style="font-family: monospace; font-weight: 600; color: #8C6226; text-align: right; padding: 6px 0;">${warranty.imeiNumber}</td>
+                  <td style="color: #64748B; padding: 6px 0;">Registered IMEI:</td>
+                  <td style="font-family: ui-monospace, monospace; font-weight: 600; color: #8C6226; text-align: right; padding: 6px 0;">${warranty.imeiNumber}</td>
                 </tr>
                 <tr>
-                  <td style="color: #6B7280; padding: 6px 0;">Coverage:</td>
-                  <td style="font-weight: 600; color: #111827; text-align: right; padding: 6px 0;">${warranty.warrantyDuration}</td>
+                  <td style="color: #64748B; padding: 6px 0;">Coverage Duration:</td>
+                  <td style="font-weight: 600; color: #0F172A; text-align: right; padding: 6px 0;">${warranty.warrantyDuration}</td>
                 </tr>
                 <tr>
-                  <td style="color: #6B7280; padding: 6px 0;">Expires On:</td>
-                  <td style="font-weight: 600; color: #059669; text-align: right; padding: 6px 0;">${expiryFormatted}</td>
+                  <td style="color: #64748B; padding: 6px 0;">Expires On:</td>
+                  <td style="font-weight: 700; color: #059669; text-align: right; padding: 6px 0;">${expiryFormatted}</td>
                 </tr>
               </table>
 
@@ -786,8 +1006,8 @@ export async function sendWarrantyActivationEmail(warranty: {
             </td>
           </tr>
           <tr>
-            <td style="background-color: #F9FAFB; border-top: 1px solid #E5E7EB; padding: 20px 32px; text-align: center; font-size: 11px; color: #9CA3AF;">
-              &copy; ${new Date().getFullYear()} VN Mobiles Device Shield.
+            <td>
+              ${getEmailFooterHtml({ showNotificationPreferences: true })}
             </td>
           </tr>
         </table>
@@ -795,14 +1015,13 @@ export async function sendWarrantyActivationEmail(warranty: {
     </tr>
   </table>
 </body>
-</html>
-  `.trim();
+</html>`.trim();
 
   return sendGmailEmail({
     userId: warranty.userId,
     recipientName: warranty.customerName,
     recipientEmail: warranty.customerEmail,
-    subject: `Official Warranty Activated for ${warranty.productName} (Order #${warranty.orderNumber})`,
+    subject: `Warranty Certificate for ${warranty.productName} - VN Mobiles`,
     emailType: "WARRANTY_NOTIFICATION",
     orderId: warranty.orderId,
     productName: warranty.productName,
@@ -828,81 +1047,141 @@ export async function sendWarrantyReminder6MonthsEmail(warranty: {
   warrantyExpiryDate: Date;
   warrantyDuration?: string;
 }): Promise<EmailSendResult> {
+  const siteUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://vnmobiles.in").replace(/\/$/, "");
   const expiryFormatted = new Date(warranty.warrantyExpiryDate).toLocaleDateString("en-IN", {
     day: "numeric",
     month: "long",
     year: "numeric",
   });
 
-  const plainText = `Hi ${warranty.customerName},\n\nImportant Update: Your ${warranty.productName} Device Shield has 6 months of coverage remaining.\n\nProduct: ${warranty.productName}\nIMEI: ${warranty.imeiNumber}\nCoverage Expiry Date: ${expiryFormatted}\n\nYour smartphone remains fully protected against hardware and manufacturing defects. We recommend checking your battery health and scheduling any complimentary hardware inspections before expiration.\n\nView your full warranty status anytime at VN Mobiles.\n\nWarm regards,\nVN Mobiles Customer Care`;
+  const plainText = [
+    `Warranty Notice: 6 months of coverage remaining for ${warranty.productName}`,
+    "",
+    `Dear ${warranty.customerName},`,
+    "",
+    `This is a scheduled service notice from VN Mobiles to confirm that your ${warranty.productName} has 6 months of active warranty coverage remaining.`,
+    "",
+    "WARRANTY DETAILS:",
+    `- Device Model: ${warranty.productName}`,
+    `- Registered IMEI: ${warranty.imeiNumber}`,
+    warranty.orderNumber ? `- Order Number: #${warranty.orderNumber}` : "",
+    `- Coverage End Date: ${expiryFormatted}`,
+    "- Coverage Status: Active",
+    "",
+    "RECOMMENDED MID-TERM CHECKS:",
+    "- Battery Health: Review your battery capacity in Settings > Battery.",
+    "- Screen & Touch: Confirm touch response and display clarity.",
+    "- Ports & Audio: Inspect charging connector and speakers for dust or wear.",
+    "",
+    "Your device remains covered against manufacturing defects. If you ever experience any hardware malfunction, you are eligible for complimentary authorized service before your coverage period concludes.",
+    "",
+    `View coverage details online: ${siteUrl}/account`,
+    "",
+    getEmailFooterText({ showNotificationPreferences: true }),
+  ]
+    .filter(Boolean)
+    .join("\n");
 
-  const html = `
-<!DOCTYPE html>
+  const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>6-Month Warranty Reminder</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Warranty Update - VN Mobiles</title>
 </head>
-<body style="margin: 0; padding: 0; background-color: #F8F9FA; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1F2937;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #F8F9FA; padding: 40px 16px;">
+<body style="margin: 0; padding: 0; background-color: #F8F9FA; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1F2937; -webkit-font-smoothing: antialiased;">
+  <!-- Preheader -->
+  <div style="display: none; max-height: 0; overflow: hidden; mso-hide: all; font-size: 1px; line-height: 1px; color: #FFFFFF;">
+    Service update: Your ${warranty.productName} warranty remains active with 6 months of protection until ${expiryFormatted}.
+  </div>
+
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #F8F9FA; padding: 32px 16px;">
     <tr>
       <td align="center">
-        <table role="presentation" width="100%" style="max-width: 540px; background-color: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+        <table role="presentation" width="100%" style="max-width: 560px; background-color: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);">
+          <!-- Header -->
           <tr>
-            <td style="background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%); padding: 28px 32px; text-align: center;">
-              <div style="display: inline-block; background-color: #3B82F6; color: #FFFFFF; font-weight: 800; font-size: 13px; padding: 4px 12px; border-radius: 9999px; margin-bottom: 8px; letter-spacing: 0.05em;">🛡️ 6-MONTH NOTICE</div>
-              <h1 style="margin: 0; color: #FFFFFF; font-size: 20px; font-weight: 700;">Warranty Coverage Reminder</h1>
-              <p style="margin: 6px 0 0 0; color: #94A3B8; font-size: 13px;">6 months remaining on your Device Shield</p>
+            <td style="background-color: #111827; padding: 24px 32px; border-bottom: 3px solid #C9A66B;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td>
+                    <span style="display: inline-block; width: 28px; height: 28px; line-height: 28px; text-align: center; background-color: #C9A66B; color: #FFFFFF; font-weight: 800; font-size: 13px; border-radius: 50%; vertical-align: middle; margin-right: 8px;">VN</span>
+                    <span style="color: #FFFFFF; font-size: 18px; font-weight: 700; vertical-align: middle;">VN Mobiles</span>
+                  </td>
+                  <td align="right" style="color: #9CA3AF; font-size: 12px;">
+                    Device Shield
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
+
+          <!-- Main Content -->
           <tr>
             <td style="padding: 32px;">
-              <p style="margin: 0 0 16px 0; font-size: 14px; line-height: 1.6; color: #334155;">
-                Dear <strong>${warranty.customerName}</strong>,<br><br>
-                This is a friendly reminder that your <strong>${warranty.productName}</strong> has <strong>6 months of official warranty coverage remaining</strong>.
+              <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #2563EB; letter-spacing: 0.5px; margin-bottom: 4px;">
+                Warranty Status Notice
+              </div>
+              <h2 style="margin: 0 0 16px 0; font-size: 20px; font-weight: 700; color: #111827;">
+                6 Months of Coverage Remaining
+              </h2>
+              <p style="margin: 0 0 20px 0; font-size: 14px; line-height: 1.6; color: #4B5563;">
+                Dear <strong>${warranty.customerName}</strong>,<br>
+                This is a scheduled service update regarding your <strong>${warranty.productName}</strong>. Your device protection is currently active with 6 months of coverage remaining until <strong style="color: #111827;">${expiryFormatted}</strong>.
               </p>
 
-              <table role="presentation" width="100%" style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; font-size: 13px; margin: 20px 0;">
+              <!-- Warranty Table -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; font-size: 13px; margin: 20px 0;">
                 <tr>
-                  <td style="color: #64748B; padding: 6px 0;">Smartphone Model:</td>
+                  <td style="color: #64748B; padding: 6px 0;">Device Model:</td>
                   <td style="font-weight: 600; color: #0F172A; text-align: right; padding: 6px 0;">${warranty.productName}</td>
                 </tr>
                 <tr>
                   <td style="color: #64748B; padding: 6px 0;">Registered IMEI:</td>
-                  <td style="font-family: monospace; font-weight: 700; color: #2563EB; text-align: right; padding: 6px 0;">${warranty.imeiNumber}</td>
+                  <td style="font-family: ui-monospace, SFMono-Regular, monospace; font-weight: 600; color: #1E293B; text-align: right; padding: 6px 0;">${warranty.imeiNumber}</td>
                 </tr>
                 ${warranty.orderNumber ? `
                 <tr>
-                  <td style="color: #64748B; padding: 6px 0;">Original Order:</td>
+                  <td style="color: #64748B; padding: 6px 0;">Order Reference:</td>
                   <td style="font-weight: 600; color: #0F172A; text-align: right; padding: 6px 0;">#${warranty.orderNumber}</td>
                 </tr>` : ""}
                 <tr>
-                  <td style="color: #64748B; padding: 6px 0;">Coverage Expiry Date:</td>
-                  <td style="font-weight: 700; color: #D97706; text-align: right; padding: 6px 0;">${expiryFormatted}</td>
+                  <td style="color: #64748B; padding: 6px 0;">Coverage Expiration:</td>
+                  <td style="font-weight: 700; color: #0F172A; text-align: right; padding: 6px 0;">${expiryFormatted}</td>
                 </tr>
                 <tr>
                   <td style="color: #64748B; padding: 6px 0;">Current Status:</td>
-                  <td style="font-weight: 700; color: #16A34A; text-align: right; padding: 6px 0;">ACTIVE (6 Months Left)</td>
+                  <td style="font-weight: 700; color: #059669; text-align: right; padding: 6px 0;">Active (6 Months Remaining)</td>
                 </tr>
               </table>
 
-              <div style="background-color: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 10px; padding: 16px; margin: 20px 0;">
-                <h4 style="margin: 0 0 8px 0; color: #1E40AF; font-size: 13px; font-weight: 700;">💡 Mid-Term Hardware Recommendations:</h4>
-                <ul style="margin: 0; padding-left: 20px; font-size: 12px; color: #1E3A8A; line-height: 1.6;">
-                  <li>Check your battery health capacity in system settings.</li>
-                  <li>Verify screen touch sensitivity and charging port functionality.</li>
-                  <li>In case of any unexpected glitches, enjoy free repairs covered under your active warranty.</li>
+              <!-- Helpful Tips -->
+              <div style="background-color: #F9FAFB; border-left: 3px solid #3B82F6; padding: 14px 16px; border-radius: 0 8px 8px 0; margin: 20px 0; font-size: 13px; color: #374151; line-height: 1.6;">
+                <strong style="color: #1F2937; display: block; margin-bottom: 6px;">Recommended Mid-Term Inspection:</strong>
+                <ul style="margin: 0; padding-left: 18px; font-size: 12px; color: #4B5563;">
+                  <li>Verify battery maximum capacity in device settings.</li>
+                  <li>Check display responsiveness and charging port connectivity.</li>
+                  <li>In the event of hardware defects, complimentary authorized repairs remain covered under your warranty.</li>
                 </ul>
               </div>
 
-              <p style="margin: 20px 0 0 0; font-size: 13px; line-height: 1.5; color: #64748B; text-align: center;">
-                Need help or wish to inspect your smartphone? Simply reply to this email or visit your VN Mobiles account.
-              </p>
+              <!-- Button CTA -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 28px 0 12px 0;">
+                <tr>
+                  <td align="center">
+                    <a href="${siteUrl}/account" style="display: inline-block; background-color: #111827; color: #FFFFFF; font-size: 13px; font-weight: 600; text-decoration: none; padding: 12px 28px; border-radius: 6px;">
+                      View Coverage in Account
+                    </a>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
+
+          <!-- Compliant Footer -->
           <tr>
-            <td style="background-color: #F8FAFC; border-top: 1px solid #E2E8F0; padding: 18px 32px; text-align: center; font-size: 11px; color: #94A3B8;">
-              &copy; ${new Date().getFullYear()} VN Mobiles India. All rights reserved.
+            <td>
+              ${getEmailFooterHtml({ showNotificationPreferences: true })}
             </td>
           </tr>
         </table>
@@ -910,14 +1189,13 @@ export async function sendWarrantyReminder6MonthsEmail(warranty: {
     </tr>
   </table>
 </body>
-</html>
-  `.trim();
+</html>`.trim();
 
   return sendGmailEmail({
     userId: warranty.userId,
     recipientName: warranty.customerName,
     recipientEmail: warranty.customerEmail,
-    subject: `🛡️ 6-Month Coverage Notice: Your ${warranty.productName} Warranty (Expires ${expiryFormatted})`,
+    subject: `Warranty Notice: 6 months of coverage remaining for ${warranty.productName}`,
     emailType: "WARRANTY_REMINDER_6M",
     orderId: warranty.orderId,
     productName: warranty.productName,
@@ -943,72 +1221,133 @@ export async function sendWarrantyReminder1DayEmail(warranty: {
   warrantyExpiryDate: Date;
   warrantyDuration?: string;
 }): Promise<EmailSendResult> {
+  const siteUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://vnmobiles.in").replace(/\/$/, "");
   const expiryFormatted = new Date(warranty.warrantyExpiryDate).toLocaleDateString("en-IN", {
     day: "numeric",
     month: "long",
     year: "numeric",
   });
 
-  const plainText = `Hi ${warranty.customerName},\n\nURGENT NOTICE: Your ${warranty.productName} warranty coverage expires TOMORROW on ${expiryFormatted}!\n\nProduct: ${warranty.productName}\nIMEI: ${warranty.imeiNumber}\nExpiry Date: ${expiryFormatted}\n\nThis is your final 24-hour notice before warranty coverage ends. Once expired, complimentary manufacturer repairs and replacement parts will no longer be covered.\n\nIf your phone has any hardware issues or if you wish to renew your protection, please contact us immediately.\n\nThank you,\nVN Mobiles Team`;
+  const plainText = [
+    `Warranty Notice: Your ${warranty.productName} warranty expires tomorrow`,
+    "",
+    `Dear ${warranty.customerName},`,
+    "",
+    `This is a courtesy service notice to inform you that the official Device Shield warranty coverage for your ${warranty.productName} will conclude tomorrow, ${expiryFormatted}.`,
+    "",
+    "WARRANTY DETAILS:",
+    `- Device Model: ${warranty.productName}`,
+    `- Registered IMEI: ${warranty.imeiNumber}`,
+    warranty.orderNumber ? `- Order Reference: #${warranty.orderNumber}` : "",
+    `- Coverage End Date: ${expiryFormatted} (Tomorrow)`,
+    "- Coverage Status: Concluding",
+    "",
+    "IMPORTANT INFORMATION:",
+    "After tomorrow, complimentary hardware repairs and component claims will no longer be covered under this policy. If your device currently requires hardware assistance or inspection, please contact VN Mobiles support or an authorized service provider prior to the expiration date.",
+    "",
+    `Need assistance? Reply directly to this email or visit: ${siteUrl}/account`,
+    "",
+    getEmailFooterText({ showNotificationPreferences: true }),
+  ]
+    .filter(Boolean)
+    .join("\n");
 
-  const html = `
-<!DOCTYPE html>
+  const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Final 24-Hour Warranty Alert</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Warranty Expiration Notice - VN Mobiles</title>
 </head>
-<body style="margin: 0; padding: 0; background-color: #F8F9FA; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1F2937;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #F8F9FA; padding: 40px 16px;">
+<body style="margin: 0; padding: 0; background-color: #F8F9FA; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1F2937; -webkit-font-smoothing: antialiased;">
+  <!-- Preheader -->
+  <div style="display: none; max-height: 0; overflow: hidden; mso-hide: all; font-size: 1px; line-height: 1px; color: #FFFFFF;">
+    Courtesy notice: The manufacturer warranty for your ${warranty.productName} concludes tomorrow, ${expiryFormatted}.
+  </div>
+
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #F8F9FA; padding: 32px 16px;">
     <tr>
       <td align="center">
-        <table role="presentation" width="100%" style="max-width: 540px; background-color: #FFFFFF; border: 1px solid #FECACA; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+        <table role="presentation" width="100%" style="max-width: 560px; background-color: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);">
+          <!-- Header -->
           <tr>
-            <td style="background: linear-gradient(135deg, #991B1B 0%, #7F1D1D 100%); padding: 28px 32px; text-align: center;">
-              <div style="display: inline-block; background-color: #EF4444; color: #FFFFFF; font-weight: 800; font-size: 13px; padding: 4px 12px; border-radius: 9999px; margin-bottom: 8px; letter-spacing: 0.05em;">🚨 FINAL 24 HOURS</div>
-              <h1 style="margin: 0; color: #FFFFFF; font-size: 20px; font-weight: 700;">Warranty Expires Tomorrow!</h1>
-              <p style="margin: 6px 0 0 0; color: #FECACA; font-size: 13px;">Last day of Device Shield protection</p>
+            <td style="background-color: #111827; padding: 24px 32px; border-bottom: 3px solid #D97706;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td>
+                    <span style="display: inline-block; width: 28px; height: 28px; line-height: 28px; text-align: center; background-color: #D97706; color: #FFFFFF; font-weight: 800; font-size: 13px; border-radius: 50%; vertical-align: middle; margin-right: 8px;">VN</span>
+                    <span style="color: #FFFFFF; font-size: 18px; font-weight: 700; vertical-align: middle;">VN Mobiles</span>
+                  </td>
+                  <td align="right" style="color: #9CA3AF; font-size: 12px;">
+                    Device Shield Notice
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
+
+          <!-- Main Content -->
           <tr>
             <td style="padding: 32px;">
-              <p style="margin: 0 0 16px 0; font-size: 14px; line-height: 1.6; color: #334155;">
-                Dear <strong>${warranty.customerName}</strong>,<br><br>
-                Please note that manufacturer warranty protection for your <strong>${warranty.productName}</strong> will officially <strong>expire tomorrow (${expiryFormatted})</strong>.
+              <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #D97706; letter-spacing: 0.5px; margin-bottom: 4px;">
+                Coverage Expiration Notice
+              </div>
+              <h2 style="margin: 0 0 16px 0; font-size: 20px; font-weight: 700; color: #111827;">
+                Warranty Expires Tomorrow
+              </h2>
+              <p style="margin: 0 0 20px 0; font-size: 14px; line-height: 1.6; color: #4B5563;">
+                Dear <strong>${warranty.customerName}</strong>,<br>
+                This is a courtesy notice to inform you that manufacturer warranty protection for your <strong>${warranty.productName}</strong> will officially conclude tomorrow, <strong style="color: #111827;">${expiryFormatted}</strong>.
               </p>
 
-              <table role="presentation" width="100%" style="background-color: #FEF2F2; border: 1px solid #FEE2E2; border-radius: 12px; padding: 18px; font-size: 13px; margin: 20px 0;">
+              <!-- Details Table -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; font-size: 13px; margin: 20px 0;">
                 <tr>
-                  <td style="color: #991B1B; padding: 6px 0;">Device:</td>
-                  <td style="font-weight: 700; color: #111827; text-align: right; padding: 6px 0;">${warranty.productName}</td>
+                  <td style="color: #64748B; padding: 6px 0;">Device Model:</td>
+                  <td style="font-weight: 600; color: #0F172A; text-align: right; padding: 6px 0;">${warranty.productName}</td>
                 </tr>
                 <tr>
-                  <td style="color: #991B1B; padding: 6px 0;">IMEI Number:</td>
-                  <td style="font-family: monospace; font-weight: 700; color: #991B1B; text-align: right; padding: 6px 0;">${warranty.imeiNumber}</td>
+                  <td style="color: #64748B; padding: 6px 0;">Registered IMEI:</td>
+                  <td style="font-family: ui-monospace, SFMono-Regular, monospace; font-weight: 600; color: #1E293B; text-align: right; padding: 6px 0;">${warranty.imeiNumber}</td>
+                </tr>
+                ${warranty.orderNumber ? `
+                <tr>
+                  <td style="color: #64748B; padding: 6px 0;">Order Reference:</td>
+                  <td style="font-weight: 600; color: #0F172A; text-align: right; padding: 6px 0;">#${warranty.orderNumber}</td>
+                </tr>` : ""}
+                <tr>
+                  <td style="color: #64748B; padding: 6px 0;">Coverage End Date:</td>
+                  <td style="font-weight: 700; color: #B45309; text-align: right; padding: 6px 0;">${expiryFormatted} (Tomorrow)</td>
                 </tr>
                 <tr>
-                  <td style="color: #991B1B; padding: 6px 0;">Expiration Date:</td>
-                  <td style="font-weight: 800; color: #DC2626; text-align: right; padding: 6px 0;">${expiryFormatted} (Tomorrow)</td>
-                </tr>
-                <tr>
-                  <td style="color: #991B1B; padding: 6px 0;">Coverage Status:</td>
-                  <td style="font-weight: 700; color: #DC2626; text-align: right; padding: 6px 0;">EXPIRES IN 24 HOURS</td>
+                  <td style="color: #64748B; padding: 6px 0;">Coverage Status:</td>
+                  <td style="font-weight: 700; color: #B45309; text-align: right; padding: 6px 0;">Concluding Tomorrow</td>
                 </tr>
               </table>
 
-              <div style="background-color: #FFFBEB; border: 1px solid #FDE68A; border-radius: 10px; padding: 14px; font-size: 12px; color: #92400E; line-height: 1.5; margin: 20px 0;">
-                ⚠️ <strong>What happens after tomorrow?</strong><br>
-                Complimentary repairs, display replacements, and authorized service center claim coverage will no longer be available under this policy.
+              <!-- Notice Box -->
+              <div style="background-color: #FFFBEB; border: 1px solid #FDE68A; border-radius: 8px; padding: 14px 16px; margin: 20px 0; font-size: 13px; color: #92400E; line-height: 1.5;">
+                <strong style="display: block; margin-bottom: 4px;">Important Coverage Notice:</strong>
+                After tomorrow, complimentary hardware repairs and component claims will no longer be covered under this policy. If your device has any active hardware issues, please request inspection before the coverage end date.
               </div>
 
-              <p style="margin: 20px 0 0 0; font-size: 13px; line-height: 1.5; color: #64748B; text-align: center;">
-                Have questions or need assistance before expiration? Reply directly to this email or contact VN Mobiles support.
-              </p>
+              <!-- Button CTA -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 28px 0 12px 0;">
+                <tr>
+                  <td align="center">
+                    <a href="${siteUrl}/account" style="display: inline-block; background-color: #111827; color: #FFFFFF; font-size: 13px; font-weight: 600; text-decoration: none; padding: 12px 28px; border-radius: 6px;">
+                      View Account & Support Options
+                    </a>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
+
+          <!-- Compliant Footer -->
           <tr>
-            <td style="background-color: #F8FAFC; border-top: 1px solid #E2E8F0; padding: 18px 32px; text-align: center; font-size: 11px; color: #94A3B8;">
-              &copy; ${new Date().getFullYear()} VN Mobiles India. All rights reserved.
+            <td>
+              ${getEmailFooterHtml({ showNotificationPreferences: true })}
             </td>
           </tr>
         </table>
@@ -1016,14 +1355,13 @@ export async function sendWarrantyReminder1DayEmail(warranty: {
     </tr>
   </table>
 </body>
-</html>
-  `.trim();
+</html>`.trim();
 
   return sendGmailEmail({
     userId: warranty.userId,
     recipientName: warranty.customerName,
     recipientEmail: warranty.customerEmail,
-    subject: `🚨 FINAL 24H ALERT: Your ${warranty.productName} Warranty Expires Tomorrow!`,
+    subject: `Warranty Notice: Your ${warranty.productName} warranty expires tomorrow`,
     emailType: "WARRANTY_REMINDER_1D",
     orderId: warranty.orderId,
     productName: warranty.productName,

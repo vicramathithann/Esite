@@ -342,7 +342,13 @@ export async function POST(request: Request) {
           quantity: i.quantity,
           price: i.price,
           selectedStorage: i.selectedStorage,
+          selectedColor: i.selectedColor,
+          imeiNumber: i.imeiNumber,
         })),
+        address: order.address,
+        city: order.city,
+        state: order.state,
+        pincode: order.pincode,
       });
     } catch (mailErr) {
       console.error("[EMAIL NOTIFICATION WARNING] Could not send confirmation email:", mailErr);

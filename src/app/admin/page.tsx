@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
+import AdminNav from "@/components/AdminNav";
 import {
   ShieldCheck,
   PlusCircle,
@@ -28,7 +29,9 @@ import {
   MapPin,
   Phone,
   Mail,
-  UserCheck
+  UserCheck,
+  SlidersHorizontal,
+  KeyRound,
 } from "lucide-react";
 import { formatINR } from "@/lib/formatters";
 
@@ -146,19 +149,6 @@ export default function AdminDashboardPage() {
     fetchOrders();
     fetchMobiles();
   }, []);
-
-  // Require Admin Check
-  const isAdmin = currentUser && currentUser.role === "ADMIN";
-
-  const handleAdminBypassLogin = () => {
-    login({
-      id: "admin-master",
-      name: "VN Mobiles Administrator",
-      email: "admin@vmmobiles.in",
-      phone: "+91 99999 00000",
-      role: "ADMIN",
-    });
-  };
 
   // -------------------------------------------------------------
   // Order Lifecycle Handlers
@@ -445,122 +435,88 @@ export default function AdminDashboardPage() {
     return matchBrand && matchSearch;
   });
 
-  // Render Access Gate if not Admin
-  if (!isAdmin) {
-    return (
-      <div className="min-h-screen bg-[#131921] flex flex-col items-center justify-center p-4 text-white">
-        <div className="max-w-md w-full bg-[#1f2833] border border-amber-500/40 rounded-xl p-8 text-center space-y-5 shadow-2xl">
-          <div className="w-16 h-16 bg-amber-500/20 text-[#febd69] rounded-2xl flex items-center justify-center mx-auto border border-amber-500/30">
-            <ShieldCheck className="w-9 h-9" />
-          </div>
-          <h2 className="text-2xl font-bold text-white">Administrator Access Required</h2>
-          <p className="text-xs text-gray-300 leading-relaxed">
-            You must be logged in with administrator credentials to access the product inventory, stock controls, and order dispatch desks.
-          </p>
-
-          <div className="space-y-3 pt-2">
-            <Link
-              href="/login?redirect=/admin"
-              className="w-full btn-amazon-yellow py-2.5 px-4 text-xs font-bold rounded-lg flex items-center justify-center gap-2"
-            >
-              <span>Go to Universal Sign In (Admin Access)</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-
-            <button
-              onClick={handleAdminBypassLogin}
-              className="w-full py-2 px-4 bg-[#C9A66B]/15 hover:bg-[#C9A66B]/25 active:bg-[#A67C3D] text-[#C9A66B] dark:text-[#D4B483] border border-[#C9A66B]/40 rounded-lg text-xs font-bold transition-colors cursor-pointer"
-            >
-              ⚡ Instant 1-Click Admin Access (Demo Mode)
-            </button>
-
-            <Link href="/" className="block text-xs text-gray-400 hover:text-gray-200 pt-2">
-              ← Return to Public Storefront
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-[#eaeded] pb-24">
-      {/* Admin Dark Top Bar */}
-      <div className="bg-[#131921] text-white border-b border-amber-500/30 py-3.5 px-4 sm:px-8">
+    <div className="min-h-screen bg-background text-foreground flex flex-col transition-colors duration-200">
+      <AdminNav />
+
+      {/* Admin Executive Top Banner */}
+      <div className="bg-card border-b border-border py-4 px-4 sm:px-8">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-amber-500 text-[#131921] rounded-lg flex items-center justify-center font-black">
+            <div className="w-10 h-10 bg-[#C9A66B]/10 border border-[#C9A66B]/20 text-[#8C6226] dark:text-[#E5CBA2] rounded-xl flex items-center justify-center font-black">
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-lg font-black text-white tracking-tight">VN MOBILES</span>
-                <span className="bg-amber-500/20 text-[#febd69] text-[10px] font-bold px-2 py-0.5 rounded border border-[#febd69]/30">
+                <span className="text-lg font-black text-foreground tracking-tight">VN MOBILES</span>
+                <span className="bg-[#C9A66B]/20 text-[#8C6226] dark:text-[#E5CBA2] text-[10px] font-bold px-2 py-0.5 rounded-full border border-[#C9A66B]/30">
                   ADMIN CONTROL DESK
                 </span>
               </div>
-              <p className="text-[11px] text-gray-400">
-                Logged in as: <strong className="text-gray-200">{currentUser?.email}</strong>
+              <p className="text-[11px] text-muted">
+                Logged in as: <strong className="text-foreground">{currentUser?.email || "rrroyce20@gmail.com"}</strong>
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2 text-xs">
             <Link
-              href="/"
-              target="_blank"
-              className="px-3 py-1.5 bg-[#C9A66B]/15 hover:bg-[#C9A66B]/25 text-[#FFFCFA] border border-[#C9A66B]/30 rounded flex items-center gap-1 font-medium transition-colors"
+              href="/admin/settings"
+              className="px-3 py-1.5 bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 text-[#8C6226] dark:text-[#E5CBA2] border border-[#C9A66B]/30 rounded-xl flex items-center gap-1.5 font-medium transition-colors"
             >
-              <span>View Live Storefront</span>
-              <ExternalLink className="w-3.5 h-3.5" />
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <span>Store Controls</span>
             </Link>
             <Link
-              href="/orders"
-              className="px-3 py-1.5 bg-[#C9A66B]/15 hover:bg-[#C9A66B]/25 text-[#FFFCFA] border border-[#C9A66B]/30 rounded font-medium transition-colors"
+              href="/admin/password"
+              className="px-3 py-1.5 bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 text-[#8C6226] dark:text-[#E5CBA2] border border-[#C9A66B]/30 rounded-xl flex items-center gap-1.5 font-medium transition-colors"
             >
-              Customer Orders View
+              <KeyRound className="w-3.5 h-3.5" />
+              <span>Change Password</span>
             </Link>
           </div>
         </div>
       </div>
 
       {/* Dedicated Admin Route Quick Links */}
-      <div className="bg-card border-b border-border text-xs px-4 sm:px-8 py-2">
+      <div className="bg-card/60 border-b border-border text-xs px-4 sm:px-8 py-2">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 overflow-x-auto scrollbar-none">
           <div className="flex items-center gap-1.5 font-medium text-muted">
             <span className="text-[#C9A66B] font-bold uppercase tracking-wider text-[10px] mr-1">Admin Desks:</span>
-            <Link href="/admin/dashboard" className="px-2.5 py-1 rounded bg-[#C9A66B]/15 hover:bg-[#C9A66B] hover:text-[#FFFCFA] text-[#8C6226] dark:text-[#E5CBA2] border border-[#C9A66B]/30 transition whitespace-nowrap font-medium">📊 Dashboard</Link>
-            <Link href="/admin/orders" className="px-2.5 py-1 rounded bg-[#C9A66B]/15 hover:bg-[#C9A66B] hover:text-[#FFFCFA] text-[#8C6226] dark:text-[#E5CBA2] border border-[#C9A66B]/30 transition whitespace-nowrap font-medium">📦 Orders</Link>
-            <Link href="/admin/products" className="px-2.5 py-1 rounded bg-[#C9A66B]/15 hover:bg-[#C9A66B] hover:text-[#FFFCFA] text-[#8C6226] dark:text-[#E5CBA2] border border-[#C9A66B]/30 transition whitespace-nowrap font-medium">📱 Products</Link>
-            <Link href="/admin/inventory" className="px-2.5 py-1 rounded bg-[#C9A66B]/15 hover:bg-[#C9A66B] hover:text-[#FFFCFA] text-[#8C6226] dark:text-[#E5CBA2] border border-[#C9A66B]/30 transition whitespace-nowrap font-medium">📦 Inventory</Link>
-            <Link href="/admin/customers" className="px-2.5 py-1 rounded bg-[#C9A66B]/15 hover:bg-[#C9A66B] hover:text-[#FFFCFA] text-[#8C6226] dark:text-[#E5CBA2] border border-[#C9A66B]/30 transition whitespace-nowrap font-medium">👥 Customers</Link>
-            <Link href="/admin/warranties" className="px-2.5 py-1 rounded bg-[#C9A66B]/15 hover:bg-[#C9A66B] hover:text-[#FFFCFA] text-[#8C6226] dark:text-[#E5CBA2] border border-[#C9A66B]/30 transition whitespace-nowrap font-medium">🛡️ Warranties</Link>
-            <Link href="/admin/email-logs" className="px-2.5 py-1 rounded bg-[#C9A66B]/15 hover:bg-[#C9A66B] hover:text-[#FFFCFA] text-[#8C6226] dark:text-[#E5CBA2] border border-[#C9A66B]/30 transition whitespace-nowrap font-medium">✉️ Email Logs</Link>
+            <Link href="/admin/dashboard" className="px-2.5 py-1 rounded-lg bg-tile hover:bg-[#C9A66B] hover:text-[#FFFCFA] text-foreground border border-border transition whitespace-nowrap font-medium">📊 Dashboard</Link>
+            <Link href="/admin/orders" className="px-2.5 py-1 rounded-lg bg-tile hover:bg-[#C9A66B] hover:text-[#FFFCFA] text-foreground border border-border transition whitespace-nowrap font-medium">📦 Orders</Link>
+            <Link href="/admin/products" className="px-2.5 py-1 rounded-lg bg-tile hover:bg-[#C9A66B] hover:text-[#FFFCFA] text-foreground border border-border transition whitespace-nowrap font-medium">📱 Products</Link>
+            <Link href="/admin/inventory" className="px-2.5 py-1 rounded-lg bg-tile hover:bg-[#C9A66B] hover:text-[#FFFCFA] text-foreground border border-border transition whitespace-nowrap font-medium">📦 Inventory</Link>
+            <Link href="/admin/customers" className="px-2.5 py-1 rounded-lg bg-tile hover:bg-[#C9A66B] hover:text-[#FFFCFA] text-foreground border border-border transition whitespace-nowrap font-medium">👥 Users</Link>
+            <Link href="/admin/settings" className="px-2.5 py-1 rounded-lg bg-tile hover:bg-[#C9A66B] hover:text-[#FFFCFA] text-foreground border border-border transition whitespace-nowrap font-medium">🎛️ Store Controls</Link>
+            <Link href="/admin/warranties" className="px-2.5 py-1 rounded-lg bg-tile hover:bg-[#C9A66B] hover:text-[#FFFCFA] text-foreground border border-border transition whitespace-nowrap font-medium">🛡️ Warranties</Link>
+            <Link href="/admin/email-logs" className="px-2.5 py-1 rounded-lg bg-tile hover:bg-[#C9A66B] hover:text-[#FFFCFA] text-foreground border border-border transition whitespace-nowrap font-medium">✉️ Email Logs</Link>
+            <Link href="/admin/password" className="px-2.5 py-1 rounded-lg bg-tile hover:bg-[#C9A66B] hover:text-[#FFFCFA] text-foreground border border-border transition whitespace-nowrap font-medium">🔑 Password</Link>
           </div>
         </div>
       </div>
 
-      {/* Admin Navigation Tabs */}
-      <div className="bg-[#232f3e] text-white px-4 sm:px-8 shadow-xs">
-        <div className="max-w-7xl mx-auto flex items-center gap-2 overflow-x-auto text-xs font-bold scrollbar-none py-1.5">
+      {/* Admin Operations Sub-Tabs */}
+      <div className="bg-tile/80 border-b border-border px-4 sm:px-8 shadow-2xs">
+        <div className="max-w-7xl mx-auto flex items-center gap-2 overflow-x-auto text-xs font-semibold scrollbar-none py-2">
           <button
             onClick={() => setActiveTab("orders")}
-            className={`px-4 py-2.5 rounded-sm flex items-center gap-2 transition-all cursor-pointer ${
+            className={`px-4 py-2 rounded-xl flex items-center gap-2 transition-all cursor-pointer ${
               activeTab === "orders"
-                ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] shadow-xs"
-                : "text-gray-300 hover:text-white hover:bg-white/5"
+                ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] shadow-xs font-bold"
+                : "text-muted hover:text-foreground hover:bg-tile"
             }`}
           >
             <Package className="w-4 h-4" />
-            <span>Orders & Lifecycle Desk ({orders.length})</span>
+            <span>Orders & Dispatch Desk ({orders.length})</span>
           </button>
 
           <button
             onClick={() => setActiveTab("stock")}
-            className={`px-4 py-2.5 rounded-sm flex items-center gap-2 transition-all cursor-pointer ${
+            className={`px-4 py-2 rounded-xl flex items-center gap-2 transition-all cursor-pointer ${
               activeTab === "stock"
-                ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] shadow-xs"
-                : "text-gray-300 hover:text-white hover:bg-white/5"
+                ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] shadow-xs font-bold"
+                : "text-muted hover:text-foreground hover:bg-tile"
             }`}
           >
             <Boxes className="w-4 h-4" />
@@ -569,10 +525,10 @@ export default function AdminDashboardPage() {
 
           <button
             onClick={() => setActiveTab("add-product")}
-            className={`px-4 py-2.5 rounded-sm flex items-center gap-2 transition-all cursor-pointer ${
+            className={`px-4 py-2 rounded-xl flex items-center gap-2 transition-all cursor-pointer ${
               activeTab === "add-product"
-                ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] shadow-xs"
-                : "text-gray-300 hover:text-white hover:bg-white/5"
+                ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] shadow-xs font-bold"
+                : "text-muted hover:text-foreground hover:bg-tile"
             }`}
           >
             <PlusCircle className="w-4 h-4" />

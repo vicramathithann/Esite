@@ -2,7 +2,8 @@
 
 import React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useApp } from "@/context/AppContext";
 import {
   LayoutDashboard,
   Package,
@@ -12,36 +13,50 @@ import {
   ShieldCheck,
   MailCheck,
   ExternalLink,
+  SlidersHorizontal,
+  KeyRound,
+  LogOut,
 } from "lucide-react";
 
 export default function AdminNav() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { currentUser, logout } = useApp();
 
   const links = [
     { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/admin/orders", label: "Orders", icon: Package },
     { href: "/admin/products", label: "Products", icon: Smartphone },
     { href: "/admin/inventory", label: "Inventory", icon: Boxes },
-    { href: "/admin/customers", label: "Customers", icon: Users },
+    { href: "/admin/customers", label: "Users", icon: Users },
+    { href: "/admin/settings", label: "Store Controls", icon: SlidersHorizontal },
     { href: "/admin/warranties", label: "Warranties", icon: ShieldCheck },
     { href: "/admin/email-logs", label: "Email Logs", icon: MailCheck },
+    { href: "/admin/password", label: "Change Password", icon: KeyRound },
   ];
+
+  const handleSignOut = () => {
+    logout();
+    router.push("/login");
+  };
 
   return (
     <div className="bg-card border-b border-border sticky top-0 z-40 transition-colors duration-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-14">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between h-14 gap-3">
+          <div className="flex items-center gap-2 shrink-0">
             <span className="font-bold text-foreground text-sm tracking-tight flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-[#C9A66B] dark:bg-[#D4B483] animate-pulse"></span>
               VN Mobiles Admin
             </span>
           </div>
 
-          <nav className="flex items-center gap-1 overflow-x-auto py-1">
+          <nav className="flex items-center gap-1 overflow-x-auto py-1 scrollbar-none flex-1 justify-start md:justify-center">
             {links.map((link) => {
               const Icon = link.icon;
-              const isActive = pathname === link.href || (link.href === "/admin/dashboard" && pathname === "/admin");
+              const isActive =
+                pathname === link.href ||
+                (link.href === "/admin/dashboard" && pathname === "/admin");
               return (
                 <Link
                   key={link.href}
@@ -59,15 +74,28 @@ export default function AdminNav() {
             })}
           </nav>
 
-          <Link
-            href="/"
-            target="_blank"
-            className="hidden md:flex items-center gap-1 text-xs text-muted hover:text-foreground transition"
-          >
-            Storefront <ExternalLink className="w-3 h-3" />
-          </Link>
+          <div className="flex items-center gap-2 shrink-0 text-xs">
+            <Link
+              href="/"
+              target="_blank"
+              className="hidden lg:flex items-center gap-1 text-muted hover:text-foreground transition px-2 py-1 rounded-lg hover:bg-tile"
+              title="Open Public Storefront"
+            >
+              Storefront <ExternalLink className="w-3 h-3" />
+            </Link>
+
+            <button
+              onClick={handleSignOut}
+              className="flex items-center gap-1 text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 px-2.5 py-1.5 rounded-lg font-medium transition cursor-pointer"
+              title="Sign Out from Admin"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Sign Out</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
+

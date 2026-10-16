@@ -53,9 +53,9 @@ export default function AdminCustomersPage() {
               <Users className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-foreground">Customer Accounts Directory</h1>
+              <h1 className="text-xl font-bold text-foreground">User Accounts Directory</h1>
               <p className="text-xs text-muted">
-                View registered customers, their email verification status, order count, and lifetime value.
+                View registered user accounts, email verification status, order count, and lifetime activity.
               </p>
             </div>
           </div>
@@ -77,7 +77,7 @@ export default function AdminCustomersPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && loadCustomers()}
-            placeholder="Search by customer name, email, or mobile..."
+            placeholder="Search by user name, email, or mobile..."
             className="w-full pl-10 pr-4 py-2.5 bg-card border border-border rounded-xl text-foreground text-xs focus:outline-none focus:border-[#C9A66B]"
           />
         </div>
@@ -88,7 +88,7 @@ export default function AdminCustomersPage() {
             <table className="w-full text-left text-xs">
               <thead className="bg-tile/80 border-b border-border text-muted font-semibold uppercase tracking-wider text-[10px]">
                 <tr>
-                  <th className="py-3.5 px-4">Customer</th>
+                  <th className="py-3.5 px-4">User</th>
                   <th className="py-3.5 px-4">Email & Verification</th>
                   <th className="py-3.5 px-4">Mobile</th>
                   <th className="py-3.5 px-4 text-center">Orders</th>
@@ -100,13 +100,13 @@ export default function AdminCustomersPage() {
                 {loading ? (
                   <tr>
                     <td colSpan={6} className="py-12 text-center text-muted">
-                      Loading customer records...
+                      Loading user records...
                     </td>
                   </tr>
                 ) : customers.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="py-12 text-center text-muted">
-                      No customer accounts found.
+                      No user accounts found.
                     </td>
                   </tr>
                 ) : (

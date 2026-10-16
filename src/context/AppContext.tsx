@@ -52,7 +52,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     try {
       const savedUser = localStorage.getItem("novamobile_user");
-      if (savedUser) setCurrentUser(JSON.parse(savedUser));
+      if (savedUser) {
+        const parsed = JSON.parse(savedUser);
+        if (parsed.role === "ADMIN" && (parsed.email || "").toLowerCase() !== "rrroyce20@gmail.com") {
+          parsed.role = "USER";
+        }
+        setCurrentUser(parsed);
+      }
 
       const savedCart = localStorage.getItem("novamobile_cart");
       if (savedCart) setCart(JSON.parse(savedCart));
@@ -177,9 +183,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   const login = (user: UserProfile) => {
-    setCurrentUser(user);
+    const isRealAdmin =
+      user.role === "ADMIN" &&
+      (user.email || "").toLowerCase() === "rrroyce20@gmail.com";
+    const sanitizedUser: UserProfile = {
+      ...user,
+      role: isRealAdmin ? "ADMIN" : "USER",
+    };
+    setCurrentUser(sanitizedUser);
     try {
-      localStorage.setItem("novamobile_user", JSON.stringify(user));
+      localStorage.setItem("novamobile_user", JSON.stringify(sanitizedUser));
     } catch (e) {}
   };
 

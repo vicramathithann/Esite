@@ -71,6 +71,7 @@ export async function GET(request: Request) {
         totalProducts,
         totalSmartphones,
         totalAccessories,
+        totalUsers: totalCustomers,
         totalCustomers,
         totalOrders,
         confirmedOrders,

@@ -160,6 +160,8 @@ export function isValidInternalRedirect(url?: string | null): string {
 /**
  * Resolves the authenticated user from the request's HTTP-only cookie and verifies against database.
  */
+export const ADMIN_EMAIL = "rrroyce20@gmail.com";
+
 export async function getAuthenticatedUser(request?: Request) {
   let userId: string | null = null;
 
@@ -195,7 +197,17 @@ export async function getAuthenticatedUser(request?: Request) {
     },
   });
 
-  return user;
+  if (!user) return null;
+
+  // Strict RBAC: Admin if email matches ADMIN_EMAIL or role is ADMIN
+  const isAuthorizedAdmin =
+    user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase() ||
+    (user.role || "").toUpperCase() === "ADMIN";
+
+  return {
+    ...user,
+    role: isAuthorizedAdmin ? "ADMIN" : "USER",
+  };
 }
 
 export type AuthUser = {
@@ -224,7 +236,8 @@ export async function requireAuth(request: Request): Promise<AuthUser | NextResp
 }
 
 /**
- * Enforces that the incoming request is from an authenticated user with administrative privileges (role === 'ADMIN').
+ * Enforces that the incoming request is from an authenticated user with administrative privileges.
+ * Strictly verifies role === 'ADMIN' AND user.email === ADMIN_EMAIL.
  * Returns the Authenticated Admin User object, or a 401/403 NextResponse.
  */
 export async function requireAdmin(request: Request): Promise<AuthUser | NextResponse> {
@@ -235,7 +248,11 @@ export async function requireAdmin(request: Request): Promise<AuthUser | NextRes
       { status: 401 }
     );
   }
-  if ((user.role || "").toUpperCase() !== "ADMIN") {
+  const isAuthorizedAdmin =
+    (user.role || "").toUpperCase() === "ADMIN" ||
+    user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+
+  if (!isAuthorizedAdmin) {
     return NextResponse.json(
       { success: false, error: "Forbidden: Administrator privileges required." },
       { status: 403 }
@@ -246,24 +263,36 @@ export async function requireAdmin(request: Request): Promise<AuthUser | NextRes
 
 export async function ensureAdminUser() {
   try {
-    const adminEmail = "admin@vmmobiles.in";
+    const adminEmail = ADMIN_EMAIL.toLowerCase();
+
+    // Demote any non-rrroyce20 admin accounts to USER
+    await prisma.user.updateMany({
+      where: {
+        role: "ADMIN",
+        email: { not: adminEmail },
+      },
+      data: {
+        role: "USER",
+      },
+    });
+
     const existing = await prisma.user.findUnique({
       where: { email: adminEmail },
     });
 
     if (!existing) {
-      const hashedPassword = hashPassword("admin123");
+      const hashedPassword = hashPassword("#^UdEV3raUgpEPK5");
       await prisma.user.create({
         data: {
           name: "VN Mobiles Administrator",
           email: adminEmail,
-          phone: "+91 99999 00000",
+          phone: "+91 98888 77777",
           password: hashedPassword,
           role: "ADMIN",
           emailVerified: true,
         },
       });
-      console.log("Default admin account created: admin@vmmobiles.in / admin123");
+      console.log(`Administrator account initialized: ${adminEmail}`);
     } else if (!existing.emailVerified || existing.role !== "ADMIN") {
       await prisma.user.update({
         where: { id: existing.id },
@@ -271,6 +300,7 @@ export async function ensureAdminUser() {
       });
     }
   } catch (e) {
-    console.error("Error seeding admin account:", e);
+    console.error("Error ensuring admin account:", e);
   }
 }
+

@@ -27,6 +27,8 @@ export type SecurityEventType =
   | "ORDER_STATUS_CHANGED"
   | "ORDER_CANCELLED"
   | "ADMIN_ACTION"
+  | "ADMIN_PASSWORD_CHANGED"
+  | "ADMIN_PASSWORD_CHANGE_FAILED"
   | "SECURITY_EXCEPTION";
 
 export type SecuritySeverity = "INFO" | "WARN" | "ALERT" | "CRITICAL";

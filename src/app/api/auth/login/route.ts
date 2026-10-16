@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifyPassword, createSessionToken, ensureAdminUser } from "@/lib/auth";
+import { verifyPassword, createSessionToken, ensureAdminUser, ADMIN_EMAIL } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/rateLimit";
 import { logSecurityEvent, getClientIp } from "@/lib/securityLogger";
 
@@ -28,16 +28,13 @@ export async function POST(request: Request) {
     }
 
     const query = targetIdentifier.trim();
-    let cleanEmail = query.toLowerCase();
+    const cleanEmail = query.toLowerCase();
 
-    // Optional alias mapping for default system admin shortcut
-    if (cleanEmail === "admin") {
-      cleanEmail = "admin@vmmobiles.in";
-    }
-
-    if (cleanEmail === "admin@vmmobiles.in") {
+    // Ensure administrator account is seeded if admin email is logging in
+    if (cleanEmail === ADMIN_EMAIL.toLowerCase()) {
       await ensureAdminUser();
     }
+
 
     // Find user by email or phone
     const user = await prisma.user.findFirst({
@@ -103,14 +100,20 @@ export async function POST(request: Request) {
       );
     }
 
-    if (requiredRole && user.role !== requiredRole) {
+    // Strict RBAC: Only rrroyce20@gmail.com can obtain ADMIN privileges
+    const isActuallyAdmin =
+      user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase() &&
+      (user.role || "").toUpperCase() === "ADMIN";
+    const effectiveRole = isActuallyAdmin ? "ADMIN" : "USER";
+
+    if (requiredRole && effectiveRole !== requiredRole) {
       logSecurityEvent("ACCESS_DENIED_FORBIDDEN", "WARN", {
         ip: getClientIp(request),
         route: "/api/auth/login",
         method: "POST",
         userId: user.id,
         email: user.email,
-        details: { requiredRole, actualRole: user.role },
+        details: { requiredRole, actualRole: effectiveRole },
       });
       return NextResponse.json(
         { success: false, error: `Access denied. This action requires ${requiredRole} privileges.` },
@@ -124,7 +127,7 @@ export async function POST(request: Request) {
       method: "POST",
       userId: user.id,
       email: user.email,
-      role: user.role,
+      role: effectiveRole,
     });
 
     const sessionToken = createSessionToken(user);
@@ -135,15 +138,16 @@ export async function POST(request: Request) {
         name: user.name,
         email: user.email,
         phone: user.phone,
-        role: user.role,
+        role: effectiveRole,
         emailVerified: user.emailVerified,
         createdAt: user.createdAt,
       },
-      redirectUrl: user.role === "ADMIN" ? "/admin" : "/user",
-      message: user.role === "ADMIN"
+      redirectUrl: isActuallyAdmin ? "/admin" : "/user",
+      message: isActuallyAdmin
         ? "Administrator access granted! Redirecting to Admin Dashboard..."
         : `Welcome back, ${user.name}! Accessing your account...`,
     });
+
 
     response.cookies.set("vn_session", sessionToken, {
       httpOnly: true,
