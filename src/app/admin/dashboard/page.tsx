@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import AdminNav from "@/components/AdminNav";
 import {
   LayoutDashboard,
   Package,
@@ -50,10 +49,7 @@ export default function AdminDashboardView() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col transition-colors duration-200">
-      <AdminNav />
-
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+    <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card border border-border rounded-2xl p-6 shadow-xs transition-colors duration-200">
           <div>
             <h1 className="text-2xl font-bold text-foreground tracking-tight">Executive Store Dashboard</h1>
@@ -217,6 +213,5 @@ export default function AdminDashboardView() {
           )}
         </div>
       </main>
-    </div>
   );
 }

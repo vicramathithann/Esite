@@ -5,7 +5,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
-import AdminNav from "@/components/AdminNav";
 import {
   ShieldCheck,
   PlusCircle,
@@ -436,9 +435,7 @@ export default function AdminDashboardPage() {
   });
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col transition-colors duration-200">
-      <AdminNav />
-
+    <div className="flex-1 flex flex-col">
       {/* Admin Executive Top Banner */}
       <div className="bg-card border-b border-border py-4 px-4 sm:px-8">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">

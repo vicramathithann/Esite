@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import AdminNav from "@/components/AdminNav";
 import { useApp } from "@/context/AppContext";
 import {
   KeyRound,
@@ -85,10 +84,7 @@ export default function AdminChangePasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col transition-colors duration-200">
-      <AdminNav />
-
-      <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+    <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
         {/* Header Banner */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card border border-border rounded-2xl p-6 shadow-xs transition-colors duration-200">
           <div className="flex items-center gap-3">
@@ -245,7 +241,6 @@ export default function AdminChangePasswordPage() {
           </form>
         </div>
       </main>
-    </div>
   );
 }
 

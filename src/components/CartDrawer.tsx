@@ -3,10 +3,13 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { X, Trash2, Plus, Minus, ShieldCheck, ShoppingBag, AlertCircle } from "lucide-react";
 
 export default function CartDrawer() {
+  const pathname = usePathname();
+  if (pathname?.startsWith("/admin")) return null;
   const { 
     currentUser,
     cart, 

@@ -3,7 +3,6 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import AdminNav from "@/components/AdminNav";
 import { Smartphone, ArrowLeft, Save, Plus, Trash2, Sparkles, CheckCircle2 } from "lucide-react";
 
 const FAMOUS_BRANDS = [
@@ -90,10 +89,7 @@ export default function AdminNewProductPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col transition-colors duration-200">
-      <AdminNav />
-
-      <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+    <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
         <Link
           href="/admin/products"
           className="inline-flex items-center gap-2 text-sm text-muted hover:text-foreground transition"
@@ -294,6 +290,5 @@ export default function AdminNewProductPage() {
           </form>
         </div>
       </main>
-    </div>
   );
 }

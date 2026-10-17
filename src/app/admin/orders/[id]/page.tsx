@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import AdminNav from "@/components/AdminNav";
 import {
   ArrowLeft,
   Package,
@@ -131,20 +130,14 @@ export default function AdminSingleOrderPage() {
 
   if (loading || !order) {
     return (
-      <div className="min-h-screen bg-background text-foreground flex flex-col transition-colors duration-200">
-        <AdminNav />
-        <div className="flex-1 flex items-center justify-center">
-          <p className="text-muted text-sm">Loading order #{orderId}...</p>
-        </div>
+      <div className="flex-1 flex items-center justify-center p-8">
+        <p className="text-muted text-sm">Loading order #{orderId}...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col transition-colors duration-200">
-      <AdminNav />
-
-      <main className="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+    <main className="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
         <div className="flex items-center justify-between">
           <Link
             href="/admin/orders"
@@ -337,6 +330,5 @@ export default function AdminSingleOrderPage() {
           </div>
         )}
       </main>
-    </div>
   );
 }

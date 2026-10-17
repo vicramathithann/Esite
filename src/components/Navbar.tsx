@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { 
   Search, 
@@ -72,6 +72,13 @@ function BrandSubNav() {
 }
 
 export default function Navbar() {
+  const pathname = usePathname();
+
+  // Completely exclude Storefront navigation and header from all Admin routes
+  if (pathname?.startsWith("/admin")) {
+    return null;
+  }
+
   const router = useRouter();
   const { 
     currentUser,

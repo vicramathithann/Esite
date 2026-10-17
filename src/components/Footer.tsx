@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { 
   ArrowUp, 
   Check, 
@@ -10,6 +11,13 @@ import {
 } from "lucide-react";
 
 export default function Footer() {
+  const pathname = usePathname();
+
+  // Completely exclude Storefront footer and newsletter subscription from all Admin routes
+  if (pathname?.startsWith("/admin")) {
+    return null;
+  }
+
   const [email, setEmail] = useState("");
   const [subscribed, setSubscribed] = useState(false);
 
