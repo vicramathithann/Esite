@@ -11,6 +11,9 @@ const DEFAULT_SETTINGS: Record<string, string> = {
   announcementText: "⚡ Free Express Delivery across India | 1-Year Official Brand Warranty",
 };
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET() {
   try {
     const rows = await prisma.siteSetting.findMany();
@@ -20,16 +23,31 @@ export async function GET() {
       settingsMap[r.key] = r.value;
     });
 
-    return NextResponse.json({
-      success: true,
-      settings: settingsMap,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        settings: settingsMap,
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
+        },
+      }
+    );
   } catch (error) {
     console.error("Public settings fetch error:", error);
-    return NextResponse.json({
-      success: true,
-      settings: DEFAULT_SETTINGS,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        settings: DEFAULT_SETTINGS,
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
+        },
+      }
+    );
   }
 }
+
 

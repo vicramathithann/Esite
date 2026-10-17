@@ -22,7 +22,9 @@ import {
   Tag, 
   CreditCard, 
   RefreshCw, 
-  ShoppingBag 
+  ShoppingBag,
+  Heart,
+  Star
 } from "lucide-react";
 import { formatINR, calculateEMI } from "@/lib/formatters";
 
@@ -33,7 +35,15 @@ export default function MobileDetailPage({
 }) {
   const resolvedParams = use(params);
   const router = useRouter();
-  const { currentUser, addToCart, addToCompare, compareList } = useApp();
+  const { 
+    currentUser, 
+    addToCart, 
+    addToCompare, 
+    compareList, 
+    toggleWishlist, 
+    isInWishlist, 
+    siteSettings 
+  } = useApp();
 
   const defaultMatch = DEFAULT_PRODUCTS.find((p) => p.id === resolvedParams.id) || null;
 
@@ -249,6 +259,17 @@ export default function MobileDetailPage({
               <h1 className="text-2xl sm:text-4xl font-bold tracking-tight text-foreground">
                 {product.name}
               </h1>
+              {siteSettings.showReviews === "true" && (
+                <div className="flex items-center gap-2 pt-0.5 text-xs">
+                  <span className="flex items-center gap-1 font-bold text-amber-500">
+                    <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                    {product.rating || 4.9}
+                  </span>
+                  <span className="text-muted">({product.reviewCount || 380} verified reviews)</span>
+                  <span className="text-muted/40">•</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-medium text-[11px]">98% Buyer Satisfaction</span>
+                </div>
+              )}
               <p className="text-sm text-muted leading-relaxed">
                 {product.tagline}
               </p>
@@ -401,17 +422,34 @@ export default function MobileDetailPage({
                 Buy Now
               </button>
 
-              <button
-                onClick={() => addToCompare(product)}
-                className={`p-3.5 rounded-full border transition-all duration-200 cursor-pointer ${
-                  isCompared
-                    ? "bg-[#C9A66B] dark:bg-[#D4B483] border-[#C9A66B] text-[#FFFCFA] font-semibold shadow-xs"
-                    : "border-[#C9A66B]/40 bg-[#C9A66B]/10 text-[#8C6226] dark:text-[#D4B483] hover:bg-[#C9A66B]/20"
-                }`}
-                title="Compare"
-              >
-                <Layers className="w-4 h-4" />
-              </button>
+              {siteSettings.showWishlist === "true" && (
+                <button
+                  type="button"
+                  onClick={() => toggleWishlist(product.id)}
+                  className={`p-3.5 rounded-full border transition-all duration-200 cursor-pointer ${
+                    isInWishlist(product.id)
+                      ? "bg-rose-500/15 border-rose-500 text-rose-500 font-semibold shadow-xs"
+                      : "border-[#C9A66B]/40 bg-[#C9A66B]/10 text-[#8C6226] dark:text-[#D4B483] hover:bg-[#C9A66B]/20"
+                  }`}
+                  title={isInWishlist(product.id) ? "In Wishlist" : "Add to Wishlist"}
+                >
+                  <Heart className={`w-4 h-4 ${isInWishlist(product.id) ? "fill-rose-500 text-rose-500" : ""}`} />
+                </button>
+              )}
+
+              {siteSettings.showCompare === "true" && (
+                <button
+                  onClick={() => addToCompare(product)}
+                  className={`p-3.5 rounded-full border transition-all duration-200 cursor-pointer ${
+                    isCompared
+                      ? "bg-[#C9A66B] dark:bg-[#D4B483] border-[#C9A66B] text-[#FFFCFA] font-semibold shadow-xs"
+                      : "border-[#C9A66B]/40 bg-[#C9A66B]/10 text-[#8C6226] dark:text-[#D4B483] hover:bg-[#C9A66B]/20"
+                  }`}
+                  title="Compare"
+                >
+                  <Layers className="w-4 h-4" />
+                </button>
+              )}
             </div>
 
             {/* Accordion for Offers / EMI / Exchange / Warranty */}
@@ -512,6 +550,19 @@ export default function MobileDetailPage({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          {siteSettings.showWishlist === "true" && (
+            <button
+              onClick={() => toggleWishlist(product.id)}
+              className={`p-2.5 rounded-full border transition-all duration-200 cursor-pointer ${
+                isInWishlist(product.id)
+                  ? "bg-rose-500/15 border-rose-500 text-rose-500"
+                  : "border-border bg-tile text-muted hover:text-rose-500"
+              }`}
+              title="Wishlist"
+            >
+              <Heart className={`w-4 h-4 ${isInWishlist(product.id) ? "fill-rose-500 text-rose-500" : ""}`} />
+            </button>
+          )}
           <button
             onClick={handleAddToCart}
             disabled={isOutOfStock}

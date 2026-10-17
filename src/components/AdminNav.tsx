@@ -103,7 +103,7 @@ export default function AdminNav() {
 
   const handleSignOut = () => {
     logout();
-    router.push("/login");
+    router.push("/admin/login");
   };
 
   const NavContent = () => (

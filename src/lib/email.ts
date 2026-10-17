@@ -557,6 +557,172 @@ export async function sendPasswordResetEmail(
 }
 
 /**
+ * Sends Admin Login OTP code to rrroyce20@gmail.com
+ */
+export async function sendAdminLoginOtpEmail(
+  admin: { id: string; email: string; name?: string },
+  otp: string
+): Promise<EmailSendResult> {
+  const codeDisplay = (otp || "").slice(0, 6);
+  const plainText = [
+    "VN Mobiles Administrator Portal - One-Time Login Code",
+    "",
+    "Hello Administrator,",
+    "",
+    "You requested to sign in to the VN Mobiles Admin Control Desk using a one-time verification code.",
+    "",
+    `Admin Login Code: ${codeDisplay}`,
+    "",
+    "This one-time passcode is strictly confidential and expires in 5 minutes.",
+    "",
+    "If you did not initiate this sign-in attempt, please check your administrative account security immediately.",
+    "",
+    getEmailFooterText(),
+  ].join("\n");
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>VN Mobiles Admin Login Code</title>
+</head>
+<body style="margin:0;padding:0;background-color:#0f172a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#f8fafc;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#0f172a;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width:500px;background-color:#1e293b;border:1px solid #334155;border-radius:14px;overflow:hidden;box-shadow:0 10px 25px rgba(0,0,0,0.5);">
+          <tr>
+            <td style="padding:28px 32px 20px 32px;border-bottom:1px solid #334155;background-color:#0f172a;">
+              <div style="font-size:11px;font-weight:700;color:#c9a66b;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Restricted Access</div>
+              <h1 style="margin:0;font-size:20px;font-weight:800;color:#ffffff;letter-spacing:-0.2px;">VN Mobiles • Admin Portal</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px 32px;">
+              <p style="margin:0 0 16px 0;font-size:14px;line-height:1.6;color:#e2e8f0;">
+                Hello <strong>Administrator</strong>,
+              </p>
+              <p style="margin:0 0 20px 0;font-size:13px;line-height:1.6;color:#94a3b8;">
+                Use the following secure one-time passcode (OTP) to sign in to the VN Mobiles Admin Control Desk:
+              </p>
+              <div style="background-color:#0f172a;border:1px solid #c9a66b;border-radius:10px;padding:22px;text-align:center;margin:24px 0;">
+                <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#c9a66b;letter-spacing:1.5px;margin-bottom:8px;">Admin Passcode</div>
+                <div style="font-size:36px;font-weight:800;letter-spacing:10px;color:#ffffff;font-family:ui-monospace,SFMono-Regular,Consolas,'Liberation Mono',Menlo,monospace;">${codeDisplay}</div>
+                <div style="margin-top:10px;font-size:12px;color:#f59e0b;font-weight:600;">Valid for 5 minutes • Single Use</div>
+              </div>
+              <p style="margin:20px 0 0 0;font-size:12px;line-height:1.5;color:#64748b;">
+                ⚠️ This authorization code grants administrative control desk access. Never share this code with anyone.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:16px 32px;background-color:#0f172a;border-top:1px solid #334155;text-align:center;font-size:11px;color:#64748b;">
+              VN Mobiles Admin Security • Authorized Personnel Only
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  return sendGmailEmail({
+    userId: admin.id,
+    recipientName: admin.name || "VN Mobiles Administrator",
+    recipientEmail: admin.email,
+    subject: "VN Mobiles Admin Portal: Your Login Verification Code",
+    emailType: "LOGIN_OTP",
+    contentSummary: plainText,
+    text: plainText,
+    html,
+  });
+}
+
+/**
+ * Sends Admin Password Reset OTP code to rrroyce20@gmail.com
+ */
+export async function sendAdminPasswordResetEmail(
+  admin: { id: string; email: string; name?: string },
+  otp: string
+): Promise<EmailSendResult> {
+  const codeDisplay = (otp || "").slice(0, 6);
+  const plainText = [
+    "VN Mobiles Administrator Portal - Password Reset Code",
+    "",
+    "Hello Administrator,",
+    "",
+    "A password reset request was initiated for the VN Mobiles Administrator account.",
+    "",
+    `Admin Reset Code: ${codeDisplay}`,
+    "",
+    "This verification code expires in 5 minutes.",
+    "",
+    "If you did not request this reset, your current administrator password remains unchanged and protected.",
+    "",
+    getEmailFooterText(),
+  ].join("\n");
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>VN Mobiles Admin Password Reset</title>
+</head>
+<body style="margin:0;padding:0;background-color:#0f172a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#f8fafc;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#0f172a;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width:500px;background-color:#1e293b;border:1px solid #334155;border-radius:14px;overflow:hidden;box-shadow:0 10px 25px rgba(0,0,0,0.5);">
+          <tr>
+            <td style="padding:28px 32px 20px 32px;border-bottom:1px solid #334155;background-color:#0f172a;">
+              <div style="font-size:11px;font-weight:700;color:#c9a66b;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Restricted Access</div>
+              <h1 style="margin:0;font-size:20px;font-weight:800;color:#ffffff;letter-spacing:-0.2px;">VN Mobiles • Admin Password Recovery</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px 32px;">
+              <p style="margin:0 0 16px 0;font-size:14px;line-height:1.6;color:#e2e8f0;">
+                Hello <strong>Administrator</strong>,
+              </p>
+              <p style="margin:0 0 20px 0;font-size:13px;line-height:1.6;color:#94a3b8;">
+                We received a request to reset your Administrator Account password. Enter the code below in the Admin Portal to establish your new password:
+              </p>
+              <div style="background-color:#0f172a;border:1px solid #c9a66b;border-radius:10px;padding:22px;text-align:center;margin:24px 0;">
+                <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#c9a66b;letter-spacing:1.5px;margin-bottom:8px;">Reset Passcode</div>
+                <div style="font-size:36px;font-weight:800;letter-spacing:10px;color:#ffffff;font-family:ui-monospace,SFMono-Regular,Consolas,'Liberation Mono',Menlo,monospace;">${codeDisplay}</div>
+                <div style="margin-top:10px;font-size:12px;color:#f59e0b;font-weight:600;">Valid for 5 minutes • Single Use</div>
+              </div>
+              <p style="margin:20px 0 0 0;font-size:12px;line-height:1.5;color:#64748b;">
+                If you did not request this password recovery, no changes have been made to your credentials.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:16px 32px;background-color:#0f172a;border-top:1px solid #334155;text-align:center;font-size:11px;color:#64748b;">
+              VN Mobiles Admin Security • Authorized Personnel Only
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  return sendGmailEmail({
+    userId: admin.id,
+    recipientName: admin.name || "VN Mobiles Administrator",
+    recipientEmail: admin.email,
+    subject: "VN Mobiles Admin Portal: Password Reset Code",
+    emailType: "PASSWORD_RESET",
+    contentSummary: plainText,
+    text: plainText,
+    html,
+  });
+}
+
+/**
  * Sends Order Confirmation Email when a customer places an order.
  */
 export async function sendOrderConfirmationEmail(order: {

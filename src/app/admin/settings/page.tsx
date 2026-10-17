@@ -16,8 +16,10 @@ import {
   MessageSquare,
   ShieldCheck,
 } from "lucide-react";
+import { useApp } from "@/context/AppContext";
 
 export default function AdminSettingsPage() {
+  const { refreshSiteSettings } = useApp();
   const [settings, setSettings] = useState({
     showWishlist: "true",
     showCompare: "true",
@@ -81,6 +83,13 @@ export default function AdminSettingsPage() {
         setSuccess("Storefront visibility controls updated and applied live!");
         if (data.settings) {
           setSettings(data.settings);
+          try {
+            localStorage.setItem("novamobile_site_settings", JSON.stringify(data.settings));
+          } catch {}
+        }
+        await refreshSiteSettings();
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("vn_settings_updated"));
         }
         setTimeout(() => setSuccess(null), 4000);
       } else {

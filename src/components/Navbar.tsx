@@ -86,27 +86,11 @@ export default function Navbar() {
     cartCount, 
     setIsCartOpen, 
     compareList,
-    wishlistCount 
+    wishlistCount,
+    siteSettings,
   } = useApp();
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [siteSettings, setSiteSettings] = useState<Record<string, string>>({
-    showWishlist: "true",
-    showCompare: "true",
-    showAnnouncement: "true",
-    announcementText: "⚡ Free Express Delivery across India | 1-Year Official Brand Warranty",
-  });
-
-  useEffect(() => {
-    fetch("/api/settings")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && data.settings) {
-          setSiteSettings(data.settings);
-        }
-      })
-      .catch(() => {});
-  }, []);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();

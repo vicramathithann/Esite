@@ -10,7 +10,9 @@ import {
   Layers, 
   AlertCircle,
   X,
-  ShoppingBag
+  ShoppingBag,
+  Heart,
+  Star
 } from "lucide-react";
 import { calculateEMI } from "@/lib/formatters";
 
@@ -19,7 +21,14 @@ interface MobileCardProps {
 }
 
 export default function MobileCard({ product }: MobileCardProps) {
-  const { addToCart, addToCompare, compareList } = useApp();
+  const { 
+    addToCart, 
+    addToCompare, 
+    compareList, 
+    toggleWishlist, 
+    isInWishlist, 
+    siteSettings 
+  } = useApp();
 
   const safeStorageList = Array.isArray(product.storageOptions) && product.storageOptions.length > 0
     ? product.storageOptions
@@ -82,16 +91,36 @@ export default function MobileCard({ product }: MobileCardProps) {
   return (
     <div className="bg-card border border-border rounded-[20px] p-4 sm:p-5 flex flex-col justify-between shadow-xs hover:-translate-y-1 hover:shadow-md transition-all duration-200 group relative">
       <div>
-        {/* Top Minimalist Tag */}
+        {/* Top Minimalist Tag & Wishlist Button */}
         <div className="flex items-center justify-between w-full mb-2.5">
           <span className="text-[11px] font-semibold tracking-tight text-accent uppercase">
             {product.brand}
           </span>
-          {product.isFeatured && (
-            <span className="text-[10px] font-medium text-muted bg-tile px-2 py-0.5 rounded-full border border-border/40">
-              Featured
-            </span>
-          )}
+          <div className="flex items-center gap-1.5">
+            {product.isFeatured && (
+              <span className="text-[10px] font-medium text-muted bg-tile px-2 py-0.5 rounded-full border border-border/40">
+                Featured
+              </span>
+            )}
+            {siteSettings.showWishlist === "true" && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  toggleWishlist(product.id);
+                }}
+                className={`p-1.5 rounded-full transition-all duration-200 cursor-pointer ${
+                  isInWishlist(product.id)
+                    ? "text-rose-500 bg-rose-500/10 hover:bg-rose-500/20"
+                    : "text-muted hover:text-rose-500 hover:bg-tile"
+                }`}
+                title={isInWishlist(product.id) ? "Remove from wishlist" : "Add to wishlist"}
+              >
+                <Heart className={`w-3.5 h-3.5 ${isInWishlist(product.id) ? "fill-rose-500 text-rose-500" : ""}`} />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Product Image Frame: in dark mode, tile is slightly lighter than card */}
@@ -135,6 +164,17 @@ export default function MobileCard({ product }: MobileCardProps) {
           >
             {product.name}
           </Link>
+
+          {/* Customer Reviews & Rating Badge (Controllable by Admin) */}
+          {siteSettings.showReviews === "true" && (
+            <div className="flex items-center gap-1.5 text-[11px] text-muted">
+              <span className="inline-flex items-center gap-0.5 font-bold text-amber-500">
+                <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
+                {product.rating || 4.8}
+              </span>
+              <span>({product.reviewCount || 120} reviews)</span>
+            </div>
+          )}
 
           {/* Price */}
           <div className="pt-0.5 flex items-baseline gap-2">
@@ -210,24 +250,28 @@ export default function MobileCard({ product }: MobileCardProps) {
         </div>
 
         {/* Secondary Row: Buy Now & Compare */}
-        <div className="grid grid-cols-2 gap-1.5 pt-0.5">
+        <div className={siteSettings.showCompare === "true" ? "grid grid-cols-2 gap-1.5 pt-0.5" : "pt-0.5"}>
           <Link
             href={`/mobile/${product.id}`}
-            className="py-1.5 px-2 text-[11px] rounded-full text-center font-semibold bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] shadow-xs transition-all duration-200 block"
+            className={`py-1.5 px-2 text-[11px] rounded-full text-center font-semibold bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] shadow-xs transition-all duration-200 block ${
+              siteSettings.showCompare === "true" ? "" : "w-full"
+            }`}
           >
             Buy Now
           </Link>
 
-          <button
-            onClick={handleToggleCompare}
-            className={`py-1.5 px-2 text-[11px] rounded-full text-center font-medium transition-all duration-200 cursor-pointer border ${
-              isCompared
-                ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] border-[#C9A66B] dark:border-[#D4B483] font-semibold shadow-xs"
-                : "bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 text-[#8C6226] dark:text-[#E2C799] border-[#C9A66B]/40"
-            }`}
-          >
-            {isCompared ? "In Compare ✓" : "Compare"}
-          </button>
+          {siteSettings.showCompare === "true" && (
+            <button
+              onClick={handleToggleCompare}
+              className={`py-1.5 px-2 text-[11px] rounded-full text-center font-medium transition-all duration-200 cursor-pointer border ${
+                isCompared
+                  ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] border-[#C9A66B] dark:border-[#D4B483] font-semibold shadow-xs"
+                  : "bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 text-[#8C6226] dark:text-[#E2C799] border-[#C9A66B]/40"
+              }`}
+            >
+              {isCompared ? "In Compare ✓" : "Compare"}
+            </button>
+          )}
         </div>
       </div>
 

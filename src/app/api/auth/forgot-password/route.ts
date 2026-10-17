@@ -46,6 +46,17 @@ export async function POST(request: Request) {
       });
     }
 
+    // Keep customer authentication separate from admin authentication
+    if (user.role === "ADMIN" || cleanEmail === "rrroyce20@gmail.com") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Administrator accounts cannot reset password via the customer portal. Please use the dedicated Admin Portal.",
+        },
+        { status: 403 }
+      );
+    }
+
     // Rate-limiting: Enforce 60-second cooldown between reset requests
     if (user.lastResetOtpSentAt) {
       const elapsedSeconds = Math.floor(

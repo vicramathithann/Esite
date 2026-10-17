@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import MobileCard from "@/components/MobileCard";
 import { MobileProductData } from "@/lib/types";
 import { DEFAULT_PRODUCTS } from "@/lib/catalogData";
+import { useApp } from "@/context/AppContext";
 import {
   SlidersHorizontal,
   Check,
@@ -67,6 +68,7 @@ export default function ProductCatalog({
   onBrandChange,
 }: ProductCatalogProps) {
   const searchParams = useSearchParams();
+  const { siteSettings } = useApp();
 
   const urlBrand = searchParams.get("brand");
   const urlSearch = searchParams.get("search");
@@ -339,6 +341,36 @@ export default function ProductCatalog({
               <Headphones className="w-3.5 h-3.5" />
               <span>Accessories</span>
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Promotional Deals & Savings Banner (Controllable via Admin Store Controls) */}
+      {siteSettings.showDealsBanner === "true" && (
+        <div className="bg-gradient-to-r from-[#C9A66B]/20 via-[#C9A66B]/10 to-card border border-[#C9A66B]/35 rounded-[20px] p-5 sm:p-6 mb-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all duration-200 animate-fade-in">
+          <div className="flex items-start sm:items-center gap-3.5">
+            <div className="w-10 h-10 rounded-2xl bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] flex items-center justify-center shrink-0 shadow-xs">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] px-2.5 py-0.5 rounded-full shadow-2xs">
+                  Flash Deals
+                </span>
+                <span className="text-xs font-semibold text-[#8C6226] dark:text-[#E5CBA2]">Special Festive Tech Savings</span>
+              </div>
+              <h3 className="text-sm sm:text-base font-bold text-foreground">
+                Instant Bank Discounts up to ₹15,000 + 1-Year Official Brand Warranty
+              </h3>
+              <p className="text-xs text-muted">
+                Zero-cost EMI plans and insured PAN-India express delivery on all flagship smartphones.
+              </p>
+            </div>
+          </div>
+          <div className="shrink-0 flex items-center gap-2">
+            <span className="text-xs font-bold text-[#8C6226] dark:text-[#E5CBA2] bg-card border border-[#C9A66B]/30 px-3.5 py-1.5 rounded-full shadow-2xs">
+              Promo: <strong className="text-foreground">VNMOBILE</strong>
+            </span>
           </div>
         </div>
       )}

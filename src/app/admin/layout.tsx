@@ -57,7 +57,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
           <div className="pt-2 space-y-2">
             <Link
-              href="/login?redirect=/admin"
+              href="/admin/login"
               className="w-full py-2.5 px-4 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-2"
             >
               <LogIn className="w-4 h-4" />
@@ -109,7 +109,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <button
               onClick={() => {
                 logout();
-                router.push("/login?redirect=/admin");
+                router.push("/admin/login");
               }}
               className="w-full py-2.5 px-4 bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 text-[#8C6226] dark:text-[#E5CBA2] border border-[#C9A66B]/30 font-semibold text-xs rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2"
             >

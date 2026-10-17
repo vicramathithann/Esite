@@ -12,6 +12,9 @@ const DEFAULT_SETTINGS: Record<string, string> = {
   announcementText: "⚡ Free Express Delivery across India | 1-Year Official Brand Warranty",
 };
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET(request: Request) {
   try {
     const auth = await requireAdmin(request);

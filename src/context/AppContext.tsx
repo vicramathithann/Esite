@@ -12,11 +12,24 @@ export interface UserProfile {
   emailVerified?: boolean;
 }
 
+export const DEFAULT_SITE_SETTINGS: Record<string, string> = {
+  showWishlist: "true",
+  showCompare: "true",
+  showDealsBanner: "true",
+  showReviews: "true",
+  showDealsCountdown: "true",
+  showAnnouncement: "true",
+  announcementText: "⚡ Free Express Delivery across India | 1-Year Official Brand Warranty",
+};
+
 interface AppContextType {
   currentUser: UserProfile | null;
   login: (user: UserProfile) => void;
   logout: () => void;
   refreshUser: () => Promise<void>;
+
+  siteSettings: Record<string, string>;
+  refreshSiteSettings: () => Promise<void>;
 
   cart: CartItem[];
   addToCart: (item: CartItem) => void;
@@ -47,8 +60,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [compareList, setCompareList] = useState<MobileProductData[]>([]);
+  const [siteSettings, setSiteSettings] = useState<Record<string, string>>(DEFAULT_SITE_SETTINGS);
 
-  // Load user, cart, wishlist, and compare list from localStorage
+  // Load user, cart, wishlist, compare list, and cached site settings from localStorage
   useEffect(() => {
     try {
       const savedUser = localStorage.getItem("novamobile_user");
@@ -68,10 +82,41 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       const savedCompare = localStorage.getItem("novamobile_compare");
       if (savedCompare) setCompareList(JSON.parse(savedCompare));
+
+      const savedSettings = localStorage.getItem("novamobile_site_settings");
+      if (savedSettings) setSiteSettings(JSON.parse(savedSettings));
     } catch (e) {
       console.error("Failed to load local storage state", e);
     }
   }, []);
+
+  // Refresh storefront visibility settings from backend
+  const refreshSiteSettings = useCallback(async () => {
+    try {
+      const res = await fetch("/api/settings", { cache: "no-store" });
+      const data = await res.json();
+      if (data.success && data.settings) {
+        setSiteSettings(data.settings);
+        try {
+          localStorage.setItem("novamobile_site_settings", JSON.stringify(data.settings));
+        } catch {}
+      }
+    } catch (e) {
+      console.error("Failed to refresh site settings:", e);
+    }
+  }, []);
+
+  // Fetch settings on mount and listen to cross-tab / local update events
+  useEffect(() => {
+    refreshSiteSettings();
+    const handleSync = () => refreshSiteSettings();
+    window.addEventListener("vn_settings_updated", handleSync);
+    window.addEventListener("storage", handleSync);
+    return () => {
+      window.removeEventListener("vn_settings_updated", handleSync);
+      window.removeEventListener("storage", handleSync);
+    };
+  }, [refreshSiteSettings]);
 
   // Save cart changes
   useEffect(() => {
@@ -210,6 +255,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         login,
         logout,
         refreshUser,
+        siteSettings,
+        refreshSiteSettings,
         cart,
         addToCart,
         removeFromCart,
