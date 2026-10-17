@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
+import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { sendAdminPasswordResetEmail } from "@/lib/email";
-import { generateSecureOtp, hashOtp, ADMIN_EMAIL, ensureAdminUser } from "@/lib/auth";
+import { ADMIN_EMAIL, ensureAdminUser } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/rateLimit";
 import { logSecurityEvent } from "@/lib/securityLogger";
 
@@ -38,7 +39,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           success: false,
-          error: "Admin password reset is strictly restricted to the authorized administrator account.",
+          error: "Admin password recovery is strictly restricted to the authorized administrator account.",
         },
         { status: 403 }
       );
@@ -67,7 +68,7 @@ export async function POST(request: Request) {
         return NextResponse.json(
           {
             success: false,
-            error: `Please wait ${remainingSeconds} second${remainingSeconds === 1 ? "" : "s"} before requesting another reset code.`,
+            error: `Please wait ${remainingSeconds} second${remainingSeconds === 1 ? "" : "s"} before requesting another reset link.`,
             cooldown: remainingSeconds,
           },
           { status: 429 }
@@ -75,25 +76,33 @@ export async function POST(request: Request) {
       }
     }
 
-    // Generate fresh 6-digit OTP
-    const otp = generateSecureOtp();
-    const resetOtpHash = hashOtp(otp);
-    const resetOtpExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    // Generate cryptographically secure random token (64 hex characters)
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const tokenExpiresMinutes = 60; // 60 minutes (1 hour)
+    const resetTokenExpires = new Date(Date.now() + tokenExpiresMinutes * 60 * 1000);
 
     await prisma.user.update({
       where: { id: admin.id },
       data: {
-        resetOtpHash,
-        resetOtpExpires,
+        resetToken,
+        resetTokenExpires,
+        resetOtpExpires: null,
         resetOtpAttempts: 0,
         lastResetOtpSentAt: new Date(),
       },
     });
 
-    // Send email to rrroyce20@gmail.com
+    const host = request.headers.get("x-forwarded-host") || request.headers.get("host");
+    const protocol = request.headers.get("x-forwarded-proto") || (host?.includes("localhost") ? "http" : "https");
+    const detectedOrigin = host ? `${protocol}://${host}` : null;
+    const appUrl = (detectedOrigin || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
+    const resetLink = `${appUrl}/admin/reset-password?token=${encodeURIComponent(resetToken)}&email=${encodeURIComponent(cleanEmail)}`;
+
+    // Dispatch secure email with reset link
     const emailResult = await sendAdminPasswordResetEmail(
       { id: admin.id, email: admin.email, name: admin.name },
-      otp
+      resetLink,
+      tokenExpiresMinutes
     );
 
     if (!emailResult.success) {
@@ -108,15 +117,14 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: `A 6-digit password recovery code has been dispatched to ${cleanEmail}.`,
+      message: `A secure password reset link has been dispatched to ${cleanEmail}. Please check your inbox.`,
       cooldown: 60,
     });
   } catch (err) {
     console.error("Admin forgot password send error:", err);
     return NextResponse.json(
-      { success: false, error: "Internal server error dispatching admin password reset code." },
+      { success: false, error: "Internal server error dispatching admin password reset link." },
       { status: 500 }
     );
   }
 }
-

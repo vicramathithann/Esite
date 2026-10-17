@@ -13,8 +13,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { currentUser, logout } = useApp();
   const [isVerifying, setIsVerifying] = useState(true);
 
-  // If visiting the redirect stub /admin/login, don't gate it here
-  const isLoginPage = pathname === "/admin/login";
+  // If visiting public admin authentication pages, don't gate them here
+  const isAuthPage = pathname === "/admin/login" || pathname === "/admin/reset-password";
 
   useEffect(() => {
     // Short verification delay to let AppContext restore session from cookies
@@ -25,7 +25,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return () => clearTimeout(timer);
   }, []);
 
-  if (isLoginPage) {
+  if (isAuthPage) {
     return <>{children}</>;
   }
 
@@ -107,9 +107,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </Link>
 
             <button
-              onClick={() => {
-                logout();
-                router.push("/admin/login");
+              onClick={async () => {
+                await logout();
+                window.location.href = "/admin/login";
               }}
               className="w-full py-2.5 px-4 bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 text-[#8C6226] dark:text-[#E5CBA2] border border-[#C9A66B]/30 font-semibold text-xs rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2"
             >

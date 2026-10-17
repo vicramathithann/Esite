@@ -25,7 +25,7 @@ export const DEFAULT_SITE_SETTINGS: Record<string, string> = {
 interface AppContextType {
   currentUser: UserProfile | null;
   login: (user: UserProfile) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 
   siteSettings: Record<string, string>;
@@ -241,11 +241,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {}
   };
 
-  const logout = () => {
+  const logout = async () => {
     setCurrentUser(null);
     try {
       localStorage.removeItem("novamobile_user");
     } catch (e) {}
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch (e) {
+      console.error("Failed to clear server session:", e);
+    }
   };
 
   return (

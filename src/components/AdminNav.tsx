@@ -101,9 +101,14 @@ export default function AdminNav() {
     return pathname === href;
   };
 
-  const handleSignOut = () => {
-    logout();
-    router.push("/admin/login");
+  const handleSignOut = async () => {
+    try {
+      await logout();
+    } catch (e) {
+      console.error("Sign out error:", e);
+    }
+    // Hard redirect to public storefront homepage
+    window.location.href = "/";
   };
 
   const NavContent = () => (

@@ -45,12 +45,8 @@ function AdminLoginContent() {
   const [loginOtpCode, setLoginOtpCode] = useState("");
   const [loginOtpCooldown, setLoginOtpCooldown] = useState(0);
 
-  // 3. Forgot Password State
-  const [forgotStep, setForgotStep] = useState<"request" | "verify">("request");
-  const [forgotOtpCode, setForgotOtpCode] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showNewPassword, setShowNewPassword] = useState(false);
+  // 3. Forgot Password State (Reset Link)
+  const [forgotSent, setForgotSent] = useState(false);
   const [forgotCooldown, setForgotCooldown] = useState(0);
 
   // Cooldown timer ticker
@@ -182,9 +178,9 @@ function AdminLoginContent() {
   };
 
   // -------------------------------------------------------------
-  // TAB 3: Admin Forgot Password
+  // TAB 3: Admin Forgot Password (Reset Link)
   // -------------------------------------------------------------
-  const handleSendForgotOtp = async () => {
+  const handleSendForgotLink = async () => {
     try {
       setLoading(true);
       setError(null);
@@ -198,65 +194,18 @@ function AdminLoginContent() {
 
       const data = await res.json();
       if (data.success) {
-        setForgotStep("verify");
+        setForgotSent(true);
         setForgotCooldown(data.cooldown || 60);
-        setSuccess(data.message || `Password recovery code dispatched to ${ADMIN_EMAIL}`);
+        setSuccess(
+          data.message ||
+            `A secure password reset link has been dispatched to ${ADMIN_EMAIL}.`
+        );
       } else {
-        setError(data.error || "Failed to send password recovery code.");
+        setError(data.error || "Failed to dispatch password reset link.");
         if (data.cooldown) setForgotCooldown(data.cooldown);
       }
     } catch {
-      setError("Network error sending recovery code.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyForgotOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!forgotOtpCode.trim()) {
-      setError("Please enter the 6-digit recovery code from your email.");
-      return;
-    }
-    if (!newPassword || newPassword.length < 8) {
-      setError("New password must be at least 8 characters long.");
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setError("New password and confirm password do not match.");
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-      setSuccess(null);
-
-      const res = await fetch("/api/admin/auth/forgot-password/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: ADMIN_EMAIL,
-          otp: forgotOtpCode.trim(),
-          newPassword,
-        }),
-      });
-
-      const data = await res.json();
-      if (data.success) {
-        setSuccess("Admin password reset successfully! You can now sign in with your new password.");
-        setPassword(newPassword);
-        setForgotOtpCode("");
-        setNewPassword("");
-        setConfirmPassword("");
-        setTimeout(() => {
-          switchTab("password");
-        }, 1800);
-      } else {
-        setError(data.error || "Failed to reset administrator password.");
-      }
-    } catch {
-      setError("Network error resetting password.");
+      setError("Network error sending reset link.");
     } finally {
       setLoading(false);
     }
@@ -534,135 +483,51 @@ function AdminLoginContent() {
           {/* ------------------------------------------------------------- */}
           {activeTab === "forgot" && (
             <div className="space-y-4">
+
               <div className="p-3 bg-[#0b0f19] rounded-xl border border-slate-800 text-xs text-slate-400 space-y-1">
                 <div className="font-semibold text-white flex items-center gap-1.5">
                   <KeyRound className="w-3.5 h-3.5 text-[#C9A66B]" />
                   <span>Admin Password Recovery</span>
                 </div>
                 <p className="text-[11px] leading-relaxed">
-                  Reset your administrator password by verifying a 6-digit one-time code sent to: <strong className="text-slate-200">{ADMIN_EMAIL}</strong>.
+                  Send an encrypted, single-use password recovery link to: <strong className="text-slate-200">{ADMIN_EMAIL}</strong>.
                 </p>
               </div>
 
-              {forgotStep === "request" ? (
-                <div className="space-y-3 pt-1">
-                  <button
-                    type="button"
-                    onClick={handleSendForgotOtp}
-                    disabled={loading || forgotCooldown > 0}
-                    className="w-full py-2.5 px-4 bg-[#C9A66B] hover:bg-[#B8914A] text-[#0b0f19] font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                  >
-                    {loading ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 animate-spin" />
-                        <span>Dispatching Reset Code...</span>
-                      </>
-                    ) : forgotCooldown > 0 ? (
-                      <span>Resend available in {forgotCooldown}s</span>
-                    ) : (
-                      <>
-                        <KeyRound className="w-4 h-4" />
-                        <span>Send Recovery Code to {ADMIN_EMAIL}</span>
-                      </>
-                    )}
-                  </button>
+              {forgotSent && (
+                <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs text-emerald-400 space-y-1.5">
+                  <div className="font-semibold flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Reset Link Dispatched</span>
+                  </div>
+                  <p className="text-[11px] text-slate-300 leading-relaxed">
+                    A secure password reset link has been dispatched to <strong>{ADMIN_EMAIL}</strong> (valid for 60 minutes). Click the link in your email to choose your new administrator password.
+                  </p>
                 </div>
-              ) : (
-                <form onSubmit={handleVerifyForgotOtp} className="space-y-3.5 pt-1">
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-300 block">
-                      6-Digit Recovery Code
-                    </label>
-                    <input
-                      type="text"
-                      maxLength={6}
-                      value={forgotOtpCode}
-                      onChange={(e) => setForgotOtpCode(e.target.value.replace(/\D/g, ""))}
-                      placeholder="• • • • • •"
-                      autoFocus
-                      required
-                      className="w-full py-2.5 px-4 text-center tracking-[6px] font-mono font-bold text-base bg-[#0b0f19] border border-slate-800 focus:border-[#C9A66B] rounded-xl text-white placeholder:text-slate-700 focus:outline-none transition-colors"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-300 block">
-                      New Administrator Password
-                    </label>
-                    <div className="relative">
-                      <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                      <input
-                        type={showNewPassword ? "text" : "password"}
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="At least 8 characters..."
-                        required
-                        className="w-full pl-10 pr-10 py-2.5 bg-[#0b0f19] border border-slate-800 focus:border-[#C9A66B] rounded-xl text-xs text-white placeholder:text-slate-600 focus:outline-none transition-colors"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowNewPassword(!showNewPassword)}
-                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 cursor-pointer"
-                      >
-                        {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-300 block">
-                      Confirm New Password
-                    </label>
-                    <div className="relative">
-                      <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                      <input
-                        type={showNewPassword ? "text" : "password"}
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        placeholder="Re-enter new password..."
-                        required
-                        className="w-full pl-10 pr-4 py-2.5 bg-[#0b0f19] border border-slate-800 focus:border-[#C9A66B] rounded-xl text-xs text-white placeholder:text-slate-600 focus:outline-none transition-colors"
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full py-2.5 px-4 bg-[#C9A66B] hover:bg-[#B8914A] text-[#0b0f19] font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-1"
-                  >
-                    {loading ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 animate-spin" />
-                        <span>Updating Password...</span>
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle2 className="w-4 h-4" />
-                        <span>Update Admin Password</span>
-                      </>
-                    )}
-                  </button>
-
-                  <div className="flex items-center justify-between text-xs pt-1 text-slate-400">
-                    <button
-                      type="button"
-                      onClick={handleSendForgotOtp}
-                      disabled={forgotCooldown > 0 || loading}
-                      className="hover:text-white cursor-pointer disabled:opacity-50"
-                    >
-                      {forgotCooldown > 0 ? `Resend code (${forgotCooldown}s)` : "Resend code"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setForgotStep("request")}
-                      className="hover:text-[#C9A66B] cursor-pointer"
-                    >
-                      Start over
-                    </button>
-                  </div>
-                </form>
               )}
+
+              <div className="space-y-3 pt-1">
+                <button
+                  type="button"
+                  onClick={handleSendForgotLink}
+                  disabled={loading || forgotCooldown > 0}
+                  className="w-full py-2.5 px-4 bg-[#C9A66B] hover:bg-[#B8914A] text-[#0b0f19] font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {loading ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Dispatching Reset Link...</span>
+                    </>
+                  ) : forgotCooldown > 0 ? (
+                    <span>Resend available in {forgotCooldown}s</span>
+                  ) : (
+                    <>
+                      <KeyRound className="w-4 h-4" />
+                      <span>{forgotSent ? "Resend Password Reset Link" : `Send Reset Link to ${ADMIN_EMAIL}`}</span>
+                    </>
+                  )}
+                </button>
+              </div>
 
               <div className="pt-2 text-center border-t border-slate-800/60">
                 <button

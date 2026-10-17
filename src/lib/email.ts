@@ -640,25 +640,26 @@ export async function sendAdminLoginOtpEmail(
 }
 
 /**
- * Sends Admin Password Reset OTP code to rrroyce20@gmail.com
+ * Sends Admin Password Reset Link to rrroyce20@gmail.com
  */
 export async function sendAdminPasswordResetEmail(
   admin: { id: string; email: string; name?: string },
-  otp: string
+  resetLink: string,
+  expiresInMinutes: number = 60
 ): Promise<EmailSendResult> {
-  const codeDisplay = (otp || "").slice(0, 6);
   const plainText = [
-    "VN Mobiles Administrator Portal - Password Reset Code",
+    "VN Mobiles Administrator Portal - Password Reset Link",
     "",
     "Hello Administrator,",
     "",
-    "A password reset request was initiated for the VN Mobiles Administrator account.",
+    "A password reset request was initiated for your Administrator Account.",
     "",
-    `Admin Reset Code: ${codeDisplay}`,
+    `Direct Password Reset Link: ${resetLink}`,
     "",
-    "This verification code expires in 5 minutes.",
+    `• Valid for ${expiresInMinutes} minutes (1 hour)`,
+    "• Single Use Only",
     "",
-    "If you did not request this reset, your current administrator password remains unchanged and protected.",
+    "Security Advisory: This authorization link allows modifying administrator credentials. If you did not request this recovery, ignore this message—your current credentials remain secure.",
     "",
     getEmailFooterText(),
   ].join("\n");
@@ -667,40 +668,118 @@ export async function sendAdminPasswordResetEmail(
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>VN Mobiles Admin Password Reset</title>
 </head>
-<body style="margin:0;padding:0;background-color:#0f172a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#f8fafc;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#0f172a;padding:32px 16px;">
+<body style="margin:0;padding:0;background-color:#F8FAFC;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0F172A;-webkit-font-smoothing:antialiased;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#F8FAFC;padding:40px 16px;">
     <tr>
       <td align="center">
-        <table role="presentation" width="100%" style="max-width:500px;background-color:#1e293b;border:1px solid #334155;border-radius:14px;overflow:hidden;box-shadow:0 10px 25px rgba(0,0,0,0.5);">
+        <!-- Main Card -->
+        <table role="presentation" width="100%" style="max-width:540px;background-color:#FFFFFF;border:1px solid #E2E8F0;border-radius:16px;overflow:hidden;box-shadow:0 10px 25px -5px rgba(15,23,42,0.06),0 8px 10px -6px rgba(15,23,42,0.03);">
+          
+          <!-- Top Gold Accent Line -->
           <tr>
-            <td style="padding:28px 32px 20px 32px;border-bottom:1px solid #334155;background-color:#0f172a;">
-              <div style="font-size:11px;font-weight:700;color:#c9a66b;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Restricted Access</div>
-              <h1 style="margin:0;font-size:20px;font-weight:800;color:#ffffff;letter-spacing:-0.2px;">VN Mobiles • Admin Password Recovery</h1>
+            <td style="height:4px;background:linear-gradient(90deg, #C9A66B 0%, #E5CBA2 50%, #C9A66B 100%);"></td>
+          </tr>
+
+          <!-- Header Section -->
+          <tr>
+            <td style="padding:28px 36px 20px 36px;border-bottom:1px solid #F1F5F9;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td align="left" style="vertical-align:middle;">
+                    <table role="presentation" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td style="width:36px;height:36px;background-color:#0F172A;border:1px solid #C9A66B;border-radius:10px;text-align:center;vertical-align:middle;color:#C9A66B;font-weight:800;font-size:14px;letter-spacing:-0.5px;">
+                          VN
+                        </td>
+                        <td style="padding-left:12px;vertical-align:middle;">
+                          <div style="font-size:15px;font-weight:800;color:#0F172A;letter-spacing:-0.3px;line-height:1.2;">VN MOBILES</div>
+                          <div style="font-size:10px;font-weight:700;color:#8C6226;letter-spacing:1px;text-transform:uppercase;margin-top:2px;">PASSWORD RECOVERY</div>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td align="right" style="vertical-align:middle;">
+                    <span style="display:inline-block;background-color:#FEF3C7;border:1px solid #FDE68A;color:#92400E;font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;padding:5px 12px;border-radius:9999px;">
+                      🔒 RESTRICTED ACCESS
+                    </span>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
+
+          <!-- Content Body -->
           <tr>
-            <td style="padding:28px 32px;">
-              <p style="margin:0 0 16px 0;font-size:14px;line-height:1.6;color:#e2e8f0;">
-                Hello <strong>Administrator</strong>,
+            <td style="padding:32px 36px 24px 36px;">
+              <h2 style="margin:0 0 10px 0;font-size:18px;font-weight:700;color:#0F172A;letter-spacing:-0.2px;">
+                Hello Administrator,
+              </h2>
+              <p style="margin:0 0 24px 0;font-size:13px;line-height:1.6;color:#475569;">
+                A password reset request was initiated for your <strong>Administrator Account</strong> (<strong style="color:#0F172A;">${admin.email}</strong>). Click the secure button below to set your new administrator credentials:
               </p>
-              <p style="margin:0 0 20px 0;font-size:13px;line-height:1.6;color:#94a3b8;">
-                We received a request to reset your Administrator Account password. Enter the code below in the Admin Portal to establish your new password:
-              </p>
-              <div style="background-color:#0f172a;border:1px solid #c9a66b;border-radius:10px;padding:22px;text-align:center;margin:24px 0;">
-                <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#c9a66b;letter-spacing:1.5px;margin-bottom:8px;">Reset Passcode</div>
-                <div style="font-size:36px;font-weight:800;letter-spacing:10px;color:#ffffff;font-family:ui-monospace,SFMono-Regular,Consolas,'Liberation Mono',Menlo,monospace;">${codeDisplay}</div>
-                <div style="margin-top:10px;font-size:12px;color:#f59e0b;font-weight:600;">Valid for 5 minutes • Single Use</div>
+
+              <!-- Prominent Reset Action Box -->
+              <div style="background-color:#F8FAFC;border:1px solid #E2E8F0;border-radius:14px;padding:28px 24px;text-align:center;margin:0 0 24px 0;">
+                <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#64748B;letter-spacing:1.8px;margin-bottom:14px;">
+                  PASSWORD RECOVERY ACTION
+                </div>
+
+                <!-- Primary CTA Button -->
+                <table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 auto 16px auto;">
+                  <tr>
+                    <td align="center">
+                      <a href="${resetLink}" target="_blank" style="display:inline-block;background-color:#0F172A;color:#FFFFFF;border:1px solid #C9A66B;padding:14px 32px;font-size:14px;font-weight:700;border-radius:10px;text-decoration:none;box-shadow:0 4px 6px -1px rgba(15,23,42,0.15);letter-spacing:0.2px;">
+                        🔑 Set New Administrator Password &rarr;
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+
+                <!-- Status Badges -->
+                <div style="display:inline-block;margin-top:4px;">
+                  <span style="display:inline-block;background-color:#FEF3C7;border:1px solid #FDE68A;color:#92400E;font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px;margin-right:6px;">
+                    ⏱ Valid for ${expiresInMinutes} minutes
+                  </span>
+                  <span style="display:inline-block;background-color:#F1F5F9;border:1px solid #E2E8F0;color:#475569;font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px;">
+                    🔒 Single Use Only
+                  </span>
+                </div>
               </div>
-              <p style="margin:20px 0 0 0;font-size:12px;line-height:1.5;color:#64748b;">
-                If you did not request this password recovery, no changes have been made to your credentials.
-              </p>
+
+              <!-- Fallback Direct URL Box with Click-to-Copy -->
+              <div style="background-color:#FFFFFF;border:1px dashed #CBD5E1;border-radius:10px;padding:14px;margin:0 0 24px 0;">
+                <div style="font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;">
+                  Button not working? Copy and paste this link in your browser:
+                </div>
+                <div style="font-size:11px;font-family:ui-monospace,Menlo,Monaco,Consolas,monospace;color:#0F172A;word-break:break-all;background-color:#F8FAFC;padding:8px 10px;border-radius:6px;border:1px solid #E2E8F0;user-select:all;-webkit-user-select:all;">
+                  ${resetLink}
+                </div>
+              </div>
+
+              <!-- Security Warning Box -->
+              <div style="background-color:#FFFBEB;border:1px solid #FDE68A;border-left:4px solid #F59E0B;border-radius:8px;padding:14px 16px;margin:0 0 24px 0;">
+                <strong style="display:block;margin-bottom:4px;color:#92400E;font-size:12px;">
+                  ⚠️ Security Advisory
+                </strong>
+                <span style="display:block;color:#78350F;font-size:12px;line-height:1.5;">
+                  This recovery link grants administrative authorization. Never forward or share this link. If you did not initiate this request, your administrator password remains secure and unchanged.
+                </span>
+              </div>
             </td>
           </tr>
+
+          <!-- Footer -->
           <tr>
-            <td style="padding:16px 32px;background-color:#0f172a;border-top:1px solid #334155;text-align:center;font-size:11px;color:#64748b;">
-              VN Mobiles Admin Security • Authorized Personnel Only
+            <td style="padding:20px 36px;background-color:#F8FAFC;border-top:1px solid #E2E8F0;text-align:center;">
+              <p style="margin:0 0 4px 0;font-size:11px;color:#64748B;">
+                Sent strictly to authorized administrator (<strong>${admin.email}</strong>).
+              </p>
+              <p style="margin:0;font-size:10px;color:#94A3B8;">
+                VN Mobiles India &bull; Enterprise Security Infrastructure &bull; Automated Dispatch
+              </p>
             </td>
           </tr>
         </table>
@@ -714,7 +793,7 @@ export async function sendAdminPasswordResetEmail(
     userId: admin.id,
     recipientName: admin.name || "VN Mobiles Administrator",
     recipientEmail: admin.email,
-    subject: "VN Mobiles Admin Portal: Password Reset Code",
+    subject: "VN Mobiles Admin Portal: Password Reset Link",
     emailType: "PASSWORD_RESET",
     contentSummary: plainText,
     text: plainText,
