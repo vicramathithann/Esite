@@ -251,3 +251,18 @@ model SiteSetting {
   description String?
   updatedAt   DateTime @updatedAt
 }
+
+model Invitation {
+  id         String    @id @default(uuid())
+  email      String
+  token      String    @unique
+  role       String    @default("USER") // Strictly "USER"
+  status     String    @default("PENDING") // PENDING, ACCEPTED, EXPIRED, REVOKED
+  invitedBy  String    @default("rrroyce20@gmail.com")
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@map("invitations")
+}

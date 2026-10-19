@@ -19,6 +19,7 @@ import {
   Menu,
   X,
   ChevronRight,
+  UserPlus,
 } from "lucide-react";
 
 export default function AdminNav() {
@@ -53,6 +54,7 @@ export default function AdminNav() {
         { href: "/admin/products", label: "Products", icon: Smartphone },
         { href: "/admin/inventory", label: "Inventory", icon: Boxes },
         { href: "/admin/customers", label: "Users", icon: Users },
+        { href: "/admin/invite", label: "Invite", icon: UserPlus },
       ],
     },
     {
@@ -85,6 +87,9 @@ export default function AdminNav() {
     }
     if (href === "/admin/customers") {
       return pathname === "/admin/customers" || pathname === "/admin/users" || pathname.startsWith("/admin/customers/");
+    }
+    if (href === "/admin/invite") {
+      return pathname === "/admin/invite" || pathname.startsWith("/admin/invite/");
     }
     if (href === "/admin/settings") {
       return pathname === "/admin/settings" || pathname.startsWith("/admin/settings/");

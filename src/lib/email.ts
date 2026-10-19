@@ -368,6 +368,157 @@ export async function sendUserVerificationEmail(
 }
 
 /**
+ * Sends User Invitation Email with a secure registration link.
+ */
+export async function sendUserInvitationEmail(options: {
+  recipientEmail: string;
+  inviteLink: string;
+  invitedBy?: string;
+  expiresInHours?: number;
+}): Promise<EmailSendResult> {
+  const expiresInHours = options.expiresInHours || 48;
+  const plainText = [
+    "You're Invited to Join VN Mobiles",
+    "",
+    "Hello,",
+    "",
+    "You have been invited by the store administration to create an account on VN Mobiles.",
+    "",
+    "Click the link below to select your unique username and complete your registration:",
+    options.inviteLink,
+    "",
+    `• Valid for ${expiresInHours} hours`,
+    "• Single Use Only",
+    "",
+    "If you were not expecting this invitation, you can safely ignore this email.",
+    "",
+    getEmailFooterText(),
+  ].join("\n");
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>You're Invited to Join VN Mobiles</title>
+</head>
+<body style="margin:0;padding:0;background-color:#F8FAFC;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0F172A;-webkit-font-smoothing:antialiased;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#F8FAFC;padding:40px 16px;">
+    <tr>
+      <td align="center">
+        <!-- Main Card -->
+        <table role="presentation" width="100%" style="max-width:540px;background-color:#FFFFFF;border:1px solid #E2E8F0;border-radius:16px;overflow:hidden;box-shadow:0 10px 25px -5px rgba(15,23,42,0.06),0 8px 10px -6px rgba(15,23,42,0.03);">
+          
+          <!-- Top Gold Accent Line -->
+          <tr>
+            <td style="height:4px;background:linear-gradient(90deg, #C9A66B 0%, #E5CBA2 50%, #C9A66B 100%);"></td>
+          </tr>
+
+          <!-- Header Section -->
+          <tr>
+            <td style="padding:28px 36px 20px 36px;border-bottom:1px solid #F1F5F9;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td align="left" style="vertical-align:middle;">
+                    <table role="presentation" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td style="width:36px;height:36px;background-color:#0F172A;border:1px solid #C9A66B;border-radius:10px;text-align:center;vertical-align:middle;color:#C9A66B;font-weight:800;font-size:14px;letter-spacing:-0.5px;">
+                          VN
+                        </td>
+                        <td style="padding-left:12px;vertical-align:middle;">
+                          <div style="font-size:15px;font-weight:800;color:#0F172A;letter-spacing:-0.3px;line-height:1.2;">VN MOBILES</div>
+                          <div style="font-size:10px;font-weight:700;color:#8C6226;letter-spacing:1px;text-transform:uppercase;margin-top:2px;">OFFICIAL INVITATION</div>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td align="right" style="vertical-align:middle;">
+                    <span style="display:inline-block;background-color:#ECFDF5;border:1px solid #A7F3D0;color:#065F46;font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;padding:5px 12px;border-radius:9999px;">
+                      ✨ EXCLUSIVE ACCESS
+                    </span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Content Body -->
+          <tr>
+            <td style="padding:32px 36px 24px 36px;">
+              <h2 style="margin:0 0 10px 0;font-size:20px;font-weight:700;color:#0F172A;letter-spacing:-0.2px;">
+                You&apos;re Invited!
+              </h2>
+              <p style="margin:0 0 20px 0;font-size:14px;line-height:1.6;color:#475569;">
+                You have been personally invited to create a member account on <strong>VN Mobiles</strong>.
+              </p>
+              <p style="margin:0 0 24px 0;font-size:13px;line-height:1.6;color:#64748B;">
+                Click the secure registration button below to choose your unique username, establish your password, and start exploring verified smartphones with Device Shield warranty coverage:
+              </p>
+
+              <!-- Action Card -->
+              <div style="background-color:#F8FAFC;border:1px solid #E2E8F0;border-radius:14px;padding:26px 20px;text-align:center;margin:0 0 24px 0;">
+                <table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 auto 16px auto;">
+                  <tr>
+                    <td align="center">
+                      <a href="${options.inviteLink}" target="_blank" style="display:inline-block;background-color:#0F172A;color:#FFFFFF;border:1px solid #C9A66B;padding:14px 32px;font-size:14px;font-weight:700;border-radius:10px;text-decoration:none;box-shadow:0 4px 6px -1px rgba(15,23,42,0.15);letter-spacing:0.2px;">
+                        🚀 Accept Invitation & Register &rarr;
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+
+                <!-- Status Badges -->
+                <div style="display:inline-block;">
+                  <span style="display:inline-block;background-color:#FEF3C7;border:1px solid #FDE68A;color:#92400E;font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px;margin-right:6px;">
+                    ⏱ Valid for ${expiresInHours} hours
+                  </span>
+                  <span style="display:inline-block;background-color:#F1F5F9;border:1px solid #E2E8F0;color:#475569;font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px;">
+                    🔒 Single Use Only
+                  </span>
+                </div>
+              </div>
+
+              <!-- Fallback Direct URL Box -->
+              <div style="background-color:#FFFFFF;border:1px dashed #CBD5E1;border-radius:10px;padding:14px;margin:0 0 24px 0;">
+                <div style="font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;">
+                  Button not opening? Copy and paste this link in your browser:
+                </div>
+                <div style="font-size:11px;font-family:ui-monospace,Menlo,Monaco,Consolas,monospace;color:#0F172A;word-break:break-all;background-color:#F8FAFC;padding:8px 10px;border-radius:6px;border:1px solid #E2E8F0;user-select:all;-webkit-user-select:all;">
+                  ${options.inviteLink}
+                </div>
+              </div>
+
+              <p style="margin:0;font-size:12px;line-height:1.5;color:#64748B;">
+                If you were not expecting this invitation, no action is needed. Your email will not receive any further messages.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td>
+              ${getEmailFooterHtml()}
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  return sendGmailEmail({
+    recipientName: "Invited Member",
+    recipientEmail: options.recipientEmail,
+    subject: "You're Invited to Join VN Mobiles",
+    emailType: "EMAIL_VERIFICATION",
+    contentSummary: plainText,
+    text: plainText,
+    html,
+  });
+}
+
+/**
  * Sends User Login Verification Code (OTP) via Gmail SMTP for VN Mobiles.
  */
 export async function sendLoginOtpEmail(
