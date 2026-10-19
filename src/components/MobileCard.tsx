@@ -26,6 +26,7 @@ export default function MobileCard({ product }: MobileCardProps) {
   const { 
     addToCart, 
     addToCompare, 
+    removeFromCompare,
     compareList, 
     toggleWishlist, 
     isInWishlist, 
@@ -88,7 +89,7 @@ export default function MobileCard({ product }: MobileCardProps) {
     e.preventDefault();
     e.stopPropagation();
     if (isCompared) {
-      router.push("/compare");
+      removeFromCompare(product.id);
     } else {
       addToCompare(product);
     }
@@ -269,7 +270,7 @@ export default function MobileCard({ product }: MobileCardProps) {
           {siteSettings.showCompare === "true" && (
             <button
               onClick={handleToggleCompare}
-              title={isCompared ? "Go to Compare page" : "Add to Compare"}
+              title={isCompared ? "Remove from Compare" : "Add to Compare"}
               className={`py-1.5 px-2 text-[11px] rounded-full text-center font-medium transition-all duration-200 cursor-pointer border ${
                 isCompared
                   ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] border-[#C9A66B] dark:border-[#D4B483] font-semibold shadow-xs"

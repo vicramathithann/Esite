@@ -39,6 +39,7 @@ export default function MobileDetailPage({
     currentUser, 
     addToCart, 
     addToCompare, 
+    removeFromCompare,
     compareList, 
     toggleWishlist, 
     isInWishlist, 
@@ -441,7 +442,7 @@ export default function MobileDetailPage({
                 <button
                   onClick={() => {
                     if (isCompared) {
-                      router.push("/compare");
+                      removeFromCompare(product.id);
                     } else {
                       addToCompare(product);
                     }
@@ -451,7 +452,7 @@ export default function MobileDetailPage({
                       ? "bg-[#C9A66B] dark:bg-[#D4B483] border-[#C9A66B] text-[#FFFCFA] font-semibold shadow-xs"
                       : "border-[#C9A66B]/40 bg-[#C9A66B]/10 text-[#8C6226] dark:text-[#D4B483] hover:bg-[#C9A66B]/20"
                   }`}
-                  title={isCompared ? "Go to Compare page" : "Add to Compare"}
+                  title={isCompared ? "Remove from Compare" : "Add to Compare"}
                 >
                   <Layers className="w-4 h-4" />
                 </button>
