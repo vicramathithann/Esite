@@ -63,7 +63,14 @@ export async function GET(request: Request) {
     });
 
     const totalWarranties = await prisma.warranty.count();
-    const activeWarranties = await prisma.warranty.count({ where: { warrantyStatus: "ACTIVE" } });
+    const activeWarranties = await prisma.warranty.count({
+      where: {
+        warrantyStatus: "ACTIVE",
+        order: {
+          orderStatus: { notIn: ["CANCELLED", "Cancelled", "cancelled"] },
+        },
+      },
+    });
 
     return NextResponse.json({
       success: true,

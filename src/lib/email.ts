@@ -1,6 +1,7 @@
 import nodemailer from "nodemailer";
 import type { Transporter } from "nodemailer";
 import { prisma } from "@/lib/prisma";
+import { isOrderCancelled } from "@/lib/orderStatus";
 
 /**
  * Gmail SMTP Email Gateway Integration (Backend Only)
@@ -1177,28 +1178,191 @@ export async function sendOrderStatusEmail(
     trackingNumber?: string | null;
   },
   newStatus: string,
-  note?: string
+  note?: string,
+  extra?: {
+    phoneName?: string;
+    items?: Array<{ productName: string; quantity: number; price: number; selectedStorage?: string | null }>;
+  }
 ): Promise<EmailSendResult> {
-  const readableStatus = newStatus.replace(/_/g, " ");
-  const trackingInfo = order.trackingNumber
-    ? `\nCarrier: ${order.shippingCarrier || "Standard Delivery"}\nTracking Number: ${order.trackingNumber}`
-    : "";
+  const isCancelled = isOrderCancelled(newStatus);
+  const siteUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://vnmobiles.in").replace(/\/$/, "");
+  const formattedTotal = Number(order.totalAmount || 0).toLocaleString("en-IN");
+  const phoneName =
+    extra?.phoneName ||
+    (extra?.items && extra.items.map((i) => i.productName).filter(Boolean).join(", ")) ||
+    "Smartphone";
 
+  // Dedicated Cancellation Email flow
+  if (isCancelled) {
+    const subject = `Your order for ${phoneName} has been cancelled (Order #${order.orderNumber}) - VN Mobiles`;
     const plainText = [
-      `Order #${order.orderNumber} Status: ${readableStatus} - VN Mobiles`,
+      `Your order for ${phoneName} has been cancelled - VN Mobiles`,
       "",
       `Hi ${order.customerName},`,
       "",
-      `The status of your order #${order.orderNumber} has been updated to: ${readableStatus}.`,
-      trackingInfo,
-      note ? `Update Note: ${note}` : "",
+      `Your order for ${phoneName} has been cancelled and the amount will be refunded.`,
       "",
-      "You can view complete shipment tracking details in your account anytime.",
+      "Cancellation & Refund Summary:",
+      `• Smartphone: ${phoneName}`,
+      `• Order Number: #${order.orderNumber}`,
+      `• Refund Amount: ₹${formattedTotal}`,
+      "• Refund Destination: Original Payment Method",
+      "• Timeline: Credited within 3-5 business days to your original bank/card account",
+      note ? `• Additional Note: ${note}` : "",
+      "",
+      "Stock Restocked: The reserved inventory for this smartphone has been restored to our warehouse.",
+      "Live shipment tracking has been disabled for this cancelled order.",
+      "",
+      `You can review your archived cancelled orders anytime at: ${siteUrl}/orders?tab=cancelled`,
+      "",
+      "If you have any questions or did not authorize this cancellation, please contact our support desk immediately at support@vnmobiles.in.",
       "",
       getEmailFooterText(),
     ]
       .filter(Boolean)
       .join("\n");
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your order for ${phoneName} has been cancelled</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #F8F9FA; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1F2937; -webkit-font-smoothing: antialiased;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #F8F9FA; padding: 32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width: 580px; background-color: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 14px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+          <!-- Header -->
+          <tr>
+            <td style="background-color: #111827; padding: 24px 32px; border-bottom: 3px solid #C9A66B;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td>
+                    <span style="display: inline-block; width: 28px; height: 28px; line-height: 28px; text-align: center; background-color: #C9A66B; color: #FFFFFF; font-weight: 800; font-size: 13px; border-radius: 50%; vertical-align: middle; margin-right: 8px;">VN</span>
+                    <span style="color: #FFFFFF; font-size: 18px; font-weight: 700; vertical-align: middle;">VN Mobiles</span>
+                  </td>
+                  <td align="right" style="color: #9CA3AF; font-size: 12px; font-mono;">
+                    Order #${order.orderNumber}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding: 32px;">
+              <div style="display: inline-block; background-color: #FEF2F2; border: 1px solid #FECACA; color: #DC2626; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 4px 10px; border-radius: 6px; margin-bottom: 12px;">
+                Order Cancellation Notice
+              </div>
+
+              <h2 style="margin: 0 0 14px 0; font-size: 22px; font-weight: 800; color: #111827; line-height: 1.3;">
+                Order Cancelled
+              </h2>
+
+              <!-- Requested user-friendly message with Phone Name -->
+              <div style="background-color: #FFF7ED; border-left: 4px solid #EA580C; padding: 16px 18px; border-radius: 8px; margin: 0 0 24px 0;">
+                <p style="margin: 0; font-size: 15px; line-height: 1.6; color: #9A3412;">
+                  Your order for <strong>${phoneName}</strong> has been cancelled and the amount will be refunded.
+                </p>
+              </div>
+
+              <p style="margin: 0 0 20px 0; font-size: 14px; line-height: 1.6; color: #4B5563;">
+                Hi <strong>${order.customerName}</strong>,<br>
+                We have processed the cancellation for Order <strong>#${order.orderNumber}</strong>. The reserved stock for <strong>${phoneName}</strong> has been restored to warehouse inventory, and live tracking for this package has been removed.
+              </p>
+
+              <!-- Refund & Cancellation Card -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 10px; margin: 20px 0; font-size: 13px;">
+                <tr>
+                  <td style="padding: 14px 18px; border-bottom: 1px solid #E5E7EB; color: #6B7280; width: 40%;">Smartphone / Item</td>
+                  <td style="padding: 14px 18px; border-bottom: 1px solid #E5E7EB; color: #111827; font-weight: 700;">${phoneName}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 14px 18px; border-bottom: 1px solid #E5E7EB; color: #6B7280;">Order Number</td>
+                  <td style="padding: 14px 18px; border-bottom: 1px solid #E5E7EB; color: #111827; font-family: monospace; font-weight: 600;">#${order.orderNumber}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 14px 18px; border-bottom: 1px solid #E5E7EB; color: #6B7280;">Refund Amount</td>
+                  <td style="padding: 14px 18px; border-bottom: 1px solid #E5E7EB; color: #DC2626; font-weight: 800; font-size: 15px;">₹${formattedTotal}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 14px 18px; border-bottom: 1px solid #E5E7EB; color: #6B7280;">Refund Destination</td>
+                  <td style="padding: 14px 18px; border-bottom: 1px solid #E5E7EB; color: #111827; font-weight: 600;">Original Payment Method</td>
+                </tr>
+                <tr>
+                  <td style="padding: 14px 18px; color: #6B7280;">Refund Processing Time</td>
+                  <td style="padding: 14px 18px; color: #059669; font-weight: 600;">3–5 Business Days</td>
+                </tr>
+              </table>
+
+              ${note ? `
+                <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px 16px; margin: 18px 0; font-size: 12px; color: #475569;">
+                  <strong>Cancellation Note:</strong> ${note}
+                </div>
+              ` : ""}
+
+              <div style="text-align: center; margin: 28px 0 10px 0;">
+                <a href="${siteUrl}/orders?tab=cancelled" target="_blank" style="display: inline-block; background-color: #111827; color: #FFFFFF; font-size: 13px; font-weight: 600; text-decoration: none; padding: 12px 24px; border-radius: 8px; margin: 4px;">
+                  View Cancelled Orders
+                </a>
+                <a href="${siteUrl}" target="_blank" style="display: inline-block; background-color: #F3F4F6; color: #1F2937; border: 1px solid #D1D5DB; font-size: 13px; font-weight: 600; text-decoration: none; padding: 12px 24px; border-radius: 8px; margin: 4px;">
+                  Browse Latest Mobiles
+                </a>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Compliant Footer -->
+          <tr>
+            <td>
+              ${getEmailFooterHtml()}
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`.trim();
+
+    return sendGmailEmail({
+      userId: order.userId,
+      recipientName: order.customerName,
+      recipientEmail: order.customerEmail,
+      subject,
+      emailType: "ORDER_STATUS",
+      orderId: order.id,
+      productName: phoneName,
+      contentSummary: plainText,
+      text: plainText,
+      html,
+    });
+  }
+
+  // Active / in-flight status update
+  const readableStatus = newStatus.replace(/_/g, " ");
+  const trackingInfo = order.trackingNumber
+    ? `\nCarrier: ${order.shippingCarrier || "Standard Delivery"}\nTracking Number: ${order.trackingNumber}`
+    : "";
+
+  const plainText = [
+    `Order #${order.orderNumber} Status: ${readableStatus} - VN Mobiles`,
+    "",
+    `Hi ${order.customerName},`,
+    "",
+    `The status of your order #${order.orderNumber} has been updated to: ${readableStatus}.`,
+    trackingInfo,
+    note ? `Update Note: ${note}` : "",
+    "",
+    "You can view complete shipment tracking details in your account anytime.",
+    "",
+    getEmailFooterText(),
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -1278,11 +1442,13 @@ export async function sendOrderStatusEmail(
     subject: `Order #${order.orderNumber} Status: ${readableStatus} - VN Mobiles`,
     emailType: "ORDER_STATUS",
     orderId: order.id,
+    productName: phoneName,
     contentSummary: plainText,
     text: plainText,
     html,
   });
 }
+
 
 /**
  * Sends Mobile Warranty Activation Email.
@@ -1788,11 +1954,14 @@ export async function checkAndDispatchWarrantyReminders(): Promise<{
 
   const warranties = await prisma.warranty.findMany({
     where: {
-      warrantyStatus: { not: "EXPIRED" },
+      warrantyStatus: { notIn: ["EXPIRED", "CANCELLED"] },
+      order: {
+        orderStatus: { notIn: ["CANCELLED", "Cancelled", "cancelled"] },
+      },
     },
     include: {
       order: {
-        select: { orderNumber: true },
+        select: { orderNumber: true, orderStatus: true },
       },
     },
   });

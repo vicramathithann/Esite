@@ -65,7 +65,7 @@ export interface OrderItemData {
   warrantyMonths: number;
   warrantyStartDate: string;
   warrantyExpiryDate: string;
-  warrantyStatus: "ACTIVE" | "EXPIRING_SOON" | "EXPIRED";
+  warrantyStatus: "ACTIVE" | "EXPIRING_SOON" | "EXPIRED" | "CANCELLED";
 }
 
 export interface OrderData {

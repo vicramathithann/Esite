@@ -65,14 +65,21 @@ export default function AccountPage() {
         setOrders((prev) =>
           prev.map((o) =>
             o.id === targetOrder.id
-              ? { ...o, orderStatus: "CANCELLED", paymentStatus: "Refund Initiated" }
+              ? {
+                  ...o,
+                  orderStatus: "CANCELLED",
+                  paymentStatus: "Refund Initiated",
+                  items: o.items?.map((it: any) => ({ ...it, warrantyStatus: "CANCELLED" })),
+                  warranties: o.warranties?.map((w: any) => ({ ...w, warrantyStatus: "CANCELLED" })),
+                }
               : o
           )
         );
         setCancelModalOrder(null);
         setActiveOrderTab("cancelled");
         await loadOrders();
-        alert(`Order #${targetOrder.orderNumber} has been successfully cancelled and moved to Cancelled Orders.`);
+        const targetPhoneNames = targetOrder.items?.map((i: any) => i.productName).filter(Boolean).join(", ") || "Smartphone";
+        alert(data.message || `Your order for ${targetPhoneNames} has been cancelled and the amount will be refunded.`);
       } else {
         alert(data.error || "Failed to cancel order.");
       }
@@ -140,6 +147,13 @@ export default function AccountPage() {
   };
 
   const getStatusBadge = (status: string, daysLeft: number) => {
+    if (status === "CANCELLED" || status === "Cancelled") {
+      return (
+        <span className="inline-flex items-center gap-1 text-xs font-bold text-red-700 bg-red-50 border border-red-200 px-2.5 py-0.5 rounded-full">
+          <X className="w-3.5 h-3.5" /> Warranty Cancelled
+        </span>
+      );
+    }
     if (status === "EXPIRED" || daysLeft <= 0) {
       return (
         <span className="inline-flex items-center gap-1 text-xs font-bold text-[#cc0c39] bg-red-50 border border-red-200 px-2.5 py-0.5 rounded-full">
@@ -278,7 +292,7 @@ export default function AccountPage() {
                       : "text-gray-600 hover:text-[#0f1111]"
                   }`}
                 >
-                  Active Orders ({activeOrdersCount})
+                  Confirmed & Active Orders ({activeOrdersCount})
                 </button>
                 <button
                   onClick={() => setActiveOrderTab("cancelled")}
@@ -298,7 +312,7 @@ export default function AccountPage() {
                       : "text-gray-600 hover:text-[#0f1111]"
                   }`}
                 >
-                  Orders & Warranties ({orders.length})
+                  Full Order History ({orders.length})
                 </button>
               </div>
 
@@ -376,13 +390,15 @@ export default function AccountPage() {
                             <span className="text-[#007185] hover:underline cursor-pointer text-xs">View invoice</span>
                           </div>
                           <div className="flex items-center gap-1.5">
-                            <Link
-                              href={`/track/${order.orderNumber}`}
-                              className="btn-amazon-yellow py-1 px-3 text-xs font-bold rounded-sm flex items-center gap-1 shadow-2xs"
-                            >
-                              <Truck className="w-3.5 h-3.5" />
-                              <span>Track Package</span>
-                            </Link>
+                            {!orderIsCancelled && (
+                              <Link
+                                href={`/track/${order.orderNumber}`}
+                                className="btn-amazon-yellow py-1 px-3 text-xs font-bold rounded-sm flex items-center gap-1 shadow-2xs"
+                              >
+                                <Truck className="w-3.5 h-3.5" />
+                                <span>Track Package</span>
+                              </Link>
+                            )}
 
                             {orderIsCancelled ? (
                               <span className="py-1 px-2.5 text-xs font-bold rounded-sm bg-red-100 text-red-800 border border-red-200 flex items-center gap-1">
@@ -416,7 +432,7 @@ export default function AccountPage() {
                               ORDER CANCELLED & REFUND PROCESSED
                             </div>
                             <p className="mt-0.5 text-red-800 leading-relaxed font-sans">
-                              This order was cancelled. Full refund of <strong>₹{order.totalAmount?.toLocaleString("en-IN")}</strong> has been initiated and reserved smartphone stock has been restored to warehouse inventory.
+                              Your order for <strong className="text-gray-900">{order.items?.map((i: any) => i.productName).filter(Boolean).join(", ") || "Smartphone"}</strong> has been cancelled and the amount of <strong className="text-red-700">₹{order.totalAmount?.toLocaleString("en-IN")}</strong> will be refunded to your original payment method.
                             </p>
                           </div>
                         </div>
@@ -489,14 +505,14 @@ export default function AccountPage() {
                             </div>
                           </div>
 
-                          {orderIsCancelled ? (
+                          {orderIsCancelled || item.warrantyStatus === "CANCELLED" ? (
                             <div className="lg:col-span-7 bg-red-50 border border-red-200 p-3.5 rounded-sm space-y-1 text-xs">
                               <div className="flex items-center gap-1.5 font-bold text-red-700">
                                 <X className="w-4 h-4" />
-                                <span>Order Cancelled & Coverage Closed</span>
+                                <span>Warranty Cancelled (Order Cancelled)</span>
                               </div>
                               <p className="text-[11px] text-red-600 leading-relaxed">
-                                This device was part of order #{order.orderNumber} which was cancelled. Full refund has been initiated and warranty protection is voided.
+                                This device was part of order #{order.orderNumber} which was cancelled. Warranty coverage is cancelled and void.
                               </p>
                             </div>
                           ) : (

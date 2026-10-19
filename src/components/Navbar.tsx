@@ -11,7 +11,8 @@ import {
   ShieldCheck, 
   ChevronDown,
   Heart,
-  Menu
+  Menu,
+  Package
 } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 
@@ -235,6 +236,16 @@ export default function Navbar() {
               )}
             </Link>
           )}
+
+          {/* Orders Link (Quick Access) */}
+          <Link
+            href="/orders"
+            className="relative p-2 text-foreground hover:text-[#8C6226] dark:hover:text-[#D4B483] hover:bg-[#C9A66B]/15 rounded-full transition-all duration-200 cursor-pointer flex items-center gap-1.5"
+            title="My Orders & Tracking"
+          >
+            <Package className="w-4 h-4" />
+            <span className="hidden xl:inline text-xs font-semibold">Orders</span>
+          </Link>
 
           {/* Slide-in Mini Cart Trigger */}
           <button

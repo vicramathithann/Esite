@@ -142,6 +142,20 @@ export async function PATCH(
       updateData.orderStatus = "CANCELLED";
       updateData.paymentStatus = "Refund Initiated";
 
+      // Automatically cancel related warranties and order item warranty statuses in database
+      try {
+        await prisma.warranty.updateMany({
+          where: { orderId: id },
+          data: { warrantyStatus: "CANCELLED" },
+        });
+        await prisma.orderItem.updateMany({
+          where: { orderId: id },
+          data: { warrantyStatus: "CANCELLED" },
+        });
+      } catch (warrantyErr) {
+        console.error("Failed to cancel warranties on order cancellation:", warrantyErr);
+      }
+
       // Restore inventory stock (MobileProduct is single source of truth)
       if (!isOrderCancelled(oldStatus)) {
         for (const item of existingOrder.items) {
@@ -179,6 +193,12 @@ export async function PATCH(
       },
     });
 
+    // Extract phone name(s) for user-friendly notifications
+    const phoneNames =
+      updatedOrder.items && updatedOrder.items.length > 0
+        ? updatedOrder.items.map((i) => i.productName).filter(Boolean).join(", ")
+        : "Smartphone";
+
     // Record Status History & Send Status Email if status changed
     if (newStatus && newStatus !== oldStatus) {
       const changedBy = body.changedBy || (isCancelling ? "CUSTOMER" : "ADMIN");
@@ -213,23 +233,38 @@ export async function PATCH(
             trackingNumber: updatedOrder.trackingNumber,
           },
           newStatus,
-          note
+          note,
+          {
+            phoneName: phoneNames,
+            items: updatedOrder.items.map((i) => ({
+              productName: i.productName,
+              quantity: i.quantity,
+              price: i.price,
+              selectedStorage: i.selectedStorage,
+            })),
+          }
         );
       } catch (emailErr) {
         console.error("[STATUS EMAIL WARNING] Failed to send status update email:", emailErr);
       }
     }
 
+    const responseMessage = isCancelling
+      ? `Your order for ${phoneNames} has been cancelled and the amount will be refunded.`
+      : `Order #${updatedOrder.orderNumber} updated successfully.`;
+
     return NextResponse.json({
       success: true,
       order: updatedOrder,
-      message: `Order #${updatedOrder.orderNumber} updated successfully.`,
+      phoneName: phoneNames,
+      message: responseMessage,
     });
   } catch (error) {
     console.error("Failed to update order:", error);
     return NextResponse.json({ success: false, error: "Failed to update order" }, { status: 500 });
   }
 }
+
 
 export async function DELETE(
   request: Request,

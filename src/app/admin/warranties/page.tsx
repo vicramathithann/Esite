@@ -8,6 +8,7 @@ import {
   Mail,
 } from "lucide-react";
 import { formatDateOnly } from "@/lib/formatters";
+import { isOrderCancelled } from "@/lib/orderStatus";
 
 export default function AdminWarrantiesPage() {
   const [warranties, setWarranties] = useState<any[]>([]);
@@ -127,7 +128,8 @@ export default function AdminWarrantiesPage() {
                   </tr>
                 ) : (
                   warranties.map((w) => {
-                    const isExpired = new Date(w.warrantyExpiryDate) < new Date();
+                    const isCancelled = w.warrantyStatus === "CANCELLED" || isOrderCancelled(w.order?.orderStatus);
+                    const isExpired = !isCancelled && new Date(w.warrantyExpiryDate) < new Date();
                     return (
                       <tr key={w.id} className="hover:bg-tile/50 transition">
                         <td className="py-3.5 px-4 font-mono font-bold text-foreground">
@@ -144,36 +146,42 @@ export default function AdminWarrantiesPage() {
                           {w.imeiNumber}
                         </td>
                         <td className="py-3.5 px-4">
-                          <div className="text-foreground/90 font-medium">{w.warrantyDuration || "1 Year"}</div>
-                          <div className={`text-[11px] ${isExpired ? "text-rose-600 dark:text-rose-400 font-semibold" : "text-emerald-600 dark:text-emerald-400 font-semibold"}`}>
-                            Exp: {formatDateOnly(w.warrantyExpiryDate)}
+                          <div className="text-foreground/90 font-medium">{isCancelled ? "Voided" : w.warrantyDuration || "1 Year"}</div>
+                          <div className={`text-[11px] ${isCancelled ? "text-rose-600 dark:text-rose-400 font-semibold" : isExpired ? "text-rose-600 dark:text-rose-400 font-semibold" : "text-emerald-600 dark:text-emerald-400 font-semibold"}`}>
+                            {isCancelled ? "Order Cancelled" : `Exp: ${formatDateOnly(w.warrantyExpiryDate)}`}
                           </div>
                         </td>
                         <td className="py-3.5 px-4">
                           <span
                             className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
-                              isExpired
+                              isCancelled
+                                ? "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20"
+                                : isExpired
                                 ? "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20"
                                 : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
                             }`}
                           >
-                            {isExpired ? "EXPIRED" : w.warrantyStatus || "ACTIVE"}
+                            {isCancelled ? "CANCELLED" : isExpired ? "EXPIRED" : w.warrantyStatus || "ACTIVE"}
                           </span>
                         </td>
                         <td className="py-3.5 px-4 text-right">
-                          <button
-                            onClick={() => handleResend(w.id, w.customerEmail)}
-                            disabled={actionLoading === w.id}
-                            className="px-2.5 py-1 bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 text-[#8C6226] dark:text-[#E5CBA2] text-[11px] font-semibold rounded-lg inline-flex items-center gap-1 transition-all cursor-pointer"
-                            title="Resend Warranty Certificate Email"
-                          >
-                            {actionLoading === w.id ? (
-                              <RefreshCw className="w-3 h-3 animate-spin" />
-                            ) : (
-                              <Mail className="w-3 h-3 text-[#8C6226] dark:text-[#E5CBA2]" />
-                            )}
-                            Resend Email
-                          </button>
+                          {isCancelled ? (
+                            <span className="text-[11px] text-muted italic">Voided</span>
+                          ) : (
+                            <button
+                              onClick={() => handleResend(w.id, w.customerEmail)}
+                              disabled={actionLoading === w.id}
+                              className="px-2.5 py-1 bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 text-[#8C6226] dark:text-[#E5CBA2] text-[11px] font-semibold rounded-lg inline-flex items-center gap-1 transition-all cursor-pointer"
+                              title="Resend Warranty Certificate Email"
+                            >
+                              {actionLoading === w.id ? (
+                                <RefreshCw className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <Mail className="w-3 h-3 text-[#8C6226] dark:text-[#E5CBA2]" />
+                              )}
+                              Resend Email
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );

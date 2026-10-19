@@ -95,7 +95,8 @@ export default function CheckoutPage() {
       if (data.success) {
         setCancelModalOpen(false);
         setOrderCancelled(true);
-        alert(`Order #${orderComplete.order.orderNumber} has been successfully cancelled and refunded!`);
+        const phoneNames = orderComplete.order.items?.map((i: any) => i.productName).filter(Boolean).join(", ") || "Smartphone";
+        alert(data.message || `Your order for ${phoneNames} has been cancelled and the amount will be refunded.`);
       } else {
         alert(data.error || "Failed to cancel order.");
       }
@@ -324,13 +325,15 @@ export default function CheckoutPage() {
 
           {/* Action Links */}
           <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-            <Link
-              href={`/track/${order.orderNumber}`}
-              className="bg-accent text-white hover:opacity-95 py-2.5 px-6 text-xs font-semibold rounded-xl flex items-center gap-1.5 shadow-sm transition-all"
-            >
-              <Truck className="w-4 h-4" />
-              <span>Track Package Live (#{order.orderNumber})</span>
-            </Link>
+            {!orderCancelled && (
+              <Link
+                href={`/track/${order.orderNumber}`}
+                className="bg-accent text-white hover:opacity-95 py-2.5 px-6 text-xs font-semibold rounded-xl flex items-center gap-1.5 shadow-sm transition-all"
+              >
+                <Truck className="w-4 h-4" />
+                <span>Track Package Live (#{order.orderNumber})</span>
+              </Link>
+            )}
 
             {orderCancelled ? (
               <span className="bg-[#C9A66B]/15 dark:bg-[#D4B483]/15 text-[#8C6226] dark:text-[#E5CBA2] border border-[#C9A66B]/30 dark:border-[#D4B483]/30 py-2.5 px-5 text-xs font-semibold rounded-xl flex items-center gap-1.5">

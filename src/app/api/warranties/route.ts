@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendWarrantyActivationEmail } from "@/lib/email";
 import { getAuthenticatedUser, requireAuth } from "@/lib/auth";
+import { isOrderCancelled } from "@/lib/orderStatus";
 
 export async function GET(request: Request) {
   try {
@@ -62,10 +63,19 @@ export async function GET(request: Request) {
       },
     });
 
+    const normalizedWarranties = warranties.map((w) => {
+      const orderCancelled = w.order ? isOrderCancelled(w.order.orderStatus) : false;
+      const effectiveStatus = orderCancelled || w.warrantyStatus === "CANCELLED" ? "CANCELLED" : w.warrantyStatus;
+      return {
+        ...w,
+        warrantyStatus: effectiveStatus,
+      };
+    });
+
     return NextResponse.json({
       success: true,
-      count: warranties.length,
-      warranties,
+      count: normalizedWarranties.length,
+      warranties: normalizedWarranties,
     });
   } catch (error) {
     console.error("Failed to fetch warranties:", error);
@@ -118,6 +128,14 @@ export async function POST(request: Request) {
     }
 
     if (action === "RESEND_EMAIL") {
+      const isCancelled = warranty.warrantyStatus === "CANCELLED" || (warranty.order && isOrderCancelled(warranty.order.orderStatus));
+      if (isCancelled) {
+        return NextResponse.json(
+          { success: false, error: "Cannot send warranty certificate for a cancelled order." },
+          { status: 400 }
+        );
+      }
+
       const emailResult = await sendWarrantyActivationEmail({
         id: warranty.id,
         orderId: warranty.orderId,

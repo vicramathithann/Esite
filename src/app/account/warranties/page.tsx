@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { ShieldCheck, ArrowLeft, Smartphone, RefreshCw, Mail } from "lucide-react";
+import { ShieldCheck, ArrowLeft, Smartphone, RefreshCw, Mail, X } from "lucide-react";
 import { formatDateOnly } from "@/lib/formatters";
 import { useApp } from "@/context/AppContext";
+import { isOrderCancelled } from "@/lib/orderStatus";
 
 export default function UserWarrantiesPage() {
   const { currentUser } = useApp();
@@ -114,11 +115,14 @@ export default function UserWarrantiesPage() {
         ) : (
           <div className="space-y-4">
             {warranties.map((w) => {
-              const isExpired = new Date(w.warrantyExpiryDate) < new Date();
+              const isCancelled = w.warrantyStatus === "CANCELLED" || isOrderCancelled(w.order?.orderStatus);
+              const isExpired = !isCancelled && new Date(w.warrantyExpiryDate) < new Date();
               return (
                 <div
                   key={w.id}
-                  className="bg-slate-900 border border-slate-800 rounded-2xl p-6 hover:border-slate-700 transition space-y-4"
+                  className={`bg-slate-900 border rounded-2xl p-6 transition space-y-4 ${
+                    isCancelled ? "border-rose-950/60 opacity-90" : "border-slate-800 hover:border-slate-700"
+                  }`}
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
                     <div>
@@ -126,12 +130,14 @@ export default function UserWarrantiesPage() {
                         <h2 className="text-base font-bold text-white">{w.productName}</h2>
                         <span
                           className={`text-xs px-2.5 py-0.5 rounded-full font-bold border ${
-                            isExpired
+                            isCancelled
+                              ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                              : isExpired
                               ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
                               : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
                           }`}
                         >
-                          {isExpired ? "EXPIRED" : w.warrantyStatus || "ACTIVE"}
+                          {isCancelled ? "CANCELLED" : isExpired ? "EXPIRED" : w.warrantyStatus || "ACTIVE"}
                         </span>
                       </div>
                       <p className="text-xs text-slate-400 mt-1">
@@ -139,18 +145,25 @@ export default function UserWarrantiesPage() {
                       </p>
                     </div>
 
-                    <button
-                      onClick={() => handleResendWarrantyEmail(w.id)}
-                      disabled={actionLoading === w.id}
-                      className="px-3 py-1.5 bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 dark:hover:bg-[#D4B483]/20 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 text-[#8C6226] dark:text-[#E5CBA2] text-xs font-medium rounded-xl flex items-center gap-1.5 transition-all self-start sm:self-auto cursor-pointer"
-                    >
-                      {actionLoading === w.id ? (
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <Mail className="w-3.5 h-3.5 text-[#8C6226] dark:text-[#E5CBA2]" />
-                      )}
-                      Email Certificate
-                    </button>
+                    {isCancelled ? (
+                      <span className="px-3 py-1.5 text-xs font-semibold text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-center gap-1.5">
+                        <X className="w-3.5 h-3.5 text-rose-400" />
+                        <span>Coverage Cancelled</span>
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => handleResendWarrantyEmail(w.id)}
+                        disabled={actionLoading === w.id}
+                        className="px-3 py-1.5 bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 dark:hover:bg-[#D4B483]/20 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 text-[#8C6226] dark:text-[#E5CBA2] text-xs font-medium rounded-xl flex items-center gap-1.5 transition-all self-start sm:self-auto cursor-pointer"
+                      >
+                        {actionLoading === w.id ? (
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Mail className="w-3.5 h-3.5 text-[#8C6226] dark:text-[#E5CBA2]" />
+                        )}
+                        Email Certificate
+                      </button>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
@@ -160,16 +173,20 @@ export default function UserWarrantiesPage() {
                     </div>
                     <div>
                       <span className="text-slate-500 block uppercase tracking-wider text-[10px]">Coverage Duration</span>
-                      <span className="text-white font-medium">{w.warrantyDuration || "1 Year"}</span>
+                      <span className={isCancelled ? "text-slate-400" : "text-white font-medium"}>
+                        {isCancelled ? "Voided" : w.warrantyDuration || "1 Year"}
+                      </span>
                     </div>
                     <div>
                       <span className="text-slate-500 block uppercase tracking-wider text-[10px]">Start Date</span>
                       <span className="text-slate-300">{formatDateOnly(w.warrantyStartDate)}</span>
                     </div>
                     <div>
-                      <span className="text-slate-500 block uppercase tracking-wider text-[10px]">Expiry Date</span>
-                      <span className={isExpired ? "text-rose-400 font-semibold" : "text-emerald-400 font-semibold"}>
-                        {formatDateOnly(w.warrantyExpiryDate)}
+                      <span className="text-slate-500 block uppercase tracking-wider text-[10px]">
+                        {isCancelled ? "Coverage Status" : "Expiry Date"}
+                      </span>
+                      <span className={isCancelled ? "text-rose-400 font-semibold" : isExpired ? "text-rose-400 font-semibold" : "text-emerald-400 font-semibold"}>
+                        {isCancelled ? "Cancelled (Order Cancelled)" : formatDateOnly(w.warrantyExpiryDate)}
                       </span>
                     </div>
                   </div>

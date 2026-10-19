@@ -55,7 +55,8 @@ export default function TrackOrderPage({ params }: TrackPageProps) {
           paymentStatus: "Refund Initiated",
         }));
         await fetchOrder();
-        alert(`Order #${order.orderNumber} has been successfully cancelled and refunded!`);
+        const phoneNames = order.items?.map((i: any) => i.productName).filter(Boolean).join(", ") || "Smartphone";
+        alert(data.message || `Your order for ${phoneNames} has been cancelled and the amount will be refunded.`);
       } else {
         alert(data.error || "Failed to cancel order.");
       }
@@ -129,6 +130,7 @@ export default function TrackOrderPage({ params }: TrackPageProps) {
   // Calculate Stepper State
   const isCancelled = isOrderCancelled(order.orderStatus);
   const canCancel = canOrderBeCancelled(order.orderStatus);
+  const phoneNames = order.items?.map((i: any) => i.productName).filter(Boolean).join(", ") || "Smartphone";
   const status = (order.orderStatus || "").toUpperCase();
   const isConfirmed = true;
   const isProcessing = ["PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"].includes(status);
@@ -210,79 +212,87 @@ export default function TrackOrderPage({ params }: TrackPageProps) {
               <div className="w-9 h-9 rounded-full bg-red-600 text-white flex items-center justify-center shrink-0 mt-0.5">
                 <X className="w-5 h-5" />
               </div>
-              <div className="space-y-1 flex-1">
+              <div className="space-y-1.5 flex-1">
                 <h4 className="font-bold text-sm text-red-500 flex items-center justify-between">
                   <span>ORDER CANCELLED & REFUND PROCESSED</span>
                   <span className="text-xs font-mono font-bold bg-red-500/20 text-red-500 px-2 py-0.5 rounded-md">
                     REFUNDED
                   </span>
                 </h4>
-                <p className="text-muted leading-relaxed font-sans">
-                  This shipment was cancelled. Full refund of <strong className="text-red-500">₹{order.totalAmount?.toLocaleString("en-IN")}</strong> has been initiated back to your original payment method and reserved smartphone inventory has been restocked.
+                <p className="text-foreground font-medium text-sm leading-relaxed font-sans">
+                  Your order for <strong>{phoneNames}</strong> has been cancelled and the amount of <strong className="text-red-500">₹{order.totalAmount?.toLocaleString("en-IN")}</strong> will be refunded to your original payment method.
                 </p>
-                <div className="pt-1">
-                  <Link href="/orders?tab=cancelled" className="text-red-400 hover:underline font-semibold text-[11px]">
+                <p className="text-muted leading-relaxed font-sans">
+                  Live shipment tracking has been disabled because this order has been cancelled and will not be dispatched.
+                </p>
+                <div className="pt-2 flex flex-wrap items-center gap-3">
+                  <Link href="/orders?tab=cancelled" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500/20 rounded-lg font-semibold text-xs transition-all">
                     View in Cancelled Orders Section →
+                  </Link>
+                  <Link href="/orders" className="text-muted hover:text-foreground text-xs font-medium">
+                    View All Orders
                   </Link>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Interactive 5-Step Pipeline Timeline */}
-          <div className="py-4">
-            <div className="relative">
-              {/* Desktop Progress Line */}
-              <div className="hidden sm:block absolute top-5 left-8 right-8 h-1 bg-tile border border-border z-0">
-                <div
-                  className="h-full bg-emerald-500 transition-all duration-500"
-                  style={{
-                    width: isDelivered
-                      ? "100%"
-                      : isOutForDelivery
-                      ? "75%"
-                      : isShipped
-                      ? "50%"
-                      : isProcessing
-                      ? "25%"
-                      : "0%",
-                  }}
-                />
-              </div>
+          {/* Interactive 5-Step Pipeline Timeline (Hidden for Cancelled Orders) */}
+          {!isCancelled && (
+            <div className="py-4">
+              <div className="relative">
+                {/* Desktop Progress Line */}
+                <div className="hidden sm:block absolute top-5 left-8 right-8 h-1 bg-tile border border-border z-0">
+                  <div
+                    className="h-full bg-emerald-500 transition-all duration-500"
+                    style={{
+                      width: isDelivered
+                        ? "100%"
+                        : isOutForDelivery
+                        ? "75%"
+                        : isShipped
+                        ? "50%"
+                        : isProcessing
+                        ? "25%"
+                        : "0%",
+                    }}
+                  />
+                </div>
 
-              {/* Steps Icons */}
-              <div className="grid grid-cols-1 sm:grid-cols-5 gap-4 relative z-10">
-                {steps.map((step, idx) => (
-                  <div key={step.title} className="flex sm:flex-col items-center sm:text-center gap-3 sm:gap-2">
-                    <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 transition-all ${
-                        step.done
-                          ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/30"
-                          : "bg-tile text-muted border border-border"
-                      }`}
-                    >
-                      {step.done ? <Check className="w-5 h-5 stroke-[2.5]" /> : idx + 1}
-                    </div>
-                    <div>
-                      <h4
-                        className={`text-xs font-bold ${
-                          step.done ? "text-foreground" : "text-muted"
+                {/* Steps Icons */}
+                <div className="grid grid-cols-1 sm:grid-cols-5 gap-4 relative z-10">
+                  {steps.map((step, idx) => (
+                    <div key={step.title} className="flex sm:flex-col items-center sm:text-center gap-3 sm:gap-2">
+                      <div
+                        className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 transition-all ${
+                          step.done
+                            ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/30"
+                            : "bg-tile text-muted border border-border"
                         }`}
                       >
-                        {step.title}
-                      </h4>
-                      <p className="text-[10px] text-muted leading-tight hidden sm:block mt-0.5">
-                        {step.desc}
-                      </p>
+                        {step.done ? <Check className="w-5 h-5 stroke-[2.5]" /> : idx + 1}
+                      </div>
+                      <div>
+                        <h4
+                          className={`text-xs font-bold ${
+                            step.done ? "text-foreground" : "text-muted"
+                          }`}
+                        >
+                          {step.title}
+                        </h4>
+                        <p className="text-[10px] text-muted leading-tight hidden sm:block mt-0.5">
+                          {step.desc}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Carrier & Tracking Card if Shipped */}
-          {order.shippingCarrier && (
+          {/* Carrier & Tracking Card if Shipped (Hidden for Cancelled Orders) */}
+          {!isCancelled && order.shippingCarrier && (
             <div className="bg-tile border border-border rounded-xl p-4 text-xs text-muted flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center text-accent shrink-0">

@@ -52,7 +52,13 @@ export default function OrdersPage() {
         setOrders((prev) =>
           prev.map((o) =>
             o.id === targetOrder.id
-              ? { ...o, orderStatus: "CANCELLED", paymentStatus: "Refund Initiated" }
+              ? {
+                  ...o,
+                  orderStatus: "CANCELLED",
+                  paymentStatus: "Refund Initiated",
+                  items: o.items?.map((item: any) => ({ ...item, warrantyStatus: "CANCELLED" })),
+                  warranties: o.warranties?.map((w: any) => ({ ...w, warrantyStatus: "CANCELLED" })),
+                }
               : o
           )
         );
@@ -60,7 +66,8 @@ export default function OrdersPage() {
         // Switch to the separate Cancelled Orders section as requested
         setActiveOrderTab("cancelled");
         await loadOrders();
-        alert(`Order #${targetOrder.orderNumber} has been successfully cancelled and moved to Cancelled Orders.`);
+        const targetPhoneNames = targetOrder.items?.map((i: any) => i.productName).filter(Boolean).join(", ") || "Smartphone";
+        alert(data.message || `Your order for ${targetPhoneNames} has been cancelled and the amount will be refunded.`);
       } else {
         alert(data.error || "Failed to cancel order.");
       }
@@ -139,6 +146,13 @@ export default function OrdersPage() {
   };
 
   const getStatusBadge = (status: string, daysLeft: number) => {
+    if (status === "CANCELLED" || status === "Cancelled") {
+      return (
+        <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-500 bg-red-500/10 border border-red-500/20 px-2.5 py-0.5 rounded-full">
+          <X className="w-3.5 h-3.5" /> Warranty Cancelled
+        </span>
+      );
+    }
     if (status === "EXPIRED" || daysLeft <= 0) {
       return (
         <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-500 bg-red-500/10 border border-red-500/20 px-2.5 py-0.5 rounded-full">
@@ -215,7 +229,7 @@ export default function OrdersPage() {
           </div>
         )}
 
-        {/* Tabs - Dedicated Active and Cancelled sections */}
+        {/* Tabs - Dedicated Active, Cancelled, and Full History sections */}
         <div className="border-b border-border flex gap-6 text-sm mb-6">
           <button
             onClick={() => setActiveOrderTab("active")}
@@ -225,7 +239,7 @@ export default function OrdersPage() {
                 : "text-muted hover:text-foreground"
             }`}
           >
-            Active Orders ({activeOrdersCount})
+            Confirmed & Active Orders ({activeOrdersCount})
           </button>
           <button
             onClick={() => setActiveOrderTab("cancelled")}
@@ -245,7 +259,7 @@ export default function OrdersPage() {
                 : "text-muted hover:text-foreground"
             }`}
           >
-            All Orders ({orders.length})
+            Full Order History ({orders.length})
           </button>
         </div>
 
@@ -322,13 +336,15 @@ export default function OrdersPage() {
                       <span className="block text-[10px] uppercase font-semibold text-muted">Order # {order.orderNumber}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Link
-                        href={`/track/${order.orderNumber}`}
-                        className="bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] py-1.5 px-3 text-xs font-semibold rounded-xl flex items-center gap-1.5 shadow-2xs transition-all"
-                      >
-                        <Truck className="w-3.5 h-3.5" />
-                        <span>Track Package</span>
-                      </Link>
+                      {!orderIsCancelled && (
+                        <Link
+                          href={`/track/${order.orderNumber}`}
+                          className="bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] py-1.5 px-3 text-xs font-semibold rounded-xl flex items-center gap-1.5 shadow-2xs transition-all"
+                        >
+                          <Truck className="w-3.5 h-3.5" />
+                          <span>Track Package</span>
+                        </Link>
+                      )}
 
                       {orderIsCancelled ? (
                         <span className="py-1.5 px-3 text-xs font-semibold rounded-xl bg-red-500/10 text-red-500 border border-red-500/20 flex items-center gap-1">
@@ -362,7 +378,7 @@ export default function OrdersPage() {
                         ORDER CANCELLED & REFUND PROCESSED
                       </div>
                       <p className="mt-0.5 text-muted leading-relaxed font-sans">
-                        This order was cancelled. Full refund of <strong className="text-red-500">₹{order.totalAmount?.toLocaleString("en-IN")}</strong> has been initiated and reserved smartphone stock has been restored to warehouse inventory.
+                        Your order for <strong className="text-foreground">{order.items?.map((i: any) => i.productName).filter(Boolean).join(", ") || "Smartphone"}</strong> has been cancelled and the amount of <strong className="text-red-500">₹{order.totalAmount?.toLocaleString("en-IN")}</strong> will be refunded to your original payment method.
                       </p>
                     </div>
                   </div>
@@ -434,14 +450,14 @@ export default function OrdersPage() {
                             </div>
                           </div>
 
-                          {orderIsCancelled ? (
+                          {orderIsCancelled || item.warrantyStatus === "CANCELLED" ? (
                             <div className="lg:col-span-7 bg-red-500/5 border border-red-500/20 p-4 rounded-xl space-y-1.5 text-xs">
                               <div className="flex items-center gap-1.5 font-semibold text-red-500">
                                 <X className="w-4 h-4" />
-                                <span>Order Cancelled & Coverage Closed</span>
+                                <span>Warranty Cancelled (Order Cancelled)</span>
                               </div>
                               <p className="text-[11px] text-muted leading-relaxed">
-                                This device was part of order #{order.orderNumber} which was cancelled. Full refund has been initiated and warranty protection is voided.
+                                This device was part of order #{order.orderNumber} which was cancelled. Warranty coverage is cancelled and void.
                               </p>
                             </div>
                           ) : (

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { sendWarrantyReminder6MonthsEmail, sendWarrantyReminder1DayEmail } from "@/lib/email";
+import { isOrderCancelled } from "@/lib/orderStatus";
 
 export async function POST(request: Request) {
   try {
@@ -27,6 +28,16 @@ export async function POST(request: Request) {
 
     if (!orderItem) {
       return NextResponse.json({ success: false, error: "Order item not found" }, { status: 404 });
+    }
+
+    if (
+      orderItem.warrantyStatus === "CANCELLED" ||
+      isOrderCancelled(orderItem.order?.orderStatus)
+    ) {
+      return NextResponse.json(
+        { success: false, error: "Cannot simulate warranty expiry for a cancelled order." },
+        { status: 400 }
+      );
     }
 
     const now = new Date();
