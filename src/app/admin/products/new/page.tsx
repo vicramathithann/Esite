@@ -20,6 +20,7 @@ const FAMOUS_BRANDS = [
   "Sony",
   "Asus",
   "iQOO",
+  "Tecno",
   "Nokia",
 ];
 

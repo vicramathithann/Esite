@@ -28,9 +28,16 @@ export default function MobileImage({
   const defaultFallback = "/phones/iphone-16-pro-max.jpg";
   const localPhoto = phoneId ? `/phones/${phoneId}.jpg` : defaultFallback;
   
-  // Start with src, or local photo
-  const [imgSrc, setImgSrc] = useState<string>(src || localPhoto);
+  // Clean source to ensure .jpg / .png photography is loaded, never cartoon .svg
+  const cleanInitialSrc = (src || "").replace(/\.svg$/, ".jpg") || localPhoto;
+  const [imgSrc, setImgSrc] = useState<string>(cleanInitialSrc);
   const [hasError, setHasError] = useState(false);
+
+  React.useEffect(() => {
+    const clean = (src || "").replace(/\.svg$/, ".jpg") || localPhoto;
+    setImgSrc(clean);
+    setHasError(false);
+  }, [src, localPhoto]);
 
   const handleError = () => {
     if (!hasError) {

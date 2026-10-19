@@ -439,13 +439,19 @@ export default function MobileDetailPage({
 
               {siteSettings.showCompare === "true" && (
                 <button
-                  onClick={() => addToCompare(product)}
+                  onClick={() => {
+                    if (isCompared) {
+                      router.push("/compare");
+                    } else {
+                      addToCompare(product);
+                    }
+                  }}
                   className={`p-3.5 rounded-full border transition-all duration-200 cursor-pointer ${
                     isCompared
                       ? "bg-[#C9A66B] dark:bg-[#D4B483] border-[#C9A66B] text-[#FFFCFA] font-semibold shadow-xs"
                       : "border-[#C9A66B]/40 bg-[#C9A66B]/10 text-[#8C6226] dark:text-[#D4B483] hover:bg-[#C9A66B]/20"
                   }`}
-                  title="Compare"
+                  title={isCompared ? "Go to Compare page" : "Add to Compare"}
                 >
                   <Layers className="w-4 h-4" />
                 </button>

@@ -18,7 +18,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 const BRANDS = [
   "Apple", "Samsung", "Google Pixel", "OnePlus", "Xiaomi", 
   "Redmi", "Realme", "Vivo", "Oppo", "Motorola", "Nothing", 
-  "Sony", "Asus", "iQOO", "Nokia"
+  "Sony", "Asus", "iQOO", "Tecno", "Nokia"
 ];
 
 function BrandSubNav() {

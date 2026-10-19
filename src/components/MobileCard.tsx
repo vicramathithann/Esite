@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import MobileImage from "@/components/MobileImage";
 import { MobileProductData, ProductColor, StorageOption } from "@/lib/types";
 import { useApp } from "@/context/AppContext";
@@ -21,6 +22,7 @@ interface MobileCardProps {
 }
 
 export default function MobileCard({ product }: MobileCardProps) {
+  const router = useRouter();
   const { 
     addToCart, 
     addToCompare, 
@@ -85,7 +87,11 @@ export default function MobileCard({ product }: MobileCardProps) {
   const handleToggleCompare = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    addToCompare(product);
+    if (isCompared) {
+      router.push("/compare");
+    } else {
+      addToCompare(product);
+    }
   };
 
   return (
@@ -263,6 +269,7 @@ export default function MobileCard({ product }: MobileCardProps) {
           {siteSettings.showCompare === "true" && (
             <button
               onClick={handleToggleCompare}
+              title={isCompared ? "Go to Compare page" : "Add to Compare"}
               className={`py-1.5 px-2 text-[11px] rounded-full text-center font-medium transition-all duration-200 cursor-pointer border ${
                 isCompared
                   ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] border-[#C9A66B] dark:border-[#D4B483] font-semibold shadow-xs"
