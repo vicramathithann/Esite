@@ -1,23 +1,16 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import {
   ArrowLeft,
   Package,
   Truck,
-  CreditCard,
   MapPin,
-  Clock,
   Mail,
-  Phone,
-  ShieldCheck,
   Save,
-  RefreshCw,
-  CheckCircle2,
-  AlertTriangle,
 } from "lucide-react";
 import { formatINR, formatDateOnly } from "@/lib/formatters";
 
@@ -35,7 +28,6 @@ const ORDER_STATUS_OPTIONS = [
 
 export default function AdminSingleOrderPage() {
   const params = useParams();
-  const router = useRouter();
   const orderId = params?.id as string;
 
   const [order, setOrder] = useState<any | null>(null);

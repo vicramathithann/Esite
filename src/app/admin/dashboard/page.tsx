@@ -3,12 +3,10 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
-  LayoutDashboard,
   Package,
   Smartphone,
   Boxes,
   Users,
-  ShieldCheck,
   TrendingUp,
   AlertTriangle,
   Clock,
@@ -20,10 +18,8 @@ import {
   PlusCircle,
 } from "lucide-react";
 import { formatINR } from "@/lib/formatters";
-import { useApp } from "@/context/AppContext";
 
 export default function AdminDashboardView() {
-  const { currentUser } = useApp();
   const [metrics, setMetrics] = useState<any | null>(null);
   const [lowStock, setLowStock] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

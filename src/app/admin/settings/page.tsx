@@ -3,8 +3,6 @@
 import React, { useState, useEffect } from "react";
 import {
   SlidersHorizontal,
-  Eye,
-  EyeOff,
   Save,
   RefreshCw,
   CheckCircle2,
@@ -14,7 +12,6 @@ import {
   Layers,
   Sparkles,
   MessageSquare,
-  ShieldCheck,
 } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 

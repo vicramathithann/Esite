@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Smartphone, ArrowLeft, Save, Plus, Trash2, Sparkles, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Save } from "lucide-react";
 
 const FAMOUS_BRANDS = [
   "Apple",

@@ -26,7 +26,7 @@ import {
   Heart,
   Star
 } from "lucide-react";
-import { formatINR, calculateEMI } from "@/lib/formatters";
+import { calculateEMI } from "@/lib/formatters";
 
 export default function MobileDetailPage({
   params,
@@ -54,7 +54,7 @@ export default function MobileDetailPage({
   const [selectedColor, setSelectedColor] = useState<ProductColor | null>(defaultMatch?.colors[0] || null);
   const [selectedStorage, setSelectedStorage] = useState<StorageOption | null>(defaultMatch?.storageOptions[0] || null);
   const [selectedRam, setSelectedRam] = useState<string>(defaultMatch?.ram || "8GB");
-  const [quantity, setQuantity] = useState(1);
+  const quantity = 1;
   const [isAdded, setIsAdded] = useState(false);
   const [outOfStockAlert, setOutOfStockAlert] = useState(false);
   const [isZoomed, setIsZoomed] = useState(false);

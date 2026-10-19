@@ -7,10 +7,6 @@ import {
   CheckCircle2,
   AlertCircle,
   RefreshCw,
-  Mail,
-  Phone,
-  Calendar,
-  ShoppingBag,
 } from "lucide-react";
 import { formatINR, formatDateOnly } from "@/lib/formatters";
 

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import {
   LayoutDashboard,
@@ -24,7 +24,6 @@ import {
 
 export default function AdminNav() {
   const pathname = usePathname();
-  const router = useRouter();
   const { currentUser, logout } = useApp();
   const [mobileOpen, setMobileOpen] = useState(false);
 

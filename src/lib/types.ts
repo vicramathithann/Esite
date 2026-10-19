@@ -8,28 +8,6 @@ export interface StorageOption {
   price: number;
 }
 
-export interface MobileData {
-  id: string;
-  brand: string;
-  model: string;
-  variant: string;
-  ram: string;
-  storage: string;
-  price: number;
-  imageUrl: string;
-  displaySize: string;
-  processor: string;
-  camera: string;
-  battery: string;
-  operatingSystem: string;
-  description: string;
-  stock: number;
-  rating?: number;
-  reviewCount?: number;
-  originalPrice?: number | null;
-  createdAt?: string | Date;
-}
-
 export interface MobileProductData {
   id: string;
   name: string;

@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, Suspense, useCallback } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { 
-  Sparkles, 
   User, 
   Lock, 
   Eye, 
@@ -12,7 +11,6 @@ import {
   CheckCircle2, 
   AlertCircle, 
   ArrowRight, 
-  Clock, 
   ShieldCheck, 
   Mail,
   ShoppingBag
@@ -40,7 +38,6 @@ function InviteAcceptanceContent() {
 
   // Live Username Validation State
   const [usernameStatus, setUsernameStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
-  const [usernameMessage, setUsernameMessage] = useState("");
 
   // Submission State
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -69,7 +66,7 @@ function InviteAcceptanceContent() {
         } else {
           setVerifyError(data.error || "Invalid or expired invitation link.");
         }
-      } catch (err) {
+      } catch {
         if (isMounted) {
           setVerifyError("Unable to verify invitation link. Please check your network connection.");
         }
@@ -91,13 +88,11 @@ function InviteAcceptanceContent() {
     const clean = name.trim();
     if (!clean) {
       setUsernameStatus("idle");
-      setUsernameMessage("");
       return;
     }
 
     if (clean.length < 2) {
       setUsernameStatus("idle");
-      setUsernameMessage("Username must be at least 2 characters.");
       return;
     }
 
@@ -108,10 +103,8 @@ function InviteAcceptanceContent() {
         const data = await res.json();
         if (data.available) {
           setUsernameStatus("available");
-          setUsernameMessage("Username is available");
         } else {
           setUsernameStatus("taken");
-          setUsernameMessage(data.error || "This name is already taken");
         }
       } catch {
         setUsernameStatus("idle");
@@ -177,7 +170,6 @@ function InviteAcceptanceContent() {
       if (!res.ok || !data.success) {
         if (data.error === "This name is already taken") {
           setUsernameStatus("taken");
-          setUsernameMessage("This name is already taken");
         }
         setSubmitError(data.error || "Failed to accept invitation. Please try again.");
         setIsSubmitting(false);

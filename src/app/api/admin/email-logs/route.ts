@@ -11,7 +11,6 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const role = searchParams.get("role");
     const status = searchParams.get("status");
     const emailType = searchParams.get("emailType");
     const search = searchParams.get("search");

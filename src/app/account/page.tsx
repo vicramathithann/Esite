@@ -10,27 +10,22 @@ import {
   AlertTriangle, 
   ShieldAlert, 
   RefreshCw, 
-  CheckCircle2, 
   ChevronRight,
   Plus, 
   BellRing,
   Award,
-  Search,
   Truck,
   User,
   Mail,
   Phone,
   LogOut,
-  Sparkles,
-  ExternalLink,
-  ShoppingBag,
   X
 } from "lucide-react";
-import { formatINR, formatDateOnly, getDaysRemaining } from "@/lib/formatters";
+import { formatDateOnly, getDaysRemaining } from "@/lib/formatters";
 import { useApp } from "@/context/AppContext";
 
 export default function AccountPage() {
-  const { currentUser, logout, setIsCartOpen } = useApp();
+  const { currentUser, logout } = useApp();
 
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

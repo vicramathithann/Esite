@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useApp } from "@/context/AppContext";
 import {
   KeyRound,
   ShieldCheck,
@@ -14,14 +13,11 @@ import {
   ShieldAlert,
   Mail,
   Send,
-  ExternalLink,
 } from "lucide-react";
 
 const ADMIN_EMAIL = "rrroyce20@gmail.com";
 
 export default function AdminChangePasswordPage() {
-  const { currentUser } = useApp();
-
   const [activeTab, setActiveTab] = useState<"standard" | "forgot">("standard");
 
   // Tab 1: Standard Password Change States

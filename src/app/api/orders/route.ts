@@ -3,12 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { sendOrderConfirmationEmail, sendWarrantyActivationEmail } from "@/lib/email";
 import { getAuthenticatedUser } from "@/lib/auth";
 import { logSecurityEvent, getClientIp } from "@/lib/securityLogger";
-import { isValidEmail } from "@/lib/validation";
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get("userId");
     const admin = searchParams.get("admin");
     const role = searchParams.get("role");
 
@@ -68,10 +66,8 @@ export async function POST(request: Request) {
       city,
       pincode,
       state,
-      totalAmount,
       paymentMethod,
       items,
-      userId,
     } = body;
 
     if (!customerName || !items || !items.length) {

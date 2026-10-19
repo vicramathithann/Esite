@@ -165,7 +165,7 @@ export async function POST(request: Request) {
           highlightFeatures: JSON.stringify([newMobile.displaySize, newMobile.processor, newMobile.camera]),
         },
       });
-    } catch (e) {
+    } catch {
       // Ignored if duplicate id
     }
 

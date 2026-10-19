@@ -238,14 +238,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setCurrentUser(sanitizedUser);
     try {
       localStorage.setItem("novamobile_user", JSON.stringify(sanitizedUser));
-    } catch (e) {}
+    } catch {}
   };
 
   const logout = async () => {
     setCurrentUser(null);
     try {
       localStorage.removeItem("novamobile_user");
-    } catch (e) {}
+    } catch {}
     try {
       await fetch("/api/auth/logout", { method: "POST" });
     } catch (e) {

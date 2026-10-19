@@ -2,13 +2,11 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import MobileImage from "@/components/MobileImage";
 import { MobileProductData, ProductColor, StorageOption } from "@/lib/types";
 import { useApp } from "@/context/AppContext";
 import { 
   Check, 
-  Layers, 
   AlertCircle,
   X,
   ShoppingBag,
@@ -22,7 +20,7 @@ interface MobileCardProps {
 }
 
 export default function MobileCard({ product }: MobileCardProps) {
-  const router = useRouter();
+
   const { 
     addToCart, 
     addToCompare, 

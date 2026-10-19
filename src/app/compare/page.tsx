@@ -19,7 +19,7 @@ import {
   Check,
   ShoppingBag
 } from "lucide-react";
-import { formatINR, calculateEMI } from "@/lib/formatters";
+import { calculateEMI } from "@/lib/formatters";
 
 export default function ComparePage() {
   const { compareList, addToCompare, removeFromCompare, clearCompare, addToCart } = useApp();

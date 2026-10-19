@@ -6,22 +6,15 @@ import Image from "next/image";
 import {
   Package,
   Truck,
-  CheckCircle2,
-  Clock,
   MapPin,
   ShieldCheck,
-  Mail,
   Copy,
   Check,
   ArrowLeft,
   RefreshCw,
-  ExternalLink,
-  ChevronRight,
-  Sparkles,
   BellRing,
   X
 } from "lucide-react";
-import { formatINR } from "@/lib/formatters";
 
 interface TrackPageProps {
   params: Promise<{ orderNumber: string }>;

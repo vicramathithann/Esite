@@ -81,7 +81,7 @@ export async function PATCH(
           ...(body.inStock !== undefined ? { inStock: Boolean(body.inStock) } : {}),
         },
       });
-    } catch (e) {}
+    } catch {}
 
     return NextResponse.json({
       success: true,
@@ -117,7 +117,7 @@ export async function DELETE(
       await prisma.mobileProduct.delete({
         where: { id },
       });
-    } catch (e) {}
+    } catch {}
 
     return NextResponse.json({
       success: true,

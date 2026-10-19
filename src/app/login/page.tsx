@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { 
   Lock, 
@@ -18,12 +18,10 @@ import {
   KeyRound, 
   RefreshCw, 
   Loader2,
-  HelpCircle,
   X
 } from "lucide-react";
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const redirectParam = searchParams.get("redirect") || "";
   const forgotVerifiedParam = searchParams.get("forgotVerified") === "true";
@@ -635,7 +633,7 @@ function LoginForm() {
                 </Link>
               ) : (
                 <>
-                  <Link href="/user" className="text-[11px] font-bold text-accent underline">
+                  <Link href="/account" className="text-[11px] font-bold text-accent underline">
                     My Account →
                   </Link>
                   <Link href="/" className="text-[11px] font-bold text-accent underline">

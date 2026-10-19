@@ -14,8 +14,6 @@ import {
   ShieldCheck,
   XCircle,
   Search,
-  ExternalLink,
-  Users
 } from "lucide-react";
 import { formatDateOnly } from "@/lib/formatters";
 
@@ -98,7 +96,7 @@ export default function AdminInvitePage() {
       setLastGeneratedLink(data.inviteLink || null);
       setRecipientEmail("");
       await loadInvites();
-    } catch (err) {
+    } catch {
       setSendError("Network error sending invite. Please try again.");
     } finally {
       setIsSending(false);
@@ -207,7 +205,7 @@ export default function AdminInvitePage() {
           <h2 className="text-sm font-bold text-foreground">Send New Invitation</h2>
         </div>
         <p className="text-xs text-muted mb-5 leading-relaxed">
-          Enter the recipient's email address. An invitation email with a secure registration link will be sent. The link expires in 48 hours.
+          Enter the recipient&apos;s email address. An invitation email with a secure registration link will be sent. The link expires in 48 hours.
         </p>
 
         {sendError && (

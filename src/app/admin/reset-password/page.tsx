@@ -14,7 +14,6 @@ import {
   KeyRound,
   ShieldAlert,
   Clock,
-  ShieldCheck,
 } from "lucide-react";
 
 const ADMIN_EMAIL = "rrroyce20@gmail.com";

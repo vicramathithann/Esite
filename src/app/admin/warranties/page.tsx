@@ -6,10 +6,6 @@ import {
   Search,
   RefreshCw,
   Mail,
-  CheckCircle2,
-  AlertTriangle,
-  Smartphone,
-  ExternalLink,
 } from "lucide-react";
 import { formatDateOnly } from "@/lib/formatters";
 

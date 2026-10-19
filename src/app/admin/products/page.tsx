@@ -11,7 +11,6 @@ import {
   Trash2,
   RefreshCw,
   Sparkles,
-  ExternalLink,
 } from "lucide-react";
 import { formatINR } from "@/lib/formatters";
 

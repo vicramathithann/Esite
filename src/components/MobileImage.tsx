@@ -18,7 +18,6 @@ export default function MobileImage({
   src,
   alt,
   phoneId,
-  brand,
   className = "object-contain",
   fill = true,
   priority = false,

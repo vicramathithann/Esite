@@ -9,9 +9,6 @@ import {
   AlertCircle,
   RotateCcw,
   Mail,
-  Send,
-  Clock,
-  AlertTriangle,
 } from "lucide-react";
 import { formatDateOnly } from "@/lib/formatters";
 

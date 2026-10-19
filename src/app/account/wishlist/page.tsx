@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Heart, ArrowLeft, ShoppingBag, Trash2, Smartphone, ShieldCheck } from "lucide-react";
+import { Heart, ArrowLeft, ShoppingBag, Trash2, Smartphone } from "lucide-react";
 import { formatINR } from "@/lib/formatters";
 import { useApp } from "@/context/AppContext";
 

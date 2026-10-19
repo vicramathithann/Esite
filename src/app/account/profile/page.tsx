@@ -2,11 +2,11 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { User, Mail, Phone, ShieldCheck, ArrowLeft, CheckCircle2, AlertCircle, Save, RefreshCw } from "lucide-react";
+import { User, Mail, ArrowLeft, CheckCircle2, AlertCircle, Save, RefreshCw } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 
 export default function ProfilePage() {
-  const { currentUser, login, refreshUser } = useApp();
+  const { currentUser, login } = useApp();
 
   const [name, setName] = useState(currentUser?.name || "");
   const [phone, setPhone] = useState(currentUser?.phone || "");

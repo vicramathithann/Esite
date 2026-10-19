@@ -10,17 +10,14 @@ import {
   AlertTriangle, 
   ShieldAlert, 
   RefreshCw, 
-  CheckCircle2, 
   ChevronRight, 
   Plus, 
   BellRing, 
   Award, 
-  Search, 
   Truck, 
-  Mail,
   X 
 } from "lucide-react";
-import { formatINR, formatDateOnly, getDaysRemaining } from "@/lib/formatters";
+import { formatDateOnly, getDaysRemaining } from "@/lib/formatters";
 import { useApp } from "@/context/AppContext";
 
 export default function OrdersPage() {

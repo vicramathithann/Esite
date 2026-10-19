@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { ShieldCheck, ArrowLeft, Clock, Smartphone, AlertTriangle, RefreshCw, Mail, CheckCircle2 } from "lucide-react";
+import { ShieldCheck, ArrowLeft, Smartphone, RefreshCw, Mail } from "lucide-react";
 import { formatDateOnly } from "@/lib/formatters";
 import { useApp } from "@/context/AppContext";
 

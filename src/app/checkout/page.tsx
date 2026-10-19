@@ -8,7 +8,6 @@ import { useApp } from "@/context/AppContext";
 import { 
   Lock, 
   CheckCircle2, 
-  ArrowLeft, 
   Truck, 
   Sparkles,
   RefreshCw,
