@@ -10,6 +10,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { formatINR, formatDateOnly } from "@/lib/formatters";
+import { isOrderCancelled, normalizeAdminOrderStatus } from "@/lib/orderStatus";
 
 const ORDER_STATUS_OPTIONS = [
   "ALL",
@@ -94,7 +95,13 @@ export default function AdminOrdersPage() {
   };
 
   const filteredOrders = orders.filter((o) => {
-    if (statusFilter !== "ALL" && o.orderStatus !== statusFilter) return false;
+    if (statusFilter !== "ALL") {
+      if (statusFilter === "Cancelled") {
+        if (!isOrderCancelled(o.orderStatus)) return false;
+      } else if (normalizeAdminOrderStatus(o.orderStatus) !== statusFilter) {
+        return false;
+      }
+    }
     if (search.trim()) {
       const q = search.toLowerCase();
       const matchNum = o.orderNumber?.toLowerCase().includes(q);
@@ -209,7 +216,7 @@ export default function AdminOrdersPage() {
                       </td>
                       <td className="py-3.5 px-4">
                         <select
-                          value={o.orderStatus}
+                          value={normalizeAdminOrderStatus(o.orderStatus)}
                           onChange={(e) => handleQuickStatusChange(o.id, e.target.value)}
                           className="bg-tile border border-border text-xs font-semibold text-foreground rounded-lg px-2.5 py-1 focus:outline-none focus:border-[#C9A66B]"
                         >

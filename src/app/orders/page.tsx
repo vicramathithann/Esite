@@ -18,6 +18,7 @@ import {
   X 
 } from "lucide-react";
 import { formatDateOnly, getDaysRemaining } from "@/lib/formatters";
+import { isOrderCancelled, canOrderBeCancelled } from "@/lib/orderStatus";
 import { useApp } from "@/context/AppContext";
 
 export default function OrdersPage() {
@@ -26,16 +27,17 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [activeOrderTab, setActiveOrderTab] = useState<"all" | "active" | "cancelled">("all");
+  const [activeOrderTab, setActiveOrderTab] = useState<"active" | "cancelled" | "all">("active");
   const [cancelModalOrder, setCancelModalOrder] = useState<any | null>(null);
   const [cancelReason, setCancelReason] = useState<string>("Order created by mistake");
   const [cancelling, setCancelling] = useState(false);
 
   const handleConfirmCancel = async () => {
     if (!cancelModalOrder) return;
+    const targetOrder = cancelModalOrder;
     try {
       setCancelling(true);
-      const res = await fetch(`/api/orders/${cancelModalOrder.id}`, {
+      const res = await fetch(`/api/orders/${targetOrder.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -46,9 +48,19 @@ export default function OrdersPage() {
       });
       const data = await res.json();
       if (data.success) {
+        // Immediately update order status in state so it leaves active list without waiting
+        setOrders((prev) =>
+          prev.map((o) =>
+            o.id === targetOrder.id
+              ? { ...o, orderStatus: "CANCELLED", paymentStatus: "Refund Initiated" }
+              : o
+          )
+        );
         setCancelModalOrder(null);
+        // Switch to the separate Cancelled Orders section as requested
+        setActiveOrderTab("cancelled");
         await loadOrders();
-        alert(`Order #${cancelModalOrder.orderNumber} has been successfully cancelled and refunded!`);
+        alert(`Order #${targetOrder.orderNumber} has been successfully cancelled and moved to Cancelled Orders.`);
       } else {
         alert(data.error || "Failed to cancel order.");
       }
@@ -59,6 +71,16 @@ export default function OrdersPage() {
       setCancelling(false);
     }
   };
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get("tab");
+      if (tab === "cancelled" || tab === "active" || tab === "all") {
+        setActiveOrderTab(tab as "active" | "cancelled" | "all");
+      }
+    }
+  }, []);
 
   const loadOrders = useCallback(async () => {
     if (!currentUser) {
@@ -138,12 +160,12 @@ export default function OrdersPage() {
     );
   };
 
-  const activeOrdersCount = orders.filter((o) => o.orderStatus !== "CANCELLED").length;
-  const cancelledOrdersCount = orders.filter((o) => o.orderStatus === "CANCELLED").length;
+  const activeOrdersCount = orders.filter((o) => !isOrderCancelled(o.orderStatus)).length;
+  const cancelledOrdersCount = orders.filter((o) => isOrderCancelled(o.orderStatus)).length;
 
   const filteredOrders = orders.filter((o) => {
-    if (activeOrderTab === "active") return o.orderStatus !== "CANCELLED";
-    if (activeOrderTab === "cancelled") return o.orderStatus === "CANCELLED";
+    if (activeOrderTab === "active") return !isOrderCancelled(o.orderStatus);
+    if (activeOrderTab === "cancelled") return isOrderCancelled(o.orderStatus);
     return true;
   });
 
@@ -193,18 +215,8 @@ export default function OrdersPage() {
           </div>
         )}
 
-        {/* Tabs */}
+        {/* Tabs - Dedicated Active and Cancelled sections */}
         <div className="border-b border-border flex gap-6 text-sm mb-6">
-          <button
-            onClick={() => setActiveOrderTab("all")}
-            className={`pb-3 text-xs md:text-sm transition-colors cursor-pointer ${
-              activeOrderTab === "all"
-                ? "font-bold text-[#8C6226] dark:text-[#E5CBA2] border-b-2 border-[#C9A66B] dark:border-[#D4B483]"
-                : "text-muted hover:text-foreground"
-            }`}
-          >
-            Orders & Warranties ({orders.length})
-          </button>
           <button
             onClick={() => setActiveOrderTab("active")}
             className={`pb-3 text-xs md:text-sm transition-colors cursor-pointer ${
@@ -225,6 +237,16 @@ export default function OrdersPage() {
           >
             Cancelled Orders ({cancelledOrdersCount})
           </button>
+          <button
+            onClick={() => setActiveOrderTab("all")}
+            className={`pb-3 text-xs md:text-sm transition-colors cursor-pointer ${
+              activeOrderTab === "all"
+                ? "font-bold text-[#8C6226] dark:text-[#E5CBA2] border-b-2 border-[#C9A66B] dark:border-[#D4B483]"
+                : "text-muted hover:text-foreground"
+            }`}
+          >
+            All Orders ({orders.length})
+          </button>
         </div>
 
         {/* Feature Banner */}
@@ -243,20 +265,36 @@ export default function OrdersPage() {
             <div className="w-8 h-8 border-3 border-[#C9A66B] dark:border-[#D4B483] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
             <p className="text-xs">Loading your orders...</p>
           </div>
-        ) : orders.length === 0 ? (
+        ) : filteredOrders.length === 0 ? (
           <div className="bg-card border border-border rounded-2xl p-12 text-center text-muted space-y-4 shadow-sm">
             <Smartphone className="w-12 h-12 mx-auto text-muted" />
-            <h3 className="text-lg font-bold text-foreground">No Orders Placed Yet</h3>
+            <h3 className="text-lg font-bold text-foreground">
+              {activeOrderTab === "cancelled"
+                ? "No Cancelled Orders"
+                : activeOrderTab === "active"
+                ? "No Active Orders"
+                : "No Orders Placed Yet"}
+            </h3>
             <p className="text-xs text-muted max-w-md mx-auto">
-              When you purchase a smartphone from VN Mobiles, you can track delivery and device warranty expiry here.
+              {activeOrderTab === "cancelled"
+                ? "You have not cancelled any smartphone orders. All cancelled orders will be archived here."
+                : activeOrderTab === "active"
+                ? "You currently have no active orders in processing or transit."
+                : "When you purchase a smartphone from VN Mobiles, you can track delivery and device warranty expiry here."}
             </p>
-            <Link href="/" className="inline-flex items-center justify-center bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] py-2.5 px-6 text-xs font-semibold rounded-xl transition-all shadow-sm">
-              Start Shopping
-            </Link>
+            {activeOrderTab !== "cancelled" && (
+              <Link href="/" className="inline-flex items-center justify-center bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] py-2.5 px-6 text-xs font-semibold rounded-xl transition-all shadow-sm">
+                Start Shopping
+              </Link>
+            )}
           </div>
         ) : (
           <div className="space-y-6">
-            {filteredOrders.map((order) => (
+            {filteredOrders.map((order) => {
+              const orderIsCancelled = isOrderCancelled(order.orderStatus);
+              const orderCanCancel = canOrderBeCancelled(order.orderStatus);
+
+              return (
               <div key={order.id} className="bg-card border border-border rounded-2xl overflow-hidden shadow-xs">
                 {/* Order Card Header */}
                 <div className="bg-tile border-b border-border px-5 py-3.5 flex flex-wrap items-center justify-between gap-4 text-xs text-muted">
@@ -292,11 +330,11 @@ export default function OrdersPage() {
                         <span>Track Package</span>
                       </Link>
 
-                      {order.orderStatus === "CANCELLED" ? (
-                        <span className="py-1.5 px-3 text-xs font-semibold rounded-xl bg-[#C9A66B]/15 text-[#8C6226] dark:text-[#E5CBA2] border border-[#C9A66B]/30 flex items-center gap-1">
+                      {orderIsCancelled ? (
+                        <span className="py-1.5 px-3 text-xs font-semibold rounded-xl bg-red-500/10 text-red-500 border border-red-500/20 flex items-center gap-1">
                           <X className="w-3.5 h-3.5" /> Cancelled
                         </span>
-                      ) : order.orderStatus !== "DELIVERED" ? (
+                      ) : orderCanCancel ? (
                         <button
                           onClick={() => {
                             setCancelModalOrder(order);
@@ -314,7 +352,7 @@ export default function OrdersPage() {
                 </div>
 
                 {/* Cancelled Order Banner */}
-                {order.orderStatus === "CANCELLED" && (
+                {orderIsCancelled && (
                   <div className="bg-red-500/10 border-b border-red-500/20 px-5 py-3 text-xs text-red-500 flex items-start gap-2.5">
                     <div className="p-1 rounded-lg bg-red-600 text-white shrink-0 mt-0.5">
                       <X className="w-3.5 h-3.5" />
@@ -330,8 +368,8 @@ export default function OrdersPage() {
                   </div>
                 )}
 
-                {/* Alteration Alert Banner */}
-                {(order.adminNotes || order.orderStatus !== "CONFIRMED" || order.shippingCarrier) && (
+                {/* Alteration Alert Banner (only shown for active orders) */}
+                {!orderIsCancelled && (order.adminNotes || order.orderStatus !== "CONFIRMED" || order.shippingCarrier) && (
                   <div className="bg-tile border-b border-border px-5 py-3 text-xs text-muted">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
@@ -396,91 +434,106 @@ export default function OrdersPage() {
                             </div>
                           </div>
 
-                          {/* Warranty Status & Countdown (4 cols) */}
-                          <div className="lg:col-span-4 bg-tile border border-border p-4 rounded-xl space-y-2.5 text-xs">
-                            <div className="flex justify-between items-center">
-                              <span className="font-semibold text-foreground flex items-center gap-1.5">
-                                <Award className="w-3.5 h-3.5 text-accent" />
-                                Device Shield Warranty
-                              </span>
-                              {getStatusBadge(item.warrantyStatus, daysLeft)}
+                          {orderIsCancelled ? (
+                            <div className="lg:col-span-7 bg-red-500/5 border border-red-500/20 p-4 rounded-xl space-y-1.5 text-xs">
+                              <div className="flex items-center gap-1.5 font-semibold text-red-500">
+                                <X className="w-4 h-4" />
+                                <span>Order Cancelled & Coverage Closed</span>
+                              </div>
+                              <p className="text-[11px] text-muted leading-relaxed">
+                                This device was part of order #{order.orderNumber} which was cancelled. Full refund has been initiated and warranty protection is voided.
+                              </p>
                             </div>
+                          ) : (
+                            <>
+                              {/* Warranty Status & Countdown (4 cols) */}
+                              <div className="lg:col-span-4 bg-tile border border-border p-4 rounded-xl space-y-2.5 text-xs">
+                                <div className="flex justify-between items-center">
+                                  <span className="font-semibold text-foreground flex items-center gap-1.5">
+                                    <Award className="w-3.5 h-3.5 text-accent" />
+                                    Device Shield Warranty
+                                  </span>
+                                  {getStatusBadge(item.warrantyStatus, daysLeft)}
+                                </div>
 
-                            <div className="flex justify-between text-muted font-mono text-[11px]">
-                              <span>Valid until:</span>
-                              <strong className="text-foreground">{formatDateOnly(item.warrantyExpiryDate)}</strong>
-                            </div>
+                                <div className="flex justify-between text-muted font-mono text-[11px]">
+                                  <span>Valid until:</span>
+                                  <strong className="text-foreground">{formatDateOnly(item.warrantyExpiryDate)}</strong>
+                                </div>
 
-                            {/* Progress bar */}
-                            <div className="w-full bg-card rounded-full h-1.5 overflow-hidden border border-border">
-                              <div
-                                className={`h-full ${
-                                  isExpired
-                                    ? "bg-red-500 w-full"
+                                {/* Progress bar */}
+                                <div className="w-full bg-card rounded-full h-1.5 overflow-hidden border border-border">
+                                  <div
+                                    className={`h-full ${
+                                      isExpired
+                                        ? "bg-red-500 w-full"
+                                        : isExpiringSoon
+                                        ? "bg-amber-500 w-3/4 animate-pulse"
+                                        : "bg-emerald-500 w-1/4"
+                                    }`}
+                                  />
+                                </div>
+
+                                <p className="text-[11px] text-muted leading-tight">
+                                  {isExpired
+                                    ? "Warranty coverage has expired. Hardware claim window closed."
                                     : isExpiringSoon
-                                    ? "bg-amber-500 w-3/4 animate-pulse"
-                                    : "bg-emerald-500 w-1/4"
-                                }`}
-                              />
-                            </div>
-
-                            <p className="text-[11px] text-muted leading-tight">
-                              {isExpired
-                                ? "Warranty coverage has expired. Hardware claim window closed."
-                                : isExpiringSoon
-                                ? "⚠️ Warranty is expiring soon. Reminder email dispatched to buyer."
-                                : "Active coverage. Automated warranty alert emails sent 6 months & 1 day before expiry."}
-                            </p>
-                          </div>
-
-                          {/* Action Buttons & Warranty Email Simulation Triggers (3 cols) */}
-                          <div className="lg:col-span-3 space-y-2 text-xs">
-                            <span className="text-[10px] uppercase font-semibold text-muted block">
-                              Test Warranty Alert Emails:
-                            </span>
-
-                            <button
-                              onClick={() => handleSimulateExpiry(item.id, "SET_NEAR_EXPIRY")}
-                              disabled={actionLoading !== null}
-                              className="w-full py-2 px-3 bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 dark:hover:bg-[#D4B483]/20 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 rounded-xl font-medium text-left transition-all cursor-pointer text-foreground disabled:opacity-50"
-                            >
-                              <div className="flex items-center gap-1.5 text-[#8C6226] dark:text-[#E5CBA2] font-semibold text-xs">
-                                <AlertTriangle className="w-3.5 h-3.5" /> Set 6-Month Expiry
+                                    ? "⚠️ Warranty is expiring soon. Reminder email dispatched to buyer."
+                                    : "Active coverage. Automated warranty alert emails sent 6 months & 1 day before expiry."}
+                                </p>
                               </div>
-                              <span className="text-[10px] text-muted block mt-0.5">Triggers 6-Month Email Alert</span>
-                            </button>
 
-                            <button
-                              onClick={() => handleSimulateExpiry(item.id, "SET_URGENT_EXPIRY")}
-                              disabled={actionLoading !== null}
-                              className="w-full py-2 px-3 bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 dark:hover:bg-[#D4B483]/20 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 rounded-xl font-medium text-left transition-all cursor-pointer text-foreground disabled:opacity-50"
-                            >
-                              <div className="flex items-center gap-1.5 text-[#8C6226] dark:text-[#E5CBA2] font-semibold text-xs">
-                                <ShieldAlert className="w-3.5 h-3.5" /> Set 24H Expiry
-                              </div>
-                              <span className="text-[10px] text-muted block mt-0.5">Triggers 1-Day Urgent Email</span>
-                            </button>
+                              {/* Action Buttons & Warranty Email Simulation Triggers (3 cols) */}
+                              <div className="lg:col-span-3 space-y-2 text-xs">
+                                <span className="text-[10px] uppercase font-semibold text-muted block">
+                                  Test Warranty Alert Emails:
+                                </span>
 
-                            <button
-                              onClick={() => handleSimulateExpiry(item.id, "EXTEND_WARRANTY")}
-                              disabled={actionLoading !== null}
-                              className="w-full py-2 px-3 bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 dark:hover:bg-[#D4B483]/20 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 rounded-xl font-medium text-left transition-all cursor-pointer text-foreground disabled:opacity-50"
-                            >
-                              <div className="flex items-center gap-1.5 text-[#8C6226] dark:text-[#E5CBA2] font-semibold text-xs">
-                                <Plus className="w-3.5 h-3.5" /> Extend +1 Year
+                                <button
+                                  onClick={() => handleSimulateExpiry(item.id, "SET_NEAR_EXPIRY")}
+                                  disabled={actionLoading !== null}
+                                  className="w-full py-2 px-3 bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 dark:hover:bg-[#D4B483]/20 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 rounded-xl font-medium text-left transition-all cursor-pointer text-foreground disabled:opacity-50"
+                                >
+                                  <div className="flex items-center gap-1.5 text-[#8C6226] dark:text-[#E5CBA2] font-semibold text-xs">
+                                    <AlertTriangle className="w-3.5 h-3.5" /> Set 6-Month Expiry
+                                  </div>
+                                  <span className="text-[10px] text-muted block mt-0.5">Triggers 6-Month Email Alert</span>
+                                </button>
+
+                                <button
+                                  onClick={() => handleSimulateExpiry(item.id, "SET_URGENT_EXPIRY")}
+                                  disabled={actionLoading !== null}
+                                  className="w-full py-2 px-3 bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 dark:hover:bg-[#D4B483]/20 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 rounded-xl font-medium text-left transition-all cursor-pointer text-foreground disabled:opacity-50"
+                                >
+                                  <div className="flex items-center gap-1.5 text-[#8C6226] dark:text-[#E5CBA2] font-semibold text-xs">
+                                    <ShieldAlert className="w-3.5 h-3.5" /> Set 24H Expiry
+                                  </div>
+                                  <span className="text-[10px] text-muted block mt-0.5">Triggers 1-Day Urgent Email</span>
+                                </button>
+
+                                <button
+                                  onClick={() => handleSimulateExpiry(item.id, "EXTEND_WARRANTY")}
+                                  disabled={actionLoading !== null}
+                                  className="w-full py-2 px-3 bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 dark:hover:bg-[#D4B483]/20 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 rounded-xl font-medium text-left transition-all cursor-pointer text-foreground disabled:opacity-50"
+                                >
+                                  <div className="flex items-center gap-1.5 text-[#8C6226] dark:text-[#E5CBA2] font-semibold text-xs">
+                                    <Plus className="w-3.5 h-3.5" /> Extend +1 Year
+                                  </div>
+                                  <span className="text-[10px] text-muted block mt-0.5">Renew warranty coverage</span>
+                                </button>
                               </div>
-                              <span className="text-[10px] text-muted block mt-0.5">Renew warranty coverage</span>
-                            </button>
-                          </div>
+                            </>
+                          )}
                         </div>
                       </div>
                     );
                   })}
                 </div>
               </div>
-            ))}
-          </div>
-        )}
+            );
+          })}
+        </div>
+      )}
       </div>
 
       {/* Cancellation Confirmation Modal */}
@@ -564,7 +617,7 @@ export default function OrdersPage() {
                 type="button"
                 onClick={handleConfirmCancel}
                 disabled={cancelling}
-                className="py-2 px-4 text-xs font-semibold rounded-xl bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all"
+                className="py-2 px-4 text-xs font-semibold rounded-xl bg-red-600 hover:bg-red-700 active:bg-red-800 text-white shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all"
               >
                 {cancelling ? (
                   <>

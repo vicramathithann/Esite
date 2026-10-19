@@ -15,6 +15,7 @@ import {
   BellRing,
   X
 } from "lucide-react";
+import { isOrderCancelled, canOrderBeCancelled } from "@/lib/orderStatus";
 
 interface TrackPageProps {
   params: Promise<{ orderNumber: string }>;
@@ -48,6 +49,11 @@ export default function TrackOrderPage({ params }: TrackPageProps) {
       const data = await res.json();
       if (data.success) {
         setCancelModalOpen(false);
+        setOrder((prev: any) => ({
+          ...(prev || {}),
+          orderStatus: "CANCELLED",
+          paymentStatus: "Refund Initiated",
+        }));
         await fetchOrder();
         alert(`Order #${order.orderNumber} has been successfully cancelled and refunded!`);
       } else {
@@ -121,7 +127,9 @@ export default function TrackOrderPage({ params }: TrackPageProps) {
   }
 
   // Calculate Stepper State
-  const status = order.orderStatus;
+  const isCancelled = isOrderCancelled(order.orderStatus);
+  const canCancel = canOrderBeCancelled(order.orderStatus);
+  const status = (order.orderStatus || "").toUpperCase();
   const isConfirmed = true;
   const isProcessing = ["PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"].includes(status);
   const isShipped = ["SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"].includes(status);
@@ -145,11 +153,11 @@ export default function TrackOrderPage({ params }: TrackPageProps) {
             <ArrowLeft className="w-3.5 h-3.5" /> Back to Orders
           </Link>
           <div className="flex items-center gap-2">
-            {order.orderStatus === "CANCELLED" ? (
-              <span className="py-1 px-3 bg-[#C9A66B]/15 text-[#8C6226] dark:text-[#E5CBA2] border border-[#C9A66B]/30 rounded-xl font-semibold flex items-center gap-1 text-xs">
-                <X className="w-3.5 h-3.5 text-[#C9A66B] dark:text-[#D4B483]" /> Order Cancelled & Refunded
+            {isCancelled ? (
+              <span className="py-1 px-3 bg-red-500/10 text-red-500 border border-red-500/20 rounded-xl font-semibold flex items-center gap-1 text-xs">
+                <X className="w-3.5 h-3.5 text-red-500" /> Order Cancelled & Refunded
               </span>
-            ) : order.orderStatus !== "DELIVERED" ? (
+            ) : canCancel ? (
               <button
                 onClick={() => setCancelModalOpen(true)}
                 className="py-1.5 px-3 bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 rounded-xl shadow-2xs font-semibold flex items-center gap-1 cursor-pointer transition-all text-[#8C6226] dark:text-[#E5CBA2] text-xs"
@@ -179,10 +187,10 @@ export default function TrackOrderPage({ params }: TrackPageProps) {
 
             <div className="text-right">
               <span className="text-[11px] text-muted block uppercase font-semibold">
-                {order.orderStatus === "CANCELLED" ? "Order Status" : "Estimated Delivery"}
+                {isCancelled ? "Order Status" : "Estimated Delivery"}
               </span>
-              <span className={`text-sm sm:text-base font-bold ${order.orderStatus === "CANCELLED" ? "text-red-500 font-mono" : "text-emerald-500"}`}>
-                {order.orderStatus === "CANCELLED"
+              <span className={`text-sm sm:text-base font-bold ${isCancelled ? "text-red-500 font-mono" : "text-emerald-500"}`}>
+                {isCancelled
                   ? "CANCELLED (REFUNDED)"
                   : order.estimatedDelivery
                   ? new Date(order.estimatedDelivery).toLocaleDateString("en-IN", {
@@ -197,7 +205,7 @@ export default function TrackOrderPage({ params }: TrackPageProps) {
           </div>
 
           {/* Cancellation Alert Banner */}
-          {order.orderStatus === "CANCELLED" && (
+          {isCancelled && (
             <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-xs text-red-500 flex items-start gap-3">
               <div className="w-9 h-9 rounded-full bg-red-600 text-white flex items-center justify-center shrink-0 mt-0.5">
                 <X className="w-5 h-5" />
@@ -212,6 +220,11 @@ export default function TrackOrderPage({ params }: TrackPageProps) {
                 <p className="text-muted leading-relaxed font-sans">
                   This shipment was cancelled. Full refund of <strong className="text-red-500">₹{order.totalAmount?.toLocaleString("en-IN")}</strong> has been initiated back to your original payment method and reserved smartphone inventory has been restocked.
                 </p>
+                <div className="pt-1">
+                  <Link href="/orders?tab=cancelled" className="text-red-400 hover:underline font-semibold text-[11px]">
+                    View in Cancelled Orders Section →
+                  </Link>
+                </div>
               </div>
             </div>
           )}

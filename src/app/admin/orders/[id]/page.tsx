@@ -13,6 +13,7 @@ import {
   Save,
 } from "lucide-react";
 import { formatINR, formatDateOnly } from "@/lib/formatters";
+import { normalizeAdminOrderStatus } from "@/lib/orderStatus";
 
 const ORDER_STATUS_OPTIONS = [
   "Order Confirmed",
@@ -49,7 +50,7 @@ export default function AdminSingleOrderPage() {
       const data = await res.json();
       if (data.success && data.order) {
         setOrder(data.order);
-        setFormStatus(data.order.orderStatus);
+        setFormStatus(normalizeAdminOrderStatus(data.order.orderStatus));
         setFormCarrier(data.order.shippingCarrier || "BlueDart Express");
         setFormTracking(data.order.trackingNumber || "");
         setFormPaymentStatus(data.order.paymentStatus || "PAID");

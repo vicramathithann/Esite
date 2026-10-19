@@ -22,6 +22,7 @@ import {
   X
 } from "lucide-react";
 import { formatDateOnly, getDaysRemaining } from "@/lib/formatters";
+import { isOrderCancelled, canOrderBeCancelled } from "@/lib/orderStatus";
 import { useApp } from "@/context/AppContext";
 
 export default function AccountPage() {
@@ -30,16 +31,27 @@ export default function AccountPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [activeOrderTab, setActiveOrderTab] = useState<"all" | "active" | "cancelled">("all");
+  const [activeOrderTab, setActiveOrderTab] = useState<"all" | "active" | "cancelled">("active");
   const [cancelModalOrder, setCancelModalOrder] = useState<any | null>(null);
   const [cancelReason, setCancelReason] = useState<string>("Order created by mistake");
   const [cancelling, setCancelling] = useState(false);
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get("tab");
+      if (tab === "cancelled" || tab === "active" || tab === "all") {
+        setActiveOrderTab(tab as "all" | "active" | "cancelled");
+      }
+    }
+  }, []);
+
   const handleConfirmCancel = async () => {
     if (!cancelModalOrder) return;
+    const targetOrder = cancelModalOrder;
     try {
       setCancelling(true);
-      const res = await fetch(`/api/orders/${cancelModalOrder.id}`, {
+      const res = await fetch(`/api/orders/${targetOrder.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -50,9 +62,17 @@ export default function AccountPage() {
       });
       const data = await res.json();
       if (data.success) {
+        setOrders((prev) =>
+          prev.map((o) =>
+            o.id === targetOrder.id
+              ? { ...o, orderStatus: "CANCELLED", paymentStatus: "Refund Initiated" }
+              : o
+          )
+        );
         setCancelModalOrder(null);
+        setActiveOrderTab("cancelled");
         await loadOrders();
-        alert(`Order #${cancelModalOrder.orderNumber} has been successfully cancelled and refunded!`);
+        alert(`Order #${targetOrder.orderNumber} has been successfully cancelled and moved to Cancelled Orders.`);
       } else {
         alert(data.error || "Failed to cancel order.");
       }
@@ -239,27 +259,17 @@ export default function AccountPage() {
 
         {/* Amazon Tabs */}
         {(() => {
-          const activeOrdersCount = orders.filter((o) => o.orderStatus !== "CANCELLED").length;
-          const cancelledOrdersCount = orders.filter((o) => o.orderStatus === "CANCELLED").length;
+          const activeOrdersCount = orders.filter((o) => !isOrderCancelled(o.orderStatus)).length;
+          const cancelledOrdersCount = orders.filter((o) => isOrderCancelled(o.orderStatus)).length;
           const filteredOrders = orders.filter((o) => {
-            if (activeOrderTab === "active") return o.orderStatus !== "CANCELLED";
-            if (activeOrderTab === "cancelled") return o.orderStatus === "CANCELLED";
+            if (activeOrderTab === "active") return !isOrderCancelled(o.orderStatus);
+            if (activeOrderTab === "cancelled") return isOrderCancelled(o.orderStatus);
             return true;
           });
 
           return (
             <>
               <div className="border-b border-gray-300 flex gap-6 text-sm mb-6">
-                <button
-                  onClick={() => setActiveOrderTab("all")}
-                  className={`pb-2 text-xs md:text-sm font-semibold transition-colors cursor-pointer ${
-                    activeOrderTab === "all"
-                      ? "font-bold text-[#8C6226] dark:text-[#E5CBA2] border-b-2 border-[#C9A66B]"
-                      : "text-gray-600 hover:text-[#0f1111]"
-                  }`}
-                >
-                  Orders & Warranties ({orders.length})
-                </button>
                 <button
                   onClick={() => setActiveOrderTab("active")}
                   className={`pb-2 text-xs md:text-sm font-semibold transition-colors cursor-pointer ${
@@ -280,6 +290,16 @@ export default function AccountPage() {
                 >
                   Cancelled Orders ({cancelledOrdersCount})
                 </button>
+                <button
+                  onClick={() => setActiveOrderTab("all")}
+                  className={`pb-2 text-xs md:text-sm font-semibold transition-colors cursor-pointer ${
+                    activeOrderTab === "all"
+                      ? "font-bold text-[#8C6226] dark:text-[#E5CBA2] border-b-2 border-[#C9A66B]"
+                      : "text-gray-600 hover:text-[#0f1111]"
+                  }`}
+                >
+                  Orders & Warranties ({orders.length})
+                </button>
               </div>
 
               {/* Feature Banner */}
@@ -298,20 +318,36 @@ export default function AccountPage() {
                   <div className="w-8 h-8 border-3 border-[#e77600] border-t-transparent rounded-full animate-spin mx-auto mb-2" />
                   <p className="text-xs">Loading your orders...</p>
                 </div>
-              ) : orders.length === 0 ? (
+              ) : filteredOrders.length === 0 ? (
                 <div className="bg-white border border-gray-200 rounded-sm p-12 text-center text-gray-600 space-y-3">
                   <Smartphone className="w-12 h-12 mx-auto text-gray-400" />
-                  <h3 className="text-lg font-bold text-[#0f1111]">No Orders Placed Yet</h3>
-                  <p className="text-xs text-gray-500">
-                    When you purchase a smartphone from VN Mobiles, you can track delivery and device warranty expiry here.
+                  <h3 className="text-lg font-bold text-[#0f1111]">
+                    {activeOrderTab === "cancelled"
+                      ? "No Cancelled Orders"
+                      : activeOrderTab === "active"
+                      ? "No Active Orders"
+                      : "No Orders Placed Yet"}
+                  </h3>
+                  <p className="text-xs text-gray-500 max-w-md mx-auto">
+                    {activeOrderTab === "cancelled"
+                      ? "You have not cancelled any smartphone orders. All cancelled orders will be archived here."
+                      : activeOrderTab === "active"
+                      ? "You currently have no active orders in processing or transit."
+                      : "When you purchase a smartphone from VN Mobiles, you can track delivery and device warranty expiry here."}
                   </p>
-                  <Link href="/" className="btn-amazon-yellow py-2 px-6 text-xs font-bold inline-block">
-                    Start Shopping
-                  </Link>
+                  {activeOrderTab !== "cancelled" && (
+                    <Link href="/" className="btn-amazon-yellow py-2 px-6 text-xs font-bold inline-block">
+                      Start Shopping
+                    </Link>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {filteredOrders.map((order) => (
+                  {filteredOrders.map((order) => {
+                    const orderIsCancelled = isOrderCancelled(order.orderStatus);
+                    const orderCanCancel = canOrderBeCancelled(order.orderStatus);
+
+                    return (
                     <div key={order.id} className="bg-white border border-gray-300 rounded-lg overflow-hidden shadow-xs">
                       {/* Amazon Order Card Header */}
                       <div className="bg-[#f0f2f2] border-b border-gray-200 px-5 py-3 flex flex-wrap items-center justify-between gap-4 text-xs text-gray-600">
@@ -348,11 +384,11 @@ export default function AccountPage() {
                               <span>Track Package</span>
                             </Link>
 
-                            {order.orderStatus === "CANCELLED" ? (
+                            {orderIsCancelled ? (
                               <span className="py-1 px-2.5 text-xs font-bold rounded-sm bg-red-100 text-red-800 border border-red-200 flex items-center gap-1">
                                 <X className="w-3.5 h-3.5 text-red-600" /> Cancelled
                               </span>
-                            ) : order.orderStatus !== "DELIVERED" ? (
+                            ) : orderCanCancel ? (
                               <button
                                 onClick={() => {
                                   setCancelModalOrder(order);
@@ -370,7 +406,7 @@ export default function AccountPage() {
                       </div>
 
                       {/* Cancelled Order Banner */}
-                      {order.orderStatus === "CANCELLED" && (
+                      {orderIsCancelled && (
                         <div className="bg-red-50 border-b border-red-200 px-5 py-3 text-xs text-red-900 flex items-start gap-2.5">
                           <div className="p-1 rounded bg-red-600 text-white shrink-0 mt-0.5">
                             <X className="w-3.5 h-3.5" />
@@ -387,7 +423,7 @@ export default function AccountPage() {
                       )}
 
                 {/* Admin / Support Alteration Alert Banner */}
-                {(order.adminNotes || order.orderStatus !== "CONFIRMED" || order.shippingCarrier) && (
+                {!orderIsCancelled && (order.adminNotes || order.orderStatus !== "CONFIRMED" || order.shippingCarrier) && (
                   <div className="bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border-b border-amber-200 px-5 py-3 text-xs text-amber-900">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
@@ -453,91 +489,106 @@ export default function AccountPage() {
                             </div>
                           </div>
 
-                          {/* Warranty Status & Countdown (4 cols) */}
-                          <div className="lg:col-span-4 bg-gray-50 border border-gray-200 p-3.5 rounded-sm space-y-2 text-xs">
-                            <div className="flex justify-between items-center">
-                              <span className="font-bold text-[#0f1111] flex items-center gap-1">
-                                <Award className="w-3.5 h-3.5 text-[#e67a00]" />
-                                Device Shield Warranty
-                              </span>
-                              {getStatusBadge(item.warrantyStatus, daysLeft)}
+                          {orderIsCancelled ? (
+                            <div className="lg:col-span-7 bg-red-50 border border-red-200 p-3.5 rounded-sm space-y-1 text-xs">
+                              <div className="flex items-center gap-1.5 font-bold text-red-700">
+                                <X className="w-4 h-4" />
+                                <span>Order Cancelled & Coverage Closed</span>
+                              </div>
+                              <p className="text-[11px] text-red-600 leading-relaxed">
+                                This device was part of order #{order.orderNumber} which was cancelled. Full refund has been initiated and warranty protection is voided.
+                              </p>
                             </div>
+                          ) : (
+                            <>
+                              {/* Warranty Status & Countdown (4 cols) */}
+                              <div className="lg:col-span-4 bg-gray-50 border border-gray-200 p-3.5 rounded-sm space-y-2 text-xs">
+                                <div className="flex justify-between items-center">
+                                  <span className="font-bold text-[#0f1111] flex items-center gap-1">
+                                    <Award className="w-3.5 h-3.5 text-[#e67a00]" />
+                                    Device Shield Warranty
+                                  </span>
+                                  {getStatusBadge(item.warrantyStatus, daysLeft)}
+                                </div>
 
-                            <div className="flex justify-between text-gray-600 font-mono text-[11px]">
-                              <span>Valid until:</span>
-                              <strong className="text-gray-900">{formatDateOnly(item.warrantyExpiryDate)}</strong>
-                            </div>
+                                <div className="flex justify-between text-gray-600 font-mono text-[11px]">
+                                  <span>Valid until:</span>
+                                  <strong className="text-gray-900">{formatDateOnly(item.warrantyExpiryDate)}</strong>
+                                </div>
 
-                            {/* Progress bar */}
-                            <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
-                              <div
-                                className={`h-full ${
-                                  isExpired
-                                    ? "bg-[#cc0c39] w-full"
+                                {/* Progress bar */}
+                                <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                                  <div
+                                    className={`h-full ${
+                                      isExpired
+                                        ? "bg-[#cc0c39] w-full"
+                                        : isExpiringSoon
+                                        ? "bg-[#e67a00] w-3/4 animate-pulse"
+                                        : "bg-[#007600] w-1/4"
+                                    }`}
+                                  />
+                                </div>
+
+                                <p className="text-[11px] text-gray-500 leading-tight">
+                                  {isExpired
+                                    ? "Warranty coverage has expired. Hardware claim window closed."
                                     : isExpiringSoon
-                                    ? "bg-[#e67a00] w-3/4 animate-pulse"
-                                    : "bg-[#007600] w-1/4"
-                                }`}
-                              />
-                            </div>
-
-                            <p className="text-[11px] text-gray-500 leading-tight">
-                              {isExpired
-                                ? "Warranty coverage has expired. Hardware claim window closed."
-                                : isExpiringSoon
-                                ? "⚠️ Warranty is expiring soon. Reminder email dispatched to buyer."
-                                : "Active coverage. Automated warranty alert emails sent 6 months & 1 day before expiry."}
-                            </p>
-                          </div>
-
-                          {/* Action Buttons & Warranty Email Simulation Triggers (3 cols) */}
-                          <div className="lg:col-span-3 space-y-1.5 text-xs">
-                            <span className="text-[10px] uppercase font-bold text-gray-500 block">
-                              Test Warranty Alert Emails:
-                            </span>
-
-                            <button
-                              onClick={() => handleSimulateExpiry(item.id, "SET_NEAR_EXPIRY")}
-                              disabled={actionLoading !== null}
-                              className="w-full py-1.5 px-3 bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 border border-[#C9A66B]/30 rounded-sm font-medium text-left transition-colors cursor-pointer text-gray-800 disabled:opacity-50"
-                            >
-                              <div className="flex items-center gap-1 text-[#8C6226] dark:text-[#E5CBA2] font-bold">
-                                <AlertTriangle className="w-3 h-3 text-[#C9A66B]" /> Set 6-Month Expiry
+                                    ? "⚠️ Warranty is expiring soon. Reminder email dispatched to buyer."
+                                    : "Active coverage. Automated warranty alert emails sent 6 months & 1 day before expiry."}
+                                </p>
                               </div>
-                              <span className="text-[10px] text-gray-500">Triggers 6-Month Email Alert</span>
-                            </button>
 
-                            <button
-                              onClick={() => handleSimulateExpiry(item.id, "SET_URGENT_EXPIRY")}
-                              disabled={actionLoading !== null}
-                              className="w-full py-1.5 px-3 bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 border border-[#C9A66B]/30 rounded-sm font-medium text-left transition-colors cursor-pointer text-gray-800 disabled:opacity-50"
-                            >
-                              <div className="flex items-center gap-1 text-[#8C6226] dark:text-[#E5CBA2] font-bold">
-                                <ShieldAlert className="w-3 h-3 text-[#C9A66B]" /> Set 24H Expiry
-                              </div>
-                              <span className="text-[10px] text-gray-500">Triggers 1-Day Urgent Email</span>
-                            </button>
+                              {/* Action Buttons & Warranty Email Simulation Triggers (3 cols) */}
+                              <div className="lg:col-span-3 space-y-1.5 text-xs">
+                                <span className="text-[10px] uppercase font-bold text-gray-500 block">
+                                  Test Warranty Alert Emails:
+                                </span>
 
-                            <button
-                              onClick={() => handleSimulateExpiry(item.id, "EXTEND_WARRANTY")}
-                              disabled={actionLoading !== null}
-                              className="w-full py-1.5 px-3 bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 border border-[#C9A66B]/30 rounded-sm font-medium text-left transition-colors cursor-pointer text-gray-800 disabled:opacity-50"
-                            >
-                              <div className="flex items-center gap-1 text-[#8C6226] dark:text-[#E5CBA2] font-bold">
-                                <Plus className="w-3 h-3 text-[#C9A66B]" /> Extend +1 Year
+                                <button
+                                  onClick={() => handleSimulateExpiry(item.id, "SET_NEAR_EXPIRY")}
+                                  disabled={actionLoading !== null}
+                                  className="w-full py-1.5 px-3 bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 border border-[#C9A66B]/30 rounded-sm font-medium text-left transition-colors cursor-pointer text-gray-800 disabled:opacity-50"
+                                >
+                                  <div className="flex items-center gap-1 text-[#8C6226] dark:text-[#E5CBA2] font-bold">
+                                    <AlertTriangle className="w-3 h-3 text-[#C9A66B]" /> Set 6-Month Expiry
+                                  </div>
+                                  <span className="text-[10px] text-gray-500">Triggers 6-Month Email Alert</span>
+                                </button>
+
+                                <button
+                                  onClick={() => handleSimulateExpiry(item.id, "SET_URGENT_EXPIRY")}
+                                  disabled={actionLoading !== null}
+                                  className="w-full py-1.5 px-3 bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 border border-[#C9A66B]/30 rounded-sm font-medium text-left transition-colors cursor-pointer text-gray-800 disabled:opacity-50"
+                                >
+                                  <div className="flex items-center gap-1 text-[#8C6226] dark:text-[#E5CBA2] font-bold">
+                                    <ShieldAlert className="w-3 h-3 text-[#C9A66B]" /> Set 24H Expiry
+                                  </div>
+                                  <span className="text-[10px] text-gray-500">Triggers 1-Day Urgent Email</span>
+                                </button>
+
+                                <button
+                                  onClick={() => handleSimulateExpiry(item.id, "EXTEND_WARRANTY")}
+                                  disabled={actionLoading !== null}
+                                  className="w-full py-1.5 px-3 bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 border border-[#C9A66B]/30 rounded-sm font-medium text-left transition-colors cursor-pointer text-gray-800 disabled:opacity-50"
+                                >
+                                  <div className="flex items-center gap-1 text-[#8C6226] dark:text-[#E5CBA2] font-bold">
+                                    <Plus className="w-3 h-3 text-[#C9A66B]" /> Extend +1 Year
+                                  </div>
+                                  <span className="text-[10px] text-gray-500">Renew warranty & alerts</span>
+                                </button>
                               </div>
-                              <span className="text-[10px] text-gray-500">Renew warranty & alerts</span>
-                            </button>
-                          </div>
+                            </>
+                          )}
                         </div>
                       </div>
                     );
                   })}
                 </div>
               </div>
-            ))}
-          </div>
-        )}
+            );
+          })}
+        </div>
+      )}
             </>
           );
         })()}
@@ -624,7 +675,7 @@ export default function AccountPage() {
                 type="button"
                 onClick={handleConfirmCancel}
                 disabled={cancelling}
-                className="py-2 px-4 text-xs font-bold rounded-md bg-[#C9A66B] hover:bg-[#B8914A] active:bg-[#A67C3D] text-[#FFFCFA] shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
+                className="py-2 px-4 text-xs font-bold rounded-md bg-red-600 hover:bg-red-700 active:bg-red-800 text-white shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
               >
                 {cancelling ? (
                   <>

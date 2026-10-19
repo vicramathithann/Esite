@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendOrderStatusEmail, sendOrderConfirmationEmail } from "@/lib/email";
 import { getAuthenticatedUser, requireAuth, requireAdmin } from "@/lib/auth";
+import { isOrderCancelled } from "@/lib/orderStatus";
 
 export async function GET(
   request: Request,
@@ -89,9 +90,11 @@ export async function PATCH(
       );
     }
 
+    const isCancelling = isOrderCancelled(body.orderStatus) || body.action === "CANCEL_ORDER";
+
     // Non-admin customers can ONLY cancel their own order
     if (!isAdmin) {
-      if (body.action !== "CANCEL_ORDER" && body.orderStatus !== "Cancelled") {
+      if (!isCancelling) {
         return NextResponse.json(
           { success: false, error: "Forbidden: Only administrators can update tracking or status." },
           { status: 403 }
@@ -125,13 +128,7 @@ export async function PATCH(
 
     const updateData: Record<string, unknown> = {};
     const oldStatus = existingOrder.orderStatus;
-    const newStatus = body.orderStatus || (body.action === "CANCEL_ORDER" ? "Cancelled" : null);
-
-    const isCancelling = newStatus === "Cancelled" || newStatus === "CANCELLED" || body.action === "CANCEL_ORDER";
-
-    if (newStatus && newStatus !== oldStatus) {
-      updateData.orderStatus = newStatus;
-    }
+    let newStatus = isCancelling ? "CANCELLED" : (body.orderStatus || null);
 
     if (body.shippingCarrier !== undefined) updateData.shippingCarrier = body.shippingCarrier;
     if (body.trackingNumber !== undefined) updateData.trackingNumber = body.trackingNumber;
@@ -142,11 +139,11 @@ export async function PATCH(
     if (body.adminNotes !== undefined) updateData.adminNotes = body.adminNotes;
 
     if (isCancelling) {
-      updateData.orderStatus = "Cancelled";
+      updateData.orderStatus = "CANCELLED";
       updateData.paymentStatus = "Refund Initiated";
 
       // Restore inventory stock (MobileProduct is single source of truth)
-      if (oldStatus !== "Cancelled" && oldStatus !== "CANCELLED") {
+      if (!isOrderCancelled(oldStatus)) {
         for (const item of existingOrder.items) {
           if (item.productId) {
             try {
@@ -166,6 +163,8 @@ export async function PATCH(
           }
         }
       }
+    } else if (newStatus && newStatus !== oldStatus) {
+      updateData.orderStatus = newStatus;
     }
 
     // Save order changes

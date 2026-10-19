@@ -17,6 +17,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { formatINR, formatDateOnly } from "@/lib/formatters";
+import { isOrderCancelled, canOrderBeCancelled } from "@/lib/orderStatus";
 import { useApp } from "@/context/AppContext";
 
 export default function SingleOrderDetailsPage() {
@@ -75,7 +76,7 @@ export default function SingleOrderDetailsPage() {
 
   const handleCancelOrder = async () => {
     if (!order) return;
-    if (!confirm(`Are you sure you want to cancel order #${order.orderNumber}?`)) return;
+    if (!confirm(`Are you sure you want to cancel order #${order.orderNumber}? A full refund will be initiated.`)) return;
 
     try {
       setCancelling(true);
@@ -84,14 +85,19 @@ export default function SingleOrderDetailsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "CANCEL_ORDER",
-          orderStatus: "Cancelled",
+          orderStatus: "CANCELLED",
           cancelReason: "Cancelled by customer from order details page.",
         }),
       });
       const data = await res.json();
       if (data.success) {
-        setOrder(data.order);
-        alert(`Order #${order.orderNumber} has been successfully cancelled.`);
+        setOrder((prev: any) => ({
+          ...(prev || {}),
+          ...(data.order || {}),
+          orderStatus: "CANCELLED",
+          paymentStatus: "Refund Initiated",
+        }));
+        alert(`Order #${order.orderNumber} has been successfully cancelled and moved to Cancelled Orders.`);
       } else {
         alert(data.error || "Failed to cancel order.");
       }
@@ -133,8 +139,8 @@ export default function SingleOrderDetailsPage() {
     );
   }
 
-  const isCancelled = order.orderStatus === "Cancelled" || order.orderStatus === "CANCELLED";
-  const canCancel = !isCancelled && (order.orderStatus === "Order Confirmed" || order.orderStatus === "CONFIRMED" || order.orderStatus === "Processing");
+  const isCancelled = isOrderCancelled(order.orderStatus);
+  const canCancel = canOrderBeCancelled(order.orderStatus);
 
   return (
     <div className="min-h-screen bg-background text-foreground py-10 px-4 sm:px-6 lg:px-8">
@@ -172,7 +178,7 @@ export default function SingleOrderDetailsPage() {
                       : "bg-[#C9A66B]/15 text-[#8C6226] dark:text-[#E5CBA2] border border-[#C9A66B]/30"
                   }`}
                 >
-                  {order.orderStatus}
+                  {isCancelled ? "Cancelled" : order.orderStatus}
                 </span>
               </div>
               <p className="text-xs text-muted mt-1 flex items-center gap-2">
@@ -184,12 +190,37 @@ export default function SingleOrderDetailsPage() {
               <button
                 onClick={handleCancelOrder}
                 disabled={cancelling}
-                className="px-4 py-2 bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 text-[#8C6226] dark:text-[#E5CBA2] text-xs font-semibold rounded-full flex items-center gap-1.5 transition-all self-start sm:self-auto cursor-pointer"
+                className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-500 text-xs font-semibold rounded-full flex items-center gap-1.5 transition-all self-start sm:self-auto cursor-pointer"
               >
                 <XCircle className="w-4 h-4" /> {cancelling ? "Cancelling..." : "Cancel Order"}
               </button>
             )}
           </div>
+
+          {/* Cancellation Notice Banner */}
+          {isCancelled && (
+            <div className="my-5 p-4 bg-red-500/10 border border-red-500/25 rounded-xl text-xs text-red-500 flex items-start gap-3">
+              <div className="p-1 rounded-lg bg-red-600 text-white shrink-0 mt-0.5">
+                <XCircle className="w-4 h-4" />
+              </div>
+              <div className="flex-1 space-y-1">
+                <div className="font-bold text-red-500 text-sm">
+                  This Order Has Been Cancelled & Archived
+                </div>
+                <p className="text-muted leading-relaxed font-sans">
+                  This order has been removed from active orders and archived under <strong>Cancelled Orders</strong>. Full refund of <strong>{formatINR(order.totalAmount)}</strong> has been initiated back to your payment method ({order.paymentMethod}).
+                </p>
+                <div className="pt-2 flex items-center gap-2">
+                  <Link
+                    href="/orders?tab=cancelled"
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-red-500 hover:underline"
+                  >
+                    View All Cancelled Orders →
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Delivery & Shipping Info */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-5">
@@ -224,7 +255,7 @@ export default function SingleOrderDetailsPage() {
               </h3>
               <p className="text-sm font-medium text-foreground">Method: {order.paymentMethod}</p>
               <p className="text-xs text-muted mt-0.5">
-                Status: <span className="text-emerald-500 font-semibold">{order.paymentStatus}</span>
+                Status: <span className={isCancelled ? "text-red-500 font-semibold" : "text-emerald-500 font-semibold"}>{isCancelled ? "Refund Initiated" : order.paymentStatus}</span>
               </p>
               <p className="text-base font-bold text-foreground mt-1">Total: {formatINR(order.totalAmount)}</p>
             </div>
