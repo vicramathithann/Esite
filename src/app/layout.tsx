@@ -5,6 +5,7 @@ import { AppProvider } from "@/context/AppContext";
 import Navbar from "@/components/Navbar";
 import CartDrawer from "@/components/CartDrawer";
 import Footer from "@/components/Footer";
+import CustomerSupportChatbot from "@/components/CustomerSupportChatbot";
 
 export const metadata: Metadata = {
   title: "VN Mobiles.in: Flagship Smartphones, Deals & Device Protection",
@@ -34,6 +35,7 @@ export default function RootLayout({
               {children}
             </main>
             <Footer />
+            <CustomerSupportChatbot />
           </AppProvider>
         </ThemeProvider>
       </body>
