@@ -58,6 +58,13 @@ export async function POST(request: Request) {
       );
     }
 
+    if ((admin.role || "").toUpperCase() !== "ADMIN") {
+      return NextResponse.json(
+        { success: false, error: "Admin OTP login is strictly restricted to administrator accounts." },
+        { status: 403 }
+      );
+    }
+
     // Cooldown check (60 seconds)
     if (admin.lastLoginOtpSentAt) {
       const elapsedSeconds = Math.floor(

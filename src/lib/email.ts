@@ -2106,3 +2106,115 @@ export async function retryEmailNotification(notificationId: string): Promise<Em
     });
   }
 }
+
+
+/**
+ * Sends a secure direct password reset link (no OTP required) initiated by Admin.
+ * Link is valid for 1 hour and directs the user to choose their new password.
+ */
+export async function sendAdminPasswordResetLinkEmail(
+  user: {
+    id: string;
+    name: string;
+    email: string;
+  },
+  token: string,
+  expiresInMinutes: number = 60,
+  baseUrl?: string
+): Promise<EmailSendResult> {
+  const appUrl = (baseUrl || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
+  const resetLink = `${appUrl}/reset-password?token=${encodeURIComponent(token)}&email=${encodeURIComponent(user.email)}`;
+
+  const plainText = [
+    "Reset your VN Mobiles password",
+    "",
+    `Hi ${user.name},`,
+    "",
+    "A request to reset your VN Mobiles account password was initiated by an administrator.",
+    "",
+    "Click the link below to choose your new password directly:",
+    resetLink,
+    "",
+    `This link is valid for ${expiresInMinutes} minutes and can only be used once.`,
+    "No OTP verification code is required.",
+    "",
+    "If you did not request this, your existing password remains safe and unchanged.",
+    "",
+    getEmailFooterText(),
+  ].join("\n");
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reset your VN Mobiles password</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f6f8fa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#24292f;-webkit-font-smoothing:antialiased;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f6f8fa;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width:520px;background-color:#ffffff;border:1px solid #d0d7de;border-radius:14px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.04);">
+          <tr>
+            <td style="padding:28px 32px 20px 32px;border-bottom:1px solid #f0f2f5;background-color:#ffffff;">
+              <div style="font-size:22px;font-weight:700;color:#1f2328;letter-spacing:-0.3px;">VN Mobiles</div>
+              <div style="font-size:12px;color:#57606a;margin-top:2px;">Account Security Management</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px 32px;">
+              <p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;color:#24292f;">
+                Hi <strong>${user.name}</strong>,
+              </p>
+              <p style="margin:0 0 20px 0;font-size:14px;line-height:1.6;color:#57606a;">
+                An administrator has initiated a password reset for your VN Mobiles account (<strong>${user.email}</strong>). Click the secure button below to choose a new password:
+              </p>
+              
+              <div style="text-align:center;margin:28px 0;">
+                <a href="${resetLink}" style="display:inline-block;background-color:#C9A66B;color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;padding:14px 34px;border-radius:10px;box-shadow:0 2px 6px rgba(201,166,107,0.35);">
+                  Reset Your Password
+                </a>
+              </div>
+
+              <div style="background-color:#fbfcfd;border:1px solid #e1e4e8;border-radius:10px;padding:16px;margin:24px 0;font-size:12px;color:#57606a;line-height:1.6;">
+                <div style="font-weight:600;color:#24292f;margin-bottom:4px;">🔒 Security Information:</div>
+                <ul style="margin:0;padding-left:18px;">
+                  <li>This secure link is valid for <strong>${expiresInMinutes} minutes</strong> (1 hour).</li>
+                  <li>No OTP code is required — simply click the button above.</li>
+                  <li>This link is single-use and will expire once your password is updated.</li>
+                </ul>
+              </div>
+
+              <p style="margin:16px 0 0 0;font-size:12px;line-height:1.5;color:#8c959f;">
+                If the button above does not work, copy and paste this link into your browser:<br/>
+                <a href="${resetLink}" style="color:#C9A66B;word-break:break-all;font-size:11px;">${resetLink}</a>
+              </p>
+
+              <p style="margin:20px 0 0 0;font-size:12px;line-height:1.5;color:#8c959f;">
+                If you did not request or expect this email, you can safely ignore it. Your existing password will remain active and unchanged.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              ${getEmailFooterHtml()}
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  return sendGmailEmail({
+    userId: user.id,
+    recipientName: user.name,
+    recipientEmail: user.email,
+    subject: "Reset your VN Mobiles password",
+    emailType: "PASSWORD_RESET",
+    contentSummary: plainText,
+    text: plainText,
+    html,
+  });
+}

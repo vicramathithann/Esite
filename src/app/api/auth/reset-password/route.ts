@@ -1,9 +1,81 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { hashPassword, verifyOtp, createSessionToken } from "@/lib/auth";
+import { hashPassword, verifyOtp, createSessionToken, ADMIN_EMAIL } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/rateLimit";
 import { logSecurityEvent, getClientIp } from "@/lib/securityLogger";
 
+/**
+ * GET: Verifies a customer password reset token on mount without consuming it.
+ * Strictly enforces that this endpoint is ONLY for customer accounts.
+ */
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const token = (searchParams.get("token") || "").trim();
+
+    if (!token) {
+      return NextResponse.json(
+        { valid: false, status: "MISSING", error: "Missing password reset token in your link." },
+        { status: 400 }
+      );
+    }
+
+    const user = await prisma.user.findFirst({
+      where: { resetToken: token },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        resetTokenExpires: true,
+      },
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { valid: false, status: "INVALID", error: "This password reset link is invalid or has already been used." },
+        { status: 400 }
+      );
+    }
+
+    // Strict Separation: Administrator accounts cannot reset credentials via customer endpoint
+    if (user.role === "ADMIN" || user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+      return NextResponse.json(
+        {
+          valid: false,
+          status: "FORBIDDEN",
+          error: "Administrator accounts must reset credentials via the dedicated Admin Portal (/admin/reset-password).",
+        },
+        { status: 403 }
+      );
+    }
+
+    if (user.resetTokenExpires && user.resetTokenExpires < new Date()) {
+      return NextResponse.json(
+        { valid: false, status: "EXPIRED", error: "This password reset link has expired. Links remain valid for 1 hour." },
+        { status: 410 }
+      );
+    }
+
+    return NextResponse.json({
+      valid: true,
+      status: "VALID",
+      email: user.email,
+      name: user.name,
+    });
+  } catch (error) {
+    console.error("Customer token verification error:", error);
+    return NextResponse.json(
+      { valid: false, status: "ERROR", error: "Failed to verify reset token." },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * POST: Consumes token or OTP and sets new password for customer accounts.
+ * Strictly isolates customer reset from admin authentication.
+ */
 export async function POST(request: Request) {
   try {
     const rateLimitError = enforceRateLimit(request, {
@@ -54,6 +126,17 @@ export async function POST(request: Request) {
         );
       }
 
+      // Strict Separation: Block Admin accounts from customer reset endpoint
+      if (user.role === "ADMIN" || user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Administrator accounts must reset credentials via the dedicated Admin Portal (/admin/reset-password).",
+          },
+          { status: 403 }
+        );
+      }
+
       if (user.resetTokenExpires && user.resetTokenExpires < new Date()) {
         return NextResponse.json(
           {
@@ -79,6 +162,17 @@ export async function POST(request: Request) {
         );
       }
 
+      // Strict Separation: Block Admin accounts from customer OTP reset endpoint
+      if (cleanEmail === ADMIN_EMAIL.toLowerCase()) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Administrator accounts cannot reset credentials via the customer portal.",
+          },
+          { status: 403 }
+        );
+      }
+
       if (!cleanOtp || cleanOtp.length !== 6 || !/^\d{6}$/.test(cleanOtp)) {
         return NextResponse.json(
           { success: false, error: "Please enter the 6-digit reset code sent to your email." },
@@ -94,6 +188,16 @@ export async function POST(request: Request) {
         return NextResponse.json(
           { success: false, error: "Invalid email or reset code." },
           { status: 400 }
+        );
+      }
+
+      if (user.role === "ADMIN" || user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Administrator accounts cannot reset credentials via the customer portal.",
+          },
+          { status: 403 }
         );
       }
 
@@ -163,7 +267,7 @@ export async function POST(request: Request) {
       where: { id: targetUserId },
       data: {
         password: hashedPassword,
-        emailVerified: true, // Proved ownership of the registered email address
+        emailVerified: true,
         resetToken: null,
         resetTokenExpires: null,
         resetOtpHash: null,
@@ -193,8 +297,8 @@ export async function POST(request: Request) {
     const response = NextResponse.json({
       success: true,
       user: updatedUser,
-      redirectUrl: updatedUser.role === "ADMIN" ? "/admin" : "/",
-      message: "Your password has been successfully reset. You are now logged in.",
+      redirectUrl: "/login",
+      message: "Your password has been successfully reset! You can now log in.",
     });
 
     response.cookies.set("vn_session", sessionToken, {
@@ -214,4 +318,3 @@ export async function POST(request: Request) {
     );
   }
 }
-

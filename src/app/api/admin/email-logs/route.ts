@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { retryEmailNotification } from "@/lib/email";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdmin, requireMainAdmin } from "@/lib/auth";
 
 export async function GET(request: Request) {
   try {
@@ -84,6 +84,29 @@ export async function POST(request: Request) {
     console.error("Failed to retry email notification:", error);
     return NextResponse.json(
       { success: false, error: "Failed to retry email." },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const auth = await requireMainAdmin(request);
+    if (auth instanceof Response) {
+      return auth;
+    }
+
+    const deleteResult = await prisma.emailNotification.deleteMany({});
+
+    return NextResponse.json({
+      success: true,
+      count: deleteResult.count,
+      message: `All email logs (${deleteResult.count}) cleared successfully.`,
+    });
+  } catch (error) {
+    console.error("Clear all email logs error:", error);
+    return NextResponse.json(
+      { success: false, error: "Failed to clear email logs." },
       { status: 500 }
     );
   }

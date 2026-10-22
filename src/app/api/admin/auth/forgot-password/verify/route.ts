@@ -27,7 +27,7 @@ export async function GET(request: Request) {
       where: { email: ADMIN_EMAIL.toLowerCase() },
     });
 
-    if (!admin) {
+    if (!admin || (admin.role || "").toUpperCase() !== "ADMIN") {
       return NextResponse.json({
         valid: false,
         status: "INVALID",
@@ -127,7 +127,7 @@ export async function POST(request: Request) {
       where: { email: ADMIN_EMAIL.toLowerCase() },
     });
 
-    if (!admin) {
+    if (!admin || (admin.role || "").toUpperCase() !== "ADMIN") {
       return NextResponse.json(
         { success: false, error: "Administrator account not found." },
         { status: 404 }

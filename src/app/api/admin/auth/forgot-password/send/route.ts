@@ -58,6 +58,13 @@ export async function POST(request: Request) {
       );
     }
 
+    if ((admin.role || "").toUpperCase() !== "ADMIN") {
+      return NextResponse.json(
+        { success: false, error: "Admin password recovery is strictly restricted to administrator accounts." },
+        { status: 403 }
+      );
+    }
+
     // Cooldown check (60 seconds)
     if (admin.lastResetOtpSentAt) {
       const elapsedSeconds = Math.floor(

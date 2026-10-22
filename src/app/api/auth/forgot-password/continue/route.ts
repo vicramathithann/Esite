@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createSessionToken } from "@/lib/auth";
+import { createSessionToken, ADMIN_EMAIL } from "@/lib/auth";
 
 export async function POST(request: Request) {
   try {
@@ -39,9 +39,9 @@ export async function POST(request: Request) {
     }
 
     // Customer authentication separation
-    if (user.role === "ADMIN") {
+    if (user.role === "ADMIN" || user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
       return NextResponse.json(
-        { success: false, error: "Administrator accounts must sign in using their administrator password." },
+        { success: false, error: "Administrator accounts must sign in using the Admin Portal." },
         { status: 403 }
       );
     }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifyOtp, createSessionToken } from "@/lib/auth";
+import { verifyOtp, createSessionToken, ADMIN_EMAIL } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/rateLimit";
 import { logSecurityEvent, getClientIp } from "@/lib/securityLogger";
 
@@ -45,9 +45,9 @@ export async function POST(request: Request) {
     }
 
     // Keep customer authentication separate from admin authentication
-    if (user.role === "ADMIN") {
+    if (user.role === "ADMIN" || cleanEmail === ADMIN_EMAIL.toLowerCase()) {
       return NextResponse.json(
-        { success: false, error: "Administrator accounts must sign in using their administrator password." },
+        { success: false, error: "Administrator accounts must sign in using the dedicated Admin Portal (/admin/login)." },
         { status: 403 }
       );
     }

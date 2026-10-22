@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
-import { verifyOtp } from "@/lib/auth";
+import { verifyOtp, ADMIN_EMAIL } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/rateLimit";
 
 export async function POST(request: Request) {
@@ -41,6 +41,17 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { success: false, error: "Invalid email or recovery code." },
         { status: 400 }
+      );
+    }
+
+    // Strict Separation: Block Admin accounts from customer recovery code verification
+    if (user.role === "ADMIN" || cleanEmail === ADMIN_EMAIL.toLowerCase()) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Administrator accounts cannot verify recovery codes via the customer portal.",
+        },
+        { status: 403 }
       );
     }
 

@@ -51,6 +51,13 @@ export async function POST(request: Request) {
       );
     }
 
+    if ((admin.role || "").toUpperCase() !== "ADMIN") {
+      return NextResponse.json(
+        { success: false, error: "Admin OTP verification is strictly restricted to administrator accounts." },
+        { status: 403 }
+      );
+    }
+
     // Check if an OTP was sent
     if (!admin.loginOtpHash || !admin.loginOtpExpires) {
       return NextResponse.json(

@@ -261,6 +261,24 @@ export async function requireAdmin(request: Request): Promise<AuthUser | NextRes
   return user;
 }
 
+/**
+ * Enforces that the incoming request is strictly from the primary superadministrator (rrroyce20@gmail.com).
+ * Used for high-privilege operations such as user deletion, warranty registry deletion, and password overrides.
+ */
+export async function requireMainAdmin(request: Request): Promise<AuthUser | NextResponse> {
+  const admin = await requireAdmin(request);
+  if (admin instanceof NextResponse) {
+    return admin;
+  }
+  if (admin.email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+    return NextResponse.json(
+      { success: false, error: "Forbidden: Superadministrator privileges required. Only rrroyce20@gmail.com can perform this action." },
+      { status: 403 }
+    );
+  }
+  return admin;
+}
+
 export async function ensureAdminUser() {
   try {
     const adminEmail = ADMIN_EMAIL.toLowerCase();
