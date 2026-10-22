@@ -8,10 +8,8 @@ import {
   Smartphone, 
   Clock, 
   AlertTriangle, 
-  ShieldAlert, 
   RefreshCw, 
   ChevronRight, 
-  Plus, 
   BellRing, 
   Award, 
   Truck, 
@@ -26,7 +24,6 @@ export default function OrdersPage() {
 
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [activeOrderTab, setActiveOrderTab] = useState<"active" | "cancelled" | "all">("active");
   const [cancelModalOrder, setCancelModalOrder] = useState<any | null>(null);
   const [cancelReason, setCancelReason] = useState<string>("Order created by mistake");
@@ -121,29 +118,6 @@ export default function OrdersPage() {
   useEffect(() => {
     loadOrders();
   }, [loadOrders]);
-
-  const handleSimulateExpiry = async (orderItemId: string, action: string) => {
-    try {
-      setActionLoading(`${orderItemId}-${action}`);
-      const res = await fetch("/api/orders/simulate-expiry", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderItemId, action }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        await loadOrders();
-        alert(data.message || "Warranty simulation updated and notification email dispatched!");
-      } else {
-        alert(data.error || "Simulation failed");
-      }
-    } catch (e) {
-      console.error(e);
-      alert("Error simulating expiry.");
-    } finally {
-      setActionLoading(null);
-    }
-  };
 
   const getStatusBadge = (status: string, daysLeft: number) => {
     if (status === "CANCELLED" || status === "Cancelled") {
@@ -461,84 +435,42 @@ export default function OrdersPage() {
                               </p>
                             </div>
                           ) : (
-                            <>
-                              {/* Warranty Status & Countdown (4 cols) */}
-                              <div className="lg:col-span-4 bg-tile border border-border p-4 rounded-xl space-y-2.5 text-xs">
-                                <div className="flex justify-between items-center">
-                                  <span className="font-semibold text-foreground flex items-center gap-1.5">
-                                    <Award className="w-3.5 h-3.5 text-accent" />
-                                    Device Shield Warranty
-                                  </span>
-                                  {getStatusBadge(item.warrantyStatus, daysLeft)}
-                                </div>
-
-                                <div className="flex justify-between text-muted font-mono text-[11px]">
-                                  <span>Valid until:</span>
-                                  <strong className="text-foreground">{formatDateOnly(item.warrantyExpiryDate)}</strong>
-                                </div>
-
-                                {/* Progress bar */}
-                                <div className="w-full bg-card rounded-full h-1.5 overflow-hidden border border-border">
-                                  <div
-                                    className={`h-full ${
-                                      isExpired
-                                        ? "bg-red-500 w-full"
-                                        : isExpiringSoon
-                                        ? "bg-amber-500 w-3/4 animate-pulse"
-                                        : "bg-emerald-500 w-1/4"
-                                    }`}
-                                  />
-                                </div>
-
-                                <p className="text-[11px] text-muted leading-tight">
-                                  {isExpired
-                                    ? "Warranty coverage has expired. Hardware claim window closed."
-                                    : isExpiringSoon
-                                    ? "⚠️ Warranty is expiring soon. Reminder email dispatched to buyer."
-                                    : "Active coverage. Automated warranty alert emails sent 6 months & 1 day before expiry."}
-                                </p>
-                              </div>
-
-                              {/* Action Buttons & Warranty Email Simulation Triggers (3 cols) */}
-                              <div className="lg:col-span-3 space-y-2 text-xs">
-                                <span className="text-[10px] uppercase font-semibold text-muted block">
-                                  Test Warranty Alert Emails:
+                            /* Warranty Status & Details (7 cols) - Clean normal view without test controls */
+                            <div className="lg:col-span-7 bg-tile border border-border p-4 rounded-xl space-y-2.5 text-xs">
+                              <div className="flex justify-between items-center">
+                                <span className="font-semibold text-foreground flex items-center gap-1.5">
+                                  <Award className="w-3.5 h-3.5 text-accent" />
+                                  Device Shield Warranty
                                 </span>
-
-                                <button
-                                  onClick={() => handleSimulateExpiry(item.id, "SET_NEAR_EXPIRY")}
-                                  disabled={actionLoading !== null}
-                                  className="w-full py-2 px-3 bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 dark:hover:bg-[#D4B483]/20 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 rounded-xl font-medium text-left transition-all cursor-pointer text-foreground disabled:opacity-50"
-                                >
-                                  <div className="flex items-center gap-1.5 text-[#8C6226] dark:text-[#E5CBA2] font-semibold text-xs">
-                                    <AlertTriangle className="w-3.5 h-3.5" /> Set 6-Month Expiry
-                                  </div>
-                                  <span className="text-[10px] text-muted block mt-0.5">Triggers 6-Month Email Alert</span>
-                                </button>
-
-                                <button
-                                  onClick={() => handleSimulateExpiry(item.id, "SET_URGENT_EXPIRY")}
-                                  disabled={actionLoading !== null}
-                                  className="w-full py-2 px-3 bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 dark:hover:bg-[#D4B483]/20 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 rounded-xl font-medium text-left transition-all cursor-pointer text-foreground disabled:opacity-50"
-                                >
-                                  <div className="flex items-center gap-1.5 text-[#8C6226] dark:text-[#E5CBA2] font-semibold text-xs">
-                                    <ShieldAlert className="w-3.5 h-3.5" /> Set 24H Expiry
-                                  </div>
-                                  <span className="text-[10px] text-muted block mt-0.5">Triggers 1-Day Urgent Email</span>
-                                </button>
-
-                                <button
-                                  onClick={() => handleSimulateExpiry(item.id, "EXTEND_WARRANTY")}
-                                  disabled={actionLoading !== null}
-                                  className="w-full py-2 px-3 bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 dark:hover:bg-[#D4B483]/20 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 rounded-xl font-medium text-left transition-all cursor-pointer text-foreground disabled:opacity-50"
-                                >
-                                  <div className="flex items-center gap-1.5 text-[#8C6226] dark:text-[#E5CBA2] font-semibold text-xs">
-                                    <Plus className="w-3.5 h-3.5" /> Extend +1 Year
-                                  </div>
-                                  <span className="text-[10px] text-muted block mt-0.5">Renew warranty coverage</span>
-                                </button>
+                                {getStatusBadge(item.warrantyStatus, daysLeft)}
                               </div>
-                            </>
+
+                              <div className="flex justify-between text-muted font-mono text-[11px]">
+                                <span>Valid until:</span>
+                                <strong className="text-foreground">{formatDateOnly(item.warrantyExpiryDate)}</strong>
+                              </div>
+
+                              {/* Progress bar */}
+                              <div className="w-full bg-card rounded-full h-1.5 overflow-hidden border border-border">
+                                <div
+                                  className={`h-full ${
+                                    isExpired
+                                      ? "bg-red-500 w-full"
+                                      : isExpiringSoon
+                                      ? "bg-amber-500 w-3/4 animate-pulse"
+                                      : "bg-emerald-500 w-1/4"
+                                  }`}
+                                />
+                              </div>
+
+                              <p className="text-[11px] text-muted leading-tight">
+                                {isExpired
+                                  ? "Warranty coverage has expired. Hardware claim window closed."
+                                  : isExpiringSoon
+                                  ? "⚠️ Warranty is expiring soon. Reminder email dispatched to buyer."
+                                  : "Active coverage. Automated warranty alert emails sent 6 months & 1 day before expiry."}
+                              </p>
+                            </div>
                           )}
                         </div>
                       </div>

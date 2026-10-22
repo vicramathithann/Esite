@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { sanitizeInput, detectLlmAttack, isCustomerAskingAdminInfo } from "@/lib/aiSecurity";
 
 // Scope verification: Checks whether query belongs to VN Mobiles domain
 function isQueryVnMobilesRelated(query: string, historySummary: string): boolean {
@@ -58,11 +59,41 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { messages = [], user = null } = body;
 
-    const latestMessage = messages[messages.length - 1]?.content || "";
+    const rawLatestMessage = messages[messages.length - 1]?.content || "";
+    const latestMessage = sanitizeInput(rawLatestMessage);
     const historyText = messages
       .slice(-4, -1)
-      .map((m: any) => m.content)
+      .map((m: any) => sanitizeInput(m.content))
       .join(" ");
+
+    // Security Check 1: Detect prompt injection / jailbreak / extraction attacks
+    const attackCheck = detectLlmAttack(latestMessage);
+    if (attackCheck.isAttack) {
+      return NextResponse.json({
+        success: true,
+        answer: "I can only help with customer-related questions on VN Mobiles. I don’t have access to admin information.",
+        suggestions: [
+          "📦 Track my order",
+          "🛡️ Device Shield Warranty",
+          "🔄 Cancel an order & refund",
+          "⚖️ How to compare phones"
+        ]
+      });
+    }
+
+    // Security Check 2: Block any attempts to extract admin data / revenue / userbase / invites / settings
+    if (isCustomerAskingAdminInfo(latestMessage) || isCustomerAskingAdminInfo(historyText)) {
+      return NextResponse.json({
+        success: true,
+        answer: "I can only help with customer-related questions on VN Mobiles. I don’t have access to admin information.",
+        suggestions: [
+          "📦 Track my order",
+          "🛡️ Device Shield Warranty",
+          "🔄 Cancel an order & refund",
+          "⚖️ How to compare phones"
+        ]
+      });
+    }
 
     const q = latestMessage.toLowerCase().trim();
 

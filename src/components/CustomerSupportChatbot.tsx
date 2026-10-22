@@ -138,12 +138,27 @@ export default function CustomerSupportChatbot() {
       console.error("AI Support Agent fetch error:", err);
 
       // Resilient fallback if network fails
+      const qLower = messageText.toLowerCase();
+      const isAdminQuery =
+        qLower.includes("admin") ||
+        qLower.includes("revenue") ||
+        qLower.includes("profit") ||
+        qLower.includes("turnover") ||
+        qLower.includes("invite") ||
+        qLower.includes("how many users") ||
+        qLower.includes("dashboard") ||
+        qLower.includes("database") ||
+        qLower.includes("cancellation rate");
+
+      const fallbackText = isAdminQuery
+        ? "I can only help with customer-related questions on VN Mobiles. I don’t have access to admin information."
+        : "I am here to guide you with VN Mobiles! You can check orders, track packages, cancel orders, review Device Shield warranty, or compare smartphones.\n\n" +
+          "*Follow-up: Could you tell me your Order ID (starts with #ORD) or what phone you need help with?*";
+
       const fallbackMessage: ChatMessage = {
         id: "bot-" + Date.now(),
         sender: "bot",
-        text:
-          "I am here to guide you with VN Mobiles! You can check orders, track packages, cancel orders, review Device Shield warranty, or compare smartphones.\n\n" +
-          "*Follow-up: Could you tell me your Order ID (starts with #ORD) or what phone you need help with?*",
+        text: fallbackText,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         links: [
           { label: "Track Orders", href: "/orders" },

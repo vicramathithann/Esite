@@ -6,6 +6,7 @@ import { useApp } from "@/context/AppContext";
 import Link from "next/link";
 import { ShieldAlert, ArrowLeft, LogIn, Lock } from "lucide-react";
 import AdminNav from "@/components/AdminNav";
+import AdminSupportChatbot from "@/components/AdminSupportChatbot";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -128,6 +129,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <div className="flex-1 min-w-0 lg:pl-64 xl:pl-72 flex flex-col">
         {children}
       </div>
+      <AdminSupportChatbot />
     </div>
   );
 }
