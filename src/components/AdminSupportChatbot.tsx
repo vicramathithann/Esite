@@ -29,12 +29,12 @@ export default function AdminSupportChatbot() {
   const { currentUser } = useApp();
 
   // IMPORTANT: Render strictly inside authorized Admin Portal pages (never on public storefront or login)
-  if (!pathname?.startsWith("/admin") || pathname === "/admin/login" || pathname === "/admin/reset-password") {
+  if (!pathname?.startsWith("/admin") || pathname === "/admin/reset-password") {
     return null;
   }
 
-  // Security check: Only verified ADMIN role can access
-  if (currentUser?.role !== "ADMIN" && currentUser?.email?.toLowerCase() !== "rrroyce20@gmail.com") {
+  // Security check: Only verified root ADMIN can access
+  if (!currentUser || currentUser.role !== "ADMIN" || (currentUser.email || "").toLowerCase() !== "rrroyce20@gmail.com") {
     return null;
   }
 

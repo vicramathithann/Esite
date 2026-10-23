@@ -115,7 +115,7 @@ function AdminResetPasswordContent() {
             "Administrator password updated successfully! Redirecting to sign in..."
         );
         setTimeout(() => {
-          router.push("/admin/login");
+          router.push("/login");
         }, 1600);
       } else {
         setSubmitError(
@@ -200,11 +200,11 @@ function AdminResetPasswordContent() {
 
             <div className="space-y-2 pt-1">
               <Link
-                href="/admin/login"
+                href="/login"
                 className="w-full py-2.5 px-4 bg-[#C9A66B] hover:bg-[#B8914A] text-black font-bold text-xs rounded-xl transition flex items-center justify-center gap-2"
               >
                 <Lock className="w-4 h-4" />
-                <span>Go to Admin Sign In</span>
+                <span>Go to Sign In</span>
               </Link>
             </div>
           </div>
@@ -219,17 +219,17 @@ function AdminResetPasswordContent() {
                 <span>Password Reset Link Expired</span>
               </div>
               <p className="text-slate-300 leading-relaxed">
-                This reset link has expired. Links remain valid for 1 hour from dispatch. Please request a fresh link below.
+                This reset link has expired. Links remain valid for 1 hour from dispatch.
               </p>
             </div>
 
             <div className="space-y-2 pt-1">
               <Link
-                href="/admin/login"
+                href="/"
                 className="w-full py-2.5 px-4 bg-[#C9A66B] hover:bg-[#B8914A] text-black font-bold text-xs rounded-xl transition flex items-center justify-center gap-2"
               >
-                <RefreshCw className="w-4 h-4" />
-                <span>Request a Fresh Reset Link</span>
+                <ArrowLeft className="w-4 h-4" />
+                <span>Return to Storefront</span>
               </Link>
             </div>
           </div>
@@ -244,17 +244,17 @@ function AdminResetPasswordContent() {
                 <span>Invalid Recovery Link</span>
               </div>
               <p className="text-slate-300 leading-relaxed">
-                {tokenError || "This recovery link is invalid or has been superseded by a newer request. Please request a new recovery link."}
+                {tokenError || "This recovery link is invalid or has been superseded by a newer request."}
               </p>
             </div>
 
             <div className="space-y-2 pt-1">
               <Link
-                href="/admin/login"
+                href="/"
                 className="w-full py-2.5 px-4 bg-[#C9A66B] hover:bg-[#B8914A] text-black font-bold text-xs rounded-xl transition flex items-center justify-center gap-2"
               >
-                <RefreshCw className="w-4 h-4" />
-                <span>Request New Password Reset Link</span>
+                <ArrowLeft className="w-4 h-4" />
+                <span>Return to Storefront</span>
               </Link>
             </div>
           </div>
@@ -382,11 +382,11 @@ function AdminResetPasswordContent() {
         {/* Back Link */}
         <div className="mt-5 pt-4 border-t border-slate-800/80 text-center">
           <Link
-            href="/admin/login"
+            href="/login"
             className="text-xs text-slate-400 hover:text-white transition flex items-center justify-center gap-1.5"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Return to Admin Sign In</span>
+            <span>Return to Sign In</span>
           </Link>
         </div>
       </div>

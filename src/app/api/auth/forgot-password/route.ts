@@ -51,7 +51,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           success: false,
-          error: "Administrator accounts cannot reset password via the customer portal. Please use the dedicated Admin Portal (/admin/login).",
+          error: "Administrator accounts cannot reset password via the customer portal. Please use the authorized administrator password recovery process.",
         },
         { status: 403 }
       );

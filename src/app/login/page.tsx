@@ -960,17 +960,10 @@ function LoginForm() {
           Create your VN Mobiles customer account
         </Link>
 
-        <div className="text-center mt-4 space-y-2">
-          <div>
-            <Link href="/" className="text-xs text-[#8C6226] dark:text-[#E5CBA2] hover:underline font-medium">
-              ← Continue shopping as guest
-            </Link>
-          </div>
-          <div>
-            <Link href="/admin/login" className="text-[11px] text-muted hover:text-[#8C6226] dark:hover:text-[#E5CBA2] transition-colors">
-              Store Administrator? Sign in to Admin Portal →
-            </Link>
-          </div>
+        <div className="text-center mt-4">
+          <Link href="/" className="text-xs text-[#8C6226] dark:text-[#E5CBA2] hover:underline font-medium">
+            ← Continue shopping as guest
+          </Link>
         </div>
       </div>
     </div>

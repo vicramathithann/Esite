@@ -50,7 +50,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           success: false,
-          error: "Administrator accounts must sign in using the dedicated Admin Portal (/admin/login).",
+          error: "Administrator accounts must sign in using their administrator password.",
         },
         { status: 403 }
       );

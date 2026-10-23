@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     // Keep customer authentication separate from admin authentication
     if (user.role === "ADMIN" || cleanEmail === ADMIN_EMAIL.toLowerCase()) {
       return NextResponse.json(
-        { success: false, error: "Administrator accounts must sign in using the dedicated Admin Portal (/admin/login)." },
+        { success: false, error: "Administrator accounts must sign in using their administrator password." },
         { status: 403 }
       );
     }
