@@ -18,6 +18,7 @@ function ForgotPasswordContent() {
   const router = useRouter();
 
   const [step, setStep] = useState<"request" | "verify">("request");
+  const [adminLinkSent, setAdminLinkSent] = useState(false);
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
 
@@ -60,12 +61,19 @@ function ForgotPasswordContent() {
 
       const data = await res.json();
       if (data.success) {
-        // Display the OTP verification form ONLY after email has been sent successfully
-        setStep("verify");
         setCooldown(data.cooldown || 60);
-        setSuccessMessage(
-          data.message || `Password recovery code has been sent to ${cleanEmail} (valid for 5 minutes).`
-        );
+        if (data.adminRecovery) {
+          setAdminLinkSent(true);
+          setSuccessMessage(
+            data.message || `A secure password reset link has been dispatched to ${cleanEmail}. Please check your inbox.`
+          );
+        } else {
+          // Display the OTP verification form ONLY after email has been sent successfully
+          setStep("verify");
+          setSuccessMessage(
+            data.message || `Password recovery code has been sent to ${cleanEmail} (valid for 5 minutes).`
+          );
+        }
       } else {
         setError(data.error || "Unable to send recovery code. Please try again.");
         if (data.cooldown) {
@@ -220,8 +228,47 @@ function ForgotPasswordContent() {
           </div>
         )}
 
+        {/* ADMIN RECOVERY CONFIRMATION */}
+        {adminLinkSent && (
+          <div className="space-y-4 text-xs">
+            <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl space-y-2 text-xs">
+              <div className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>Secure Recovery Link Dispatched</span>
+              </div>
+              <p className="text-muted leading-relaxed">
+                A secure password reset link has been dispatched to <strong className="text-foreground">{email}</strong>.
+                Please check your inbox and click the link to set your new password and access your account.
+              </p>
+            </div>
+
+            <div className="pt-2 text-center">
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={resending || cooldown > 0}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#8C6226] dark:text-[#E5CBA2] hover:underline disabled:text-muted disabled:cursor-not-allowed transition cursor-pointer"
+              >
+                {resending ? (
+                  <>
+                    <RefreshCw className="w-3 h-3 animate-spin" />
+                    <span>Sending link...</span>
+                  </>
+                ) : cooldown > 0 ? (
+                  <span>Resend reset link in {cooldown}s</span>
+                ) : (
+                  <>
+                    <RefreshCw className="w-3 h-3" />
+                    <span>Resend Password Reset Link</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* STEP 1: Request Recovery Code Form */}
-        {step === "request" && (
+        {!adminLinkSent && step === "request" && (
           <form onSubmit={handleRequestReset} className="space-y-4 text-xs">
             <div className="space-y-1.5">
               <label className="font-semibold text-foreground">
@@ -261,7 +308,7 @@ function ForgotPasswordContent() {
         )}
 
         {/* STEP 2: Displayed ONLY after email has been sent successfully */}
-        {step === "verify" && (
+        {!adminLinkSent && step === "verify" && (
           <form onSubmit={handleVerifyOtp} className="space-y-4 text-xs">
             {/* Target Email Badge */}
             <div className="p-3 bg-tile border border-border rounded-xl flex items-center justify-between">

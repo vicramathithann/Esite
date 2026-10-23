@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, notFound } from "next/navigation";
+import { useApp } from "@/context/AppContext";
 import {
   Lock,
   Eye,
@@ -20,9 +21,15 @@ const ADMIN_EMAIL = "rrroyce20@gmail.com";
 
 function AdminResetPasswordContent() {
   const router = useRouter();
+  const { login } = useApp();
   const searchParams = useSearchParams();
   const token = (searchParams.get("token") || "").trim();
   const emailParam = (searchParams.get("email") || ADMIN_EMAIL).trim();
+
+  // If no token provided in the URL, return pure 404
+  if (!token) {
+    return notFound();
+  }
 
   // Token validation state
   const [checkingToken, setCheckingToken] = useState(true);
@@ -110,13 +117,16 @@ function AdminResetPasswordContent() {
 
       const data = await res.json();
       if (data.success) {
+        if (data.user) {
+          login(data.user);
+        }
         setSuccess(
           data.message ||
-            "Administrator password updated successfully! Redirecting to sign in..."
+            "Administrator password updated successfully! Accessing Admin Portal..."
         );
         setTimeout(() => {
-          router.push("/login");
-        }, 1600);
+          window.location.href = "/admin";
+        }, 1200);
       } else {
         setSubmitError(
           data.error || "Failed to reset password. The recovery link may have expired or already been used."

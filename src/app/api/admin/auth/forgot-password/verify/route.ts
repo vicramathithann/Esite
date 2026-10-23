@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { hashPassword, ADMIN_EMAIL } from "@/lib/auth";
+import { hashPassword, ADMIN_EMAIL, createSessionToken } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/rateLimit";
 import { logSecurityEvent } from "@/lib/securityLogger";
 
@@ -196,10 +196,32 @@ export async function POST(request: Request) {
       details: { method: "RESET_LINK" },
     });
 
-    return NextResponse.json({
+    // Establish session immediately so Admin can access portal directly
+    const sessionToken = createSessionToken(admin);
+    const response = NextResponse.json({
       success: true,
-      message: "Administrator password updated successfully! Redirecting to sign in...",
+      user: {
+        id: admin.id,
+        name: admin.name,
+        email: admin.email,
+        phone: admin.phone,
+        role: "ADMIN",
+        emailVerified: admin.emailVerified,
+        createdAt: admin.createdAt,
+      },
+      redirectUrl: "/admin",
+      message: "Administrator password updated successfully! Redirecting to Admin Portal...",
     });
+
+    response.cookies.set("vn_session", sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 30 * 24 * 60 * 60,
+    });
+
+    return response;
   } catch (err) {
     console.error("Admin forgot password verify error:", err);
     return NextResponse.json(

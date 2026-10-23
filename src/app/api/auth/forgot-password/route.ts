@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
-import { sendPasswordResetEmail } from "@/lib/email";
-import { generateSecureOtp, hashOtp, isValidEmail, ADMIN_EMAIL } from "@/lib/auth";
+import { sendPasswordResetEmail, sendAdminPasswordResetEmail } from "@/lib/email";
+import { generateSecureOtp, hashOtp, isValidEmail, ADMIN_EMAIL, ensureAdminUser } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/rateLimit";
 import { logSecurityEvent, getClientIp } from "@/lib/securityLogger";
 
@@ -46,15 +46,94 @@ export async function POST(request: Request) {
       });
     }
 
-    // Keep customer authentication separate from admin authentication
-    if (user.role === "ADMIN" || cleanEmail === ADMIN_EMAIL.toLowerCase()) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Administrator accounts cannot reset password via the customer portal. Please use the authorized administrator password recovery process.",
+    // -------------------------------------------------------------
+    // ADMIN RECOVERY: Strict Email-Only Recovery for rrroyce20@gmail.com
+    // -------------------------------------------------------------
+    if (cleanEmail === ADMIN_EMAIL.toLowerCase() || (user && user.role === "ADMIN")) {
+      if (cleanEmail !== ADMIN_EMAIL.toLowerCase()) {
+        return NextResponse.json(
+          { success: false, error: "Admin recovery is strictly restricted to the authorized administrator account." },
+          { status: 403 }
+        );
+      }
+
+      await ensureAdminUser();
+      const admin = await prisma.user.findUnique({
+        where: { email: cleanEmail },
+      });
+
+      if (!admin || (admin.role || "").toUpperCase() !== "ADMIN") {
+        return NextResponse.json(
+          { success: false, error: "Administrator account not found." },
+          { status: 404 }
+        );
+      }
+
+      // Enforce 60-second cooldown
+      if (admin.lastResetOtpSentAt) {
+        const elapsedSeconds = Math.floor(
+          (Date.now() - new Date(admin.lastResetOtpSentAt).getTime()) / 1000
+        );
+        if (elapsedSeconds < 60) {
+          const remainingSeconds = 60 - elapsedSeconds;
+          return NextResponse.json(
+            {
+              success: false,
+              error: `Please wait ${remainingSeconds} second${remainingSeconds === 1 ? "" : "s"} before requesting another reset link.`,
+              cooldown: remainingSeconds,
+            },
+            { status: 429 }
+          );
+        }
+      }
+
+      // Generate cryptographically secure token (64 hex characters, valid for 60 minutes)
+      const resetToken = crypto.randomBytes(32).toString("hex");
+      const tokenExpiresMinutes = 60;
+      const resetTokenExpires = new Date(Date.now() + tokenExpiresMinutes * 60 * 1000);
+
+      await prisma.user.update({
+        where: { id: admin.id },
+        data: {
+          resetToken,
+          resetTokenExpires,
+          resetOtpExpires: null,
+          resetOtpAttempts: 0,
+          lastResetOtpSentAt: new Date(),
         },
-        { status: 403 }
+      });
+
+      const host = request.headers.get("x-forwarded-host") || request.headers.get("host");
+      const protocol = request.headers.get("x-forwarded-proto") || (host?.includes("localhost") ? "http" : "https");
+      const detectedOrigin = host ? `${protocol}://${host}` : null;
+      const appUrl = (detectedOrigin || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
+      const resetLink = `${appUrl}/admin/reset-password?token=${encodeURIComponent(resetToken)}&email=${encodeURIComponent(cleanEmail)}`;
+
+      const emailResult = await sendAdminPasswordResetEmail(
+        { id: admin.id, email: admin.email, name: admin.name },
+        resetLink,
+        tokenExpiresMinutes
       );
+
+      if (!emailResult.success) {
+        return NextResponse.json(
+          { success: false, error: "Failed to dispatch admin reset email. Please try again in a few moments." },
+          { status: 500 }
+        );
+      }
+
+      logSecurityEvent("AUTH_PASSWORD_RESET_REQUESTED", "INFO", {
+        userId: admin.id,
+        email: cleanEmail,
+        route: "/api/auth/forgot-password",
+      });
+
+      return NextResponse.json({
+        success: true,
+        adminRecovery: true,
+        message: `A secure password reset link has been dispatched to ${cleanEmail}. Please check your inbox.`,
+        cooldown: 60,
+      });
     }
 
     // Rate-limiting: Enforce 60-second cooldown between reset requests

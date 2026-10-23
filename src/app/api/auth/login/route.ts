@@ -30,11 +30,17 @@ export async function POST(request: Request) {
     const query = targetIdentifier.trim();
     const cleanEmail = query.toLowerCase();
 
-    // Ensure administrator account is seeded if admin email is logging in
+    // Strict Admin Protection: Admin login methods are completely removed.
+    // Email recovery sent strictly to rrroyce20@gmail.com is the ONLY method to access the Admin account.
     if (cleanEmail === ADMIN_EMAIL.toLowerCase()) {
-      await ensureAdminUser();
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Administrator login via form is disabled. Please use email recovery to access the admin account.",
+        },
+        { status: 403 }
+      );
     }
-
 
     // Find user by email or phone
     const user = await prisma.user.findFirst({
@@ -45,6 +51,16 @@ export async function POST(request: Request) {
         ],
       },
     });
+
+    if (user && ((user.role || "").toUpperCase() === "ADMIN" || (user.email || "").toLowerCase() === ADMIN_EMAIL.toLowerCase())) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Administrator login via form is disabled. Please use email recovery to access the admin account.",
+        },
+        { status: 403 }
+      );
+    }
 
     if (!user) {
       // Timing attack mitigation: run constant-time hash calculation
