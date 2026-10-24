@@ -2,10 +2,10 @@
               VN MOBILES - ONLINE STORE
 ============================================================
 Status:            ONLINE (24/7 Background Service)
-Public Web Link:   https://chart-discount-inputs-triumph.trycloudflare.com
+Public Web Link:   https://surrey-golden-nuts-mumbai.trycloudflare.com
 Local Link:        http://localhost:3000
 Local Wi-Fi Link:  http://10.1.7.122:3000
-Last Updated:      23/10/2026, 9:31:32 am
+Last Updated:      24/10/2026, 10:07:02 am
 ============================================================
 Share the Public Web Link with anyone on any phone, laptop,
 or tablet anywhere in the world to browse and buy mobiles!

@@ -17,6 +17,7 @@ export default function ErrorBoundary({
   return (
     <ErrorView
       code="500"
+      title="SERVER ERROR"
       primaryButtonText="Return Home"
       primaryButtonHref="/"
       secondaryButtonText="Try Again"
