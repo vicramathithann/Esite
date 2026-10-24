@@ -32,11 +32,6 @@ export default function CustomerSupportChatbot() {
   const pathname = usePathname();
   const { currentUser } = useApp();
 
-  // IMPORTANT: Completely exclude from all Admin routes
-  if (pathname?.startsWith("/admin")) {
-    return null;
-  }
-
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -215,6 +210,11 @@ export default function CustomerSupportChatbot() {
       );
     });
   };
+
+  // Completely exclude chatbot UI from all Admin routes
+  if (pathname?.startsWith("/admin")) {
+    return null;
+  }
 
   return (
     <>

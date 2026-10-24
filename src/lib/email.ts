@@ -531,19 +531,17 @@ export async function sendLoginOtpEmail(
   otp: string
 ): Promise<EmailSendResult> {
   const codeDisplay = (otp || "").slice(0, 6);
+  const digits = codeDisplay.padEnd(6, "•").split("");
 
   const plainText = [
-    "Your VN Mobiles login verification code",
+    `Dear ${user.name || "Customer"},`,
     "",
-    `Hi ${user.name},`,
-    "",
-    "You requested to sign in to your VN Mobiles account using a one-time verification code.",
-    "",
-    `Login Code: ${codeDisplay}`,
-    "",
-    "This code expires in 5 minutes.",
+    `${codeDisplay} is the OTP to login to your VN Mobiles account. OTP is valid for next 5 mins.`,
     "",
     "If you did not attempt to sign in, no action is needed. Your account remains protected.",
+    "",
+    "Regards,",
+    "VN Mobiles Team",
     "",
     getEmailFooterText(),
   ].join("\n");
@@ -553,36 +551,100 @@ export async function sendLoginOtpEmail(
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Your VN Mobiles login verification code</title>
+  <title>OTP for VN Mobiles Login</title>
 </head>
-<body style="margin:0;padding:0;background-color:#f6f8fa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#24292f;-webkit-font-smoothing:antialiased;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f6f8fa;padding:32px 16px;">
+<body style="margin:0;padding:0;background-color:#F8FAFC;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1E293B;-webkit-font-smoothing:antialiased;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#F8FAFC;padding:36px 16px;">
     <tr>
       <td align="center">
-        <table role="presentation" width="100%" style="max-width:500px;background-color:#ffffff;border:1px solid #d0d7de;border-radius:12px;overflow:hidden;">
+        <!-- Main Card -->
+        <table role="presentation" width="100%" style="max-width:520px;background-color:#FFFFFF;border:1px solid #E2E8F0;border-radius:16px;overflow:hidden;box-shadow:0 10px 25px -5px rgba(15,23,42,0.05),0 8px 10px -6px rgba(15,23,42,0.03);">
+          
+          <!-- Top Gold Accent Line -->
           <tr>
-            <td style="padding:28px 32px 20px 32px;border-bottom:1px solid #f0f2f5;">
-              <h1 style="margin:0;font-size:20px;font-weight:700;color:#1f2328;letter-spacing:-0.2px;">VN Mobiles</h1>
+            <td style="height:4px;background:linear-gradient(90deg, #C9A66B 0%, #E5CBA2 50%, #C9A66B 100%);"></td>
+          </tr>
+
+          <!-- Header Section -->
+          <tr>
+            <td style="padding:28px 36px 20px 36px;border-bottom:1px solid #F1F5F9;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td align="left" style="vertical-align:middle;">
+                    <table role="presentation" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td style="width:36px;height:36px;background-color:#0F172A;border:1px solid #C9A66B;border-radius:10px;text-align:center;vertical-align:middle;color:#C9A66B;font-weight:800;font-size:14px;letter-spacing:-0.5px;">
+                          VN
+                        </td>
+                        <td style="padding-left:12px;vertical-align:middle;">
+                          <div style="font-size:15px;font-weight:800;color:#0F172A;letter-spacing:-0.3px;line-height:1.2;">VN MOBILES</div>
+                          <div style="font-size:10px;font-weight:700;color:#8C6226;letter-spacing:1px;text-transform:uppercase;margin-top:2px;">SECURITY VERIFICATION</div>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td align="right" style="vertical-align:middle;">
+                    <span style="display:inline-block;background-color:#FEF3C7;border:1px solid #FDE68A;color:#92400E;font-size:10px;font-weight:700;letter-spacing:0.5px;padding:4px 10px;border-radius:9999px;">
+                      ⏱ Valid for 5 mins
+                    </span>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
+
+          <!-- Main Body Content -->
           <tr>
-            <td style="padding:24px 32px;">
-              <p style="margin:0 0 16px 0;font-size:14px;line-height:1.6;color:#24292f;">
-                Hi <strong>${user.name}</strong>,
+            <td style="padding:28px 36px 32px 36px;">
+              <p style="margin:0 0 12px 0;font-size:15px;line-height:1.6;color:#1E293B;">
+                Dear <strong>${user.name || "Customer"}</strong>,
               </p>
-              <p style="margin:0 0 20px 0;font-size:14px;line-height:1.6;color:#57606a;">
-                Please enter the following 6-digit code to complete signing in to your VN Mobiles account:
+              
+              <!-- Direct Sentence Pattern Matching Gmail's Smart OTP Extraction -->
+              <p style="margin:0 0 20px 0;font-size:14px;line-height:1.6;color:#334155;">
+                <strong>${codeDisplay}</strong> is the OTP to login to your VN Mobiles account. OTP is valid for next 5 mins.
               </p>
-              <div style="background-color:#f6f8fa;border:1px solid #d0d7de;border-radius:8px;padding:20px;text-align:center;margin:20px 0;">
-                <div style="font-size:11px;font-weight:600;text-transform:uppercase;color:#57606a;letter-spacing:1px;margin-bottom:6px;">Sign In Code</div>
-                <div style="font-size:34px;font-weight:700;letter-spacing:8px;color:#1f2328;font-family:ui-monospace,SFMono-Regular,Consolas,'Liberation Mono',Menlo,monospace;">${codeDisplay}</div>
-                <div style="margin-top:8px;font-size:12px;color:#cf222e;font-weight:600;">Expires in 5 minutes</div>
+
+              <!-- OTP Card Section - Light, Clean & Premium -->
+              <div style="background-color:#FAF8F5;border:1px solid #EBE4D6;border-radius:14px;padding:24px 20px 24px 20px;text-align:center;margin:0 0 24px 0;">
+                
+                <!-- Title & Badge -->
+                <div style="margin-bottom:18px;">
+                  <span style="display:inline-block;background-color:#FEF3C7;border:1px solid #FDE68A;color:#92400E;font-size:11px;font-weight:700;padding:4px 12px;border-radius:9999px;margin-bottom:10px;">
+                    ⏱ Valid for 5 mins
+                  </span>
+                  <div style="font-size:12px;font-weight:800;text-transform:uppercase;color:#8C6226;letter-spacing:1.8px;">
+                    ENTER 6-DIGIT CODE
+                  </div>
+                </div>
+
+                <!-- 6 Separate Clean Boxes -->
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:0 auto;">
+                  <tr>
+                    ${digits.map((digit) => `
+                      <td style="padding:0 3px;">
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                          <tr>
+                            <td align="center" valign="middle" style="width:44px;height:52px;background-color:#FFFFFF;border:2px solid #D8CABB;border-radius:10px;font-size:24px;font-weight:800;color:#0F172A;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono',monospace;text-align:center;vertical-align:middle;box-shadow:0 2px 4px rgba(140,98,38,0.06);user-select:all;-webkit-user-select:all;">
+                              ${digit}
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    `).join("")}
+                  </tr>
+                </table>
+
               </div>
-              <p style="margin:20px 0 0 0;font-size:13px;line-height:1.5;color:#57606a;">
-                If you did not attempt to sign in, no action is needed. Your account remains protected.
+
+              <!-- Security Notice -->
+              <p style="margin:0;font-size:12px;line-height:1.6;color:#64748B;">
+                If you did not attempt to sign in, no action is needed. Your account remains protected and this code will expire automatically.
               </p>
             </td>
           </tr>
+
+          <!-- Footer -->
           <tr>
             <td>
               ${getEmailFooterHtml()}
@@ -599,7 +661,7 @@ export async function sendLoginOtpEmail(
     userId: user.id,
     recipientName: user.name,
     recipientEmail: user.email,
-    subject: "Your VN Mobiles login verification code",
+    subject: "OTP for VN Mobiles Login",
     emailType: "LOGIN_OTP",
     contentSummary: plainText,
     text: plainText,

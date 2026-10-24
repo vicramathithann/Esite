@@ -30,8 +30,10 @@ function LoginForm() {
 
   const { currentUser, login, logout } = useApp();
 
+  const otpCodeParam = searchParams.get("code") || searchParams.get("otp") || "";
+
   // Mode: "password" vs "otp"
-  const [loginMode, setLoginMode] = useState<"password" | "otp">("password");
+  const [loginMode, setLoginMode] = useState<"password" | "otp">(otpCodeParam ? "otp" : "password");
 
   // Password Login State
   const [emailOrPhone, setEmailOrPhone] = useState(verifiedEmailParam || "");
@@ -40,12 +42,13 @@ function LoginForm() {
   const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
 
   // OTP Login State
-  const [otpStep, setOtpStep] = useState<"email" | "code">("email");
-  const [otpEmail, setOtpEmail] = useState("");
-  const [otpCode, setOtpCode] = useState("");
+  const [otpStep, setOtpStep] = useState<"email" | "code">(otpCodeParam ? "code" : "email");
+  const [otpEmail, setOtpEmail] = useState(verifiedEmailParam || "");
+  const [otpCode, setOtpCode] = useState(otpCodeParam.slice(0, 6));
   const [otpCooldown, setOtpCooldown] = useState(0);
   const [resendingOtp, setResendingOtp] = useState(false);
   const [remainingAttempts, setRemainingAttempts] = useState<number | null>(null);
+  const otpInputRefs = React.useRef<(HTMLInputElement | null)[]>([]);
 
   // Common UI State
   const [loading, setLoading] = useState(false);
@@ -360,6 +363,78 @@ function LoginForm() {
       setResendingOtp(false);
     }
   };
+
+  // OTP 6-Box Input Helpers
+  const handleOtpDigitChange = (index: number, value: string) => {
+    const raw = value.replace(/\D/g, "");
+    if (!raw) {
+      const currentArr = Array.from({ length: 6 }, (_, i) => otpCode[i] || "");
+      currentArr[index] = "";
+      setOtpCode(currentArr.join("").trimEnd());
+      return;
+    }
+
+    if (raw.length > 1) {
+      const pastedDigits = raw.slice(0, 6);
+      setOtpCode(pastedDigits);
+      const nextFocus = Math.min(pastedDigits.length, 5);
+      otpInputRefs.current[nextFocus]?.focus();
+      return;
+    }
+
+    const currentArr = Array.from({ length: 6 }, (_, i) => otpCode[i] || "");
+    currentArr[index] = raw;
+    const newCode = currentArr.join("").slice(0, 6);
+    setOtpCode(newCode);
+
+    if (index < 5 && raw) {
+      otpInputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace") {
+      if (!otpCode[index] && index > 0) {
+        const currentArr = Array.from({ length: 6 }, (_, i) => otpCode[i] || "");
+        currentArr[index - 1] = "";
+        setOtpCode(currentArr.join("").trimEnd());
+        otpInputRefs.current[index - 1]?.focus();
+      }
+    } else if (e.key === "ArrowLeft" && index > 0) {
+      e.preventDefault();
+      otpInputRefs.current[index - 1]?.focus();
+    } else if (e.key === "ArrowRight" && index < 5) {
+      e.preventDefault();
+      otpInputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    if (pasted) {
+      setOtpCode(pasted);
+      const nextFocus = Math.min(pasted.length, 5);
+      otpInputRefs.current[nextFocus]?.focus();
+    }
+  };
+
+  // Allow global Ctrl+V pasting across the entire window when on OTP step
+  useEffect(() => {
+    if (loginMode !== "otp" || otpStep !== "code") return;
+
+    const handleGlobalPaste = (e: ClipboardEvent) => {
+      const text = e.clipboardData?.getData("text") || "";
+      const digits = text.replace(/\D/g, "").slice(0, 6);
+      if (digits.length === 6) {
+        setOtpCode(digits);
+        otpInputRefs.current[5]?.focus();
+      }
+    };
+
+    window.addEventListener("paste", handleGlobalPaste);
+    return () => window.removeEventListener("paste", handleGlobalPaste);
+  }, [loginMode, otpStep]);
 
   // Handle OTP Step 2: Verify OTP and Establish Session
   const handleVerifyOtp = async (e: React.FormEvent) => {
@@ -848,10 +923,10 @@ function LoginForm() {
             ) : (
               /* OTP Step 2: Enter 6-Digit Code */
               <form onSubmit={handleVerifyOtp} className="space-y-4">
-                <div className="p-3 bg-tile border border-border rounded-xl flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <Mail className="w-3.5 h-3.5 text-accent" />
-                    <span className="text-muted font-mono">{otpEmail}</span>
+                <div className="p-3 bg-[#F9F9FB] dark:bg-[#1A1A1E] border border-[#E8E8ED] dark:border-[#2C2C30] rounded-xl flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2 overflow-hidden mr-2">
+                    <Mail className="w-3.5 h-3.5 text-[#C9A66B] shrink-0" />
+                    <span className="text-foreground/80 font-mono truncate">{otpEmail}</span>
                   </div>
                   <button
                     type="button"
@@ -861,40 +936,61 @@ function LoginForm() {
                       setError(null);
                       setInfoMessage(null);
                     }}
-                    className="text-[11px] text-[#8C6226] dark:text-[#E5CBA2] hover:underline font-semibold cursor-pointer"
+                    className="text-[11px] text-[#8C6226] dark:text-[#E5CBA2] hover:underline font-semibold cursor-pointer shrink-0"
                   >
-                    Change Email
+                    Change
                   </button>
                 </div>
 
-                <div className="space-y-1.5">
-                  <div className="flex justify-between items-center">
-                    <label className="font-semibold text-foreground">
-                      6-Digit Sign In Code
+                {/* 6-Digit Separate Boxes Container - Light, Clean & Premium */}
+                <div className="bg-[#FAFAFC] dark:bg-[#161619] border border-[#EBEBF0] dark:border-[#2A2A2E] rounded-2xl p-4 sm:p-5 text-center">
+                  <div className="flex justify-between items-center mb-3">
+                    <label className="text-xs font-semibold text-foreground uppercase tracking-wider">
+                      Enter 6-Digit Code
                     </label>
-                    <span className="text-[10px] text-[#8C6226] dark:text-[#E5CBA2] font-semibold">
+                    <span className="text-[10px] text-[#8C6226] dark:text-[#E5CBA2] font-semibold bg-[#F4EBD9]/60 dark:bg-[#382D1C]/60 px-2 py-0.5 rounded-full">
                       Valid for 5 mins
                     </span>
                   </div>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      required
-                      maxLength={6}
-                      pattern="\d{6}"
-                      value={otpCode}
-                      onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
-                      placeholder="• • • • • •"
-                      className="w-full pl-9 pr-4 py-2.5 bg-tile border border-border rounded-xl text-foreground text-xl tracking-[0.4em] text-center font-mono placeholder:text-muted focus:outline-none focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20 transition-all"
-                    />
-                    <KeyRound className="w-4 h-4 text-muted absolute left-3 top-3.5" />
+
+                  {/* 6 Clean Input Boxes */}
+                  <div className="flex items-center justify-center gap-2 sm:gap-2.5">
+                    {[0, 1, 2, 3, 4, 5].map((index) => {
+                      const digit = otpCode[index] || "";
+                      const isFilled = digit.length > 0;
+                      return (
+                        <input
+                          key={index}
+                          ref={(el) => {
+                            otpInputRefs.current[index] = el;
+                          }}
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          autoComplete={index === 0 ? "one-time-code" : "off"}
+                          maxLength={1}
+                          value={digit}
+                          onChange={(e) => handleOtpDigitChange(index, e.target.value)}
+                          onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                          onPaste={handleOtpPaste}
+                          aria-label={`Digit ${index + 1} of verification code`}
+                          className={`w-11 h-13 sm:w-12 sm:h-14 text-center font-mono text-xl sm:text-2xl font-bold rounded-xl transition-all select-none
+                            ${
+                              isFilled
+                                ? "bg-white dark:bg-[#202024] text-foreground border-2 border-[#C9A66B] shadow-xs"
+                                : "bg-white dark:bg-[#1C1C20] text-foreground border-2 border-[#E2E2E8] dark:border-[#2E2E34] hover:border-[#C9A66B]/50"
+                            }
+                            focus:outline-none focus:border-[#C9A66B] focus:ring-4 focus:ring-[#C9A66B]/15 dark:focus:border-[#D4B483] dark:focus:ring-[#D4B483]/20`}
+                        />
+                      );
+                    })}
                   </div>
                 </div>
 
                 <button
                   type="submit"
                   disabled={loading || otpCode.length !== 6}
-                  className="w-full py-3 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] text-xs font-semibold rounded-xl mt-3 flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+                  className="w-full py-3 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50"
                 >
                   {loading ? (
                     <>
