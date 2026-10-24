@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Heart, ArrowLeft, ShoppingBag, Trash2, Smartphone } from "lucide-react";
@@ -9,24 +9,17 @@ import { useApp } from "@/context/AppContext";
 
 export default function WishlistPage() {
   const { wishlist, toggleWishlist, addToCart } = useApp();
-  const [products, setProducts] = useState<any[]>([]);
+  const [allProducts, setAllProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function loadWishlistProducts() {
-      if (!wishlist || wishlist.length === 0) {
-        setProducts([]);
-        setLoading(false);
-        return;
-      }
-
+    async function loadAllProducts() {
       try {
         setLoading(true);
         const res = await fetch("/api/products");
         const data = await res.json();
         if (data.success && data.products) {
-          const filtered = data.products.filter((p: any) => wishlist.includes(p.id));
-          setProducts(filtered);
+          setAllProducts(data.products);
         }
       } catch (err) {
         console.error("Failed to load wishlist products:", err);
@@ -35,8 +28,13 @@ export default function WishlistPage() {
       }
     }
 
-    loadWishlistProducts();
-  }, [wishlist]);
+    loadAllProducts();
+  }, []);
+
+  const products = useMemo(() => {
+    if (!wishlist || wishlist.length === 0) return [];
+    return allProducts.filter((p: any) => wishlist.includes(p.id));
+  }, [allProducts, wishlist]);
 
   const handleAddToCart = (product: any) => {
     const defaultColor = product.colors?.[0] || { name: "Default", hex: "#000" };

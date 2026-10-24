@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import { CartItem, MobileProductData } from "@/lib/types";
 
 export interface UserProfile {
@@ -93,7 +93,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Refresh storefront visibility settings from backend
   const refreshSiteSettings = useCallback(async () => {
     try {
-      const res = await fetch("/api/settings", { cache: "no-store" });
+      const res = await fetch("/api/settings");
       const data = await res.json();
       if (data.success && data.settings) {
         setSiteSettings(data.settings);
@@ -160,7 +160,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentUser?.id]);
 
-  const addToCart = (item: CartItem) => {
+  const addToCart = useCallback((item: CartItem) => {
     setCart((prev) => {
       const existing = prev.find((i) => i.id === item.id);
       if (existing) {
@@ -171,13 +171,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return [...prev, item];
     });
     setIsCartOpen(true);
-  };
+  }, []);
 
-  const removeFromCart = (id: string) => {
+  const removeFromCart = useCallback((id: string) => {
     setCart((prev) => prev.filter((i) => i.id !== id));
-  };
+  }, []);
 
-  const updateQuantity = (id: string, delta: number) => {
+  const updateQuantity = useCallback((id: string, delta: number) => {
     setCart((prev) =>
       prev
         .map((i) => {
@@ -189,45 +189,55 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         })
         .filter(Boolean) as CartItem[]
     );
-  };
+  }, []);
 
-  const clearCart = () => {
+  const clearCart = useCallback(() => {
     setCart([]);
-  };
+  }, []);
 
-  const toggleWishlist = (productId: string) => {
+  const toggleWishlist = useCallback((productId: string) => {
     setWishlist((prev) =>
       prev.includes(productId) ? prev.filter((id) => id !== productId) : [...prev, productId]
     );
-  };
+  }, []);
 
-  const isInWishlist = (productId: string) => {
+  const isInWishlist = useCallback((productId: string) => {
     return wishlist.includes(productId);
-  };
+  }, [wishlist]);
 
-  const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const cartTotal = useMemo(() => {
+    return cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  }, [cart]);
+
+  const cartCount = useMemo(() => {
+    return cart.reduce((sum, item) => sum + item.quantity, 0);
+  }, [cart]);
+
   const wishlistCount = wishlist.length;
 
-  const addToCompare = (product: MobileProductData): boolean => {
-    if (compareList.some((p) => p.id === product.id)) return false;
-    if (compareList.length >= 3) {
-      alert("You can compare up to 3 smartphones at a time.");
-      return false;
-    }
-    setCompareList((prev) => [...prev, product]);
-    return true;
-  };
+  const addToCompare = useCallback((product: MobileProductData): boolean => {
+    let success = false;
+    setCompareList((prev) => {
+      if (prev.some((p) => p.id === product.id)) return prev;
+      if (prev.length >= 3) {
+        alert("You can compare up to 3 smartphones at a time.");
+        return prev;
+      }
+      success = true;
+      return [...prev, product];
+    });
+    return success;
+  }, []);
 
-  const removeFromCompare = (productId: string) => {
+  const removeFromCompare = useCallback((productId: string) => {
     setCompareList((prev) => prev.filter((p) => p.id !== productId));
-  };
+  }, []);
 
-  const clearCompare = () => {
+  const clearCompare = useCallback(() => {
     setCompareList([]);
-  };
+  }, []);
 
-  const login = (user: UserProfile) => {
+  const login = useCallback((user: UserProfile) => {
     const isRealAdmin =
       user.role === "ADMIN" &&
       (user.email || "").toLowerCase() === "rrroyce20@gmail.com";
@@ -239,9 +249,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       localStorage.setItem("novamobile_user", JSON.stringify(sanitizedUser));
     } catch {}
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     setCurrentUser(null);
     try {
       localStorage.removeItem("novamobile_user");
@@ -251,36 +261,59 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {
       console.error("Failed to clear server session:", e);
     }
-  };
+  }, []);
+
+  const contextValue = useMemo<AppContextType>(() => ({
+    currentUser,
+    login,
+    logout,
+    refreshUser,
+    siteSettings,
+    refreshSiteSettings,
+    cart,
+    addToCart,
+    removeFromCart,
+    updateQuantity,
+    clearCart,
+    cartTotal,
+    cartCount,
+    isCartOpen,
+    setIsCartOpen,
+    wishlist,
+    toggleWishlist,
+    isInWishlist,
+    wishlistCount,
+    compareList,
+    addToCompare,
+    removeFromCompare,
+    clearCompare,
+  }), [
+    currentUser,
+    login,
+    logout,
+    refreshUser,
+    siteSettings,
+    refreshSiteSettings,
+    cart,
+    addToCart,
+    removeFromCart,
+    updateQuantity,
+    clearCart,
+    cartTotal,
+    cartCount,
+    isCartOpen,
+    wishlist,
+    toggleWishlist,
+    isInWishlist,
+    wishlistCount,
+    compareList,
+    addToCompare,
+    removeFromCompare,
+    clearCompare,
+  ]);
 
   return (
-    <AppContext.Provider
-      value={{
-        currentUser,
-        login,
-        logout,
-        refreshUser,
-        siteSettings,
-        refreshSiteSettings,
-        cart,
-        addToCart,
-        removeFromCart,
-        updateQuantity,
-        clearCart,
-        cartTotal,
-        cartCount,
-        isCartOpen,
-        setIsCartOpen,
-        wishlist,
-        toggleWishlist,
-        isInWishlist,
-        wishlistCount,
-        compareList,
-        addToCompare,
-        removeFromCompare,
-        clearCompare,
-      }}
-    >
+    <AppContext.Provider value={contextValue}>
       {children}
     </AppContext.Provider>
   );

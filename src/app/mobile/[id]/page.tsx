@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MobileProductData, ProductColor, StorageOption } from "@/lib/types";
 import { DEFAULT_PRODUCTS } from "@/lib/catalogData";
+import { getCachedProduct } from "@/components/ProductCatalog";
 import { useApp } from "@/context/AppContext";
 import { 
   Check, 
@@ -46,14 +47,14 @@ export default function MobileDetailPage({
     siteSettings 
   } = useApp();
 
-  const defaultMatch = DEFAULT_PRODUCTS.find((p) => p.id === resolvedParams.id) || null;
+  const initialMatch = getCachedProduct(resolvedParams.id) || null;
 
-  const [product, setProduct] = useState<MobileProductData | null>(defaultMatch);
-  const [loading, setLoading] = useState(!defaultMatch);
-  const [selectedImage, setSelectedImage] = useState<string>(defaultMatch?.imageUrl || "");
-  const [selectedColor, setSelectedColor] = useState<ProductColor | null>(defaultMatch?.colors[0] || null);
-  const [selectedStorage, setSelectedStorage] = useState<StorageOption | null>(defaultMatch?.storageOptions[0] || null);
-  const [selectedRam, setSelectedRam] = useState<string>(defaultMatch?.ram || "8GB");
+  const [product, setProduct] = useState<MobileProductData | null>(initialMatch);
+  const [loading, setLoading] = useState(!initialMatch);
+  const [selectedImage, setSelectedImage] = useState<string>(initialMatch?.imageUrl || "");
+  const [selectedColor, setSelectedColor] = useState<ProductColor | null>(initialMatch?.colors?.[0] || null);
+  const [selectedStorage, setSelectedStorage] = useState<StorageOption | null>(initialMatch?.storageOptions?.[0] || null);
+  const [selectedRam, setSelectedRam] = useState<string>(initialMatch?.ram || "8GB");
   const quantity = 1;
   const [isAdded, setIsAdded] = useState(false);
   const [outOfStockAlert, setOutOfStockAlert] = useState(false);

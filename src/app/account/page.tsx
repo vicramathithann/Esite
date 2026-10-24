@@ -114,7 +114,7 @@ export default function AccountPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentUser]);
+  }, [currentUser?.id, currentUser?.email, currentUser?.role]);
 
   useEffect(() => {
     loadOrders();

@@ -113,7 +113,7 @@ export default function OrdersPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentUser]);
+  }, [currentUser?.id, currentUser?.email, currentUser?.phone, currentUser?.role]);
 
   useEffect(() => {
     loadOrders();

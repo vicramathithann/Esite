@@ -41,7 +41,7 @@ export default function UserWarrantiesPage() {
 
   useEffect(() => {
     loadWarranties();
-  }, [currentUser]);
+  }, [currentUser?.id, currentUser?.email, currentUser?.role]);
 
   const handleResendWarrantyEmail = async (warrantyId: string) => {
     try {

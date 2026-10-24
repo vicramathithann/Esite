@@ -9,68 +9,65 @@ export async function GET(request: Request) {
       return auth;
     }
 
-    const totalProducts = await prisma.mobileProduct.count();
-    const totalSmartphones = await prisma.mobileProduct.count({
-      where: { category: "SMARTPHONE" },
-    });
-    const totalAccessories = await prisma.mobileProduct.count({
-      where: { category: "ACCESSORY" },
-    });
-
-    const totalCustomers = await prisma.user.count({
-      where: { role: "USER" },
-    });
-
-    const totalOrders = await prisma.order.count();
-    const confirmedOrders = await prisma.order.count({ where: { orderStatus: { in: ["Order Confirmed", "CONFIRMED"] } } });
-    const processingOrders = await prisma.order.count({ where: { orderStatus: { in: ["Processing", "PROCESSING"] } } });
-    const shippedOrders = await prisma.order.count({ where: { orderStatus: { in: ["Shipped", "SHIPPED"] } } });
-    const deliveredOrders = await prisma.order.count({ where: { orderStatus: { in: ["Delivered", "DELIVERED"] } } });
-    const cancelledOrders = await prisma.order.count({ where: { orderStatus: { in: ["Cancelled", "CANCELLED"] } } });
-
-    // Total sales calculation
-    const paidOrders = await prisma.order.findMany({
-      where: {
-        orderStatus: { notIn: ["Cancelled", "CANCELLED"] },
-      },
-      select: { totalAmount: true },
-    });
-    const totalSales = paidOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-
-    // Low stock products (stock <= 5)
-    const lowStockProducts = await prisma.mobileProduct.findMany({
-      where: {
-        stock: { lte: 5 },
-      },
-      select: {
-        id: true,
-        name: true,
-        brand: true,
-        model: true,
-        stock: true,
-        inStock: true,
-        category: true,
-      },
-      take: 10,
-    });
-
-    const lowStockCount = await prisma.mobileProduct.count({
-      where: { stock: { lte: 5 } },
-    });
-
-    const outOfStockCount = await prisma.mobileProduct.count({
-      where: { stock: 0 },
-    });
-
-    const totalWarranties = await prisma.warranty.count();
-    const activeWarranties = await prisma.warranty.count({
-      where: {
-        warrantyStatus: "ACTIVE",
-        order: {
-          orderStatus: { notIn: ["CANCELLED", "Cancelled", "cancelled"] },
+    const [
+      totalProducts,
+      totalSmartphones,
+      totalAccessories,
+      totalCustomers,
+      totalOrders,
+      confirmedOrders,
+      processingOrders,
+      shippedOrders,
+      deliveredOrders,
+      cancelledOrders,
+      paidOrders,
+      lowStockProducts,
+      lowStockCount,
+      outOfStockCount,
+      totalWarranties,
+      activeWarranties,
+    ] = await Promise.all([
+      prisma.mobileProduct.count(),
+      prisma.mobileProduct.count({ where: { category: "SMARTPHONE" } }),
+      prisma.mobileProduct.count({ where: { category: "ACCESSORY" } }),
+      prisma.user.count({ where: { role: "USER" } }),
+      prisma.order.count(),
+      prisma.order.count({ where: { orderStatus: { in: ["Order Confirmed", "CONFIRMED"] } } }),
+      prisma.order.count({ where: { orderStatus: { in: ["Processing", "PROCESSING"] } } }),
+      prisma.order.count({ where: { orderStatus: { in: ["Shipped", "SHIPPED"] } } }),
+      prisma.order.count({ where: { orderStatus: { in: ["Delivered", "DELIVERED"] } } }),
+      prisma.order.count({ where: { orderStatus: { in: ["Cancelled", "CANCELLED"] } } }),
+      prisma.order.findMany({
+        where: { orderStatus: { notIn: ["Cancelled", "CANCELLED"] } },
+        select: { totalAmount: true },
+      }),
+      prisma.mobileProduct.findMany({
+        where: { stock: { lte: 5 } },
+        select: {
+          id: true,
+          name: true,
+          brand: true,
+          model: true,
+          stock: true,
+          inStock: true,
+          category: true,
         },
-      },
-    });
+        take: 10,
+      }),
+      prisma.mobileProduct.count({ where: { stock: { lte: 5 } } }),
+      prisma.mobileProduct.count({ where: { stock: 0 } }),
+      prisma.warranty.count(),
+      prisma.warranty.count({
+        where: {
+          warrantyStatus: "ACTIVE",
+          order: {
+            orderStatus: { notIn: ["CANCELLED", "Cancelled", "cancelled"] },
+          },
+        },
+      }),
+    ]);
+
+    const totalSales = paidOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
 
     return NextResponse.json({
       success: true,

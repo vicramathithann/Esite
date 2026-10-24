@@ -58,6 +58,16 @@ export interface ProductCatalogProps {
   onBrandChange?: (brand: string) => void;
 }
 
+let globalCatalogCache: MobileProductData[] | null = null;
+
+export function getCachedProduct(id: string): MobileProductData | undefined {
+  if (globalCatalogCache) {
+    const found = globalCatalogCache.find((p) => p.id === id);
+    if (found) return found;
+  }
+  return DEFAULT_PRODUCTS.find((p) => p.id === id);
+}
+
 export default function ProductCatalog({
   initialBrand,
   initialCategory = "all",
@@ -75,8 +85,8 @@ export default function ProductCatalog({
   const urlSearch = searchParams.get("search");
   const urlCategory = searchParams.get("category");
 
-  const [products, setProducts] = useState<MobileProductData[]>(DEFAULT_PRODUCTS);
-  const [loading, setLoading] = useState(true);
+  const [products, setProducts] = useState<MobileProductData[]>(() => globalCatalogCache || DEFAULT_PRODUCTS);
+  const [loading, setLoading] = useState(() => !globalCatalogCache);
 
   // Filter States
   const [selectedBrand, setSelectedBrand] = useState<string>(
@@ -127,18 +137,23 @@ export default function ProductCatalog({
   // Fetch products from database API
   useEffect(() => {
     async function fetchProducts() {
-      setLoading(true);
+      if (!globalCatalogCache) {
+        setLoading(true);
+      }
       try {
         const res = await fetch("/api/products");
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         const data = await res.json();
         if (data.success && Array.isArray(data.products) && data.products.length > 0) {
+          globalCatalogCache = data.products;
           setProducts(data.products);
-        } else {
+        } else if (!globalCatalogCache) {
           setProducts(DEFAULT_PRODUCTS);
         }
       } catch {
-        setProducts(DEFAULT_PRODUCTS);
+        if (!globalCatalogCache) {
+          setProducts(DEFAULT_PRODUCTS);
+        }
       } finally {
         setLoading(false);
       }

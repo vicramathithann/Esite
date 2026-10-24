@@ -9,19 +9,35 @@ import AdminSupportChatbot from "@/components/AdminSupportChatbot";
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { currentUser } = useApp();
-  const [isVerifying, setIsVerifying] = useState(true);
+  const [isVerifying, setIsVerifying] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("novamobile_user");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.role === "ADMIN" && (parsed.email || "").toLowerCase() === "rrroyce20@gmail.com") {
+            return false;
+          }
+        }
+      } catch {}
+    }
+    return !currentUser;
+  });
 
   // Dedicated token-based recovery route only
   const isAuthPage = pathname === "/admin/reset-password";
 
   useEffect(() => {
-    // Short verification delay to let AppContext restore session from cookies
+    if (currentUser) {
+      setIsVerifying(false);
+      return;
+    }
     const timer = setTimeout(() => {
       setIsVerifying(false);
-    }, 400);
+    }, 150);
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [currentUser]);
 
   if (isAuthPage) {
     return <>{children}</>;

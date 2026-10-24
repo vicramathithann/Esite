@@ -22,7 +22,7 @@ const BRANDS = [
   "Sony", "Asus", "iQOO", "Tecno", "Nokia"
 ];
 
-function BrandSubNav() {
+const BrandSubNav = React.memo(function BrandSubNav() {
   const searchParams = useSearchParams();
   const brandParam = searchParams.get("brand");
   const isAllPhones = !brandParam || brandParam === "All Mobiles" || brandParam === "All Phones";
@@ -33,7 +33,6 @@ function BrandSubNav() {
         <div className="flex items-center gap-1 shrink-0">
           <Link 
             href="/" 
-            prefetch={false}
             className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs transition-all duration-200 ${
               isAllPhones
                 ? "font-semibold bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] shadow-xs"
@@ -50,7 +49,6 @@ function BrandSubNav() {
               <Link
                 key={b}
                 href={`/?brand=${encodeURIComponent(b)}`}
-                prefetch={false}
                 className={`px-2.5 py-1 rounded-full text-xs transition-all duration-200 whitespace-nowrap ${
                   isActive
                     ? "font-semibold bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] shadow-xs"
@@ -70,7 +68,7 @@ function BrandSubNav() {
       </div>
     </div>
   );
-}
+});
 
 export default function Navbar() {
   const pathname = usePathname();

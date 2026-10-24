@@ -30,7 +30,14 @@ export async function GET(
       highlightFeatures: JSON.parse(product.highlightFeatures || "[]"),
     };
 
-    return NextResponse.json({ success: true, product: parsed });
+    return NextResponse.json(
+      { success: true, product: parsed },
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+        },
+      }
+    );
   } catch (error) {
     console.error("Failed to fetch product:", error);
     return NextResponse.json({ success: false, error: "Failed to fetch product" }, { status: 500 });

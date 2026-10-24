@@ -19,7 +19,7 @@ interface MobileCardProps {
   product: MobileProductData;
 }
 
-export default function MobileCard({ product }: MobileCardProps) {
+function MobileCardComponent({ product }: MobileCardProps) {
 
   const { 
     addToCart, 
@@ -332,3 +332,6 @@ export default function MobileCard({ product }: MobileCardProps) {
     </div>
   );
 }
+
+const MobileCard = React.memo(MobileCardComponent);
+export default MobileCard;
