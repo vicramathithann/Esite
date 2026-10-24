@@ -89,6 +89,7 @@ model User {
   name               String
   email              String              @unique
   phone              String              @unique
+  address            String?             @default("")
   password           String
   role               String              @default("USER") // USER, ADMIN
   emailVerified      Boolean             @default(false)

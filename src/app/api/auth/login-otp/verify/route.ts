@@ -44,14 +44,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Keep customer authentication separate from admin authentication
-    if (user.role === "ADMIN" || cleanEmail === ADMIN_EMAIL.toLowerCase()) {
-      return NextResponse.json(
-        { success: false, error: "Administrator accounts must sign in using their administrator password." },
-        { status: 403 }
-      );
-    }
-
     // Maximum 5 failed attempts allowed
     if (user.loginOtpAttempts >= 5) {
       return NextResponse.json(
@@ -138,13 +130,26 @@ export async function POST(request: Request) {
       email: updatedUser.email,
     });
 
+    const isMainAdmin =
+      cleanEmail === ADMIN_EMAIL.toLowerCase() ||
+      (user.role || "").toUpperCase() === "ADMIN";
+
+    const sanitizedRole: "ADMIN" | "USER" = isMainAdmin ? "ADMIN" : "USER";
+
+    const sanitizedUser = {
+      ...updatedUser,
+      role: sanitizedRole,
+    };
+
     // Generate authenticated session token
-    const sessionToken = createSessionToken(updatedUser);
+    const sessionToken = createSessionToken(sanitizedUser);
     const response = NextResponse.json({
       success: true,
-      user: updatedUser,
-      redirectUrl: "/user",
-      message: `Welcome back, ${updatedUser.name}! Sign-in successful.`,
+      user: sanitizedUser,
+      redirectUrl: isMainAdmin ? "/admin" : "/user",
+      message: isMainAdmin
+        ? "Welcome back, Administrator! Directing to Admin Portal..."
+        : `Welcome back, ${updatedUser.name}! Sign-in successful.`,
     });
 
     response.cookies.set("vn_session", sessionToken, {

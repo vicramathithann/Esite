@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifyOtp, createSessionToken } from "@/lib/auth";
+import { verifyOtp, createSessionToken, ADMIN_EMAIL } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/rateLimit";
 
 export async function GET(request: Request) {
@@ -66,11 +66,23 @@ export async function GET(request: Request) {
       },
     });
 
-    const sessionToken = createSessionToken(updatedUser);
+    const isAuthorizedAdmin =
+      updatedUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase() ||
+      (updatedUser.role || "").toUpperCase() === "ADMIN";
+
+    const sanitizedUser = {
+      ...updatedUser,
+      role: isAuthorizedAdmin ? ("ADMIN" as const) : ("USER" as const),
+    };
+
+    const sessionToken = createSessionToken(sanitizedUser);
     const response = NextResponse.json({
       success: true,
-      user: updatedUser,
-      message: "Email verified successfully! You are now logged in.",
+      user: sanitizedUser,
+      redirectUrl: isAuthorizedAdmin ? "/admin" : "/",
+      message: isAuthorizedAdmin
+        ? "Administrator verified successfully! Directing to Admin Portal..."
+        : "Email verified successfully! You are now logged in.",
     });
 
     response.cookies.set("vn_session", sessionToken, {
@@ -133,19 +145,24 @@ export async function POST(request: Request) {
         );
       }
 
-      if (user.emailVerified) {
-        const sessionToken = createSessionToken(user);
+      const hasActiveOtp = user.otpHash && user.otpExpires && user.otpExpires >= new Date();
+
+      if (user.emailVerified && !hasActiveOtp) {
+        const isAuthorizedAdmin =
+          user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase() ||
+          (user.role || "").toUpperCase() === "ADMIN";
+
+        const sanitizedUser = {
+          ...user,
+          role: isAuthorizedAdmin ? ("ADMIN" as const) : ("USER" as const),
+        };
+
+        const sessionToken = createSessionToken(sanitizedUser);
         const response = NextResponse.json({
           success: true,
           alreadyVerified: true,
-          user: {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            phone: user.phone,
-            role: user.role,
-            emailVerified: true,
-          },
+          user: sanitizedUser,
+          redirectUrl: isAuthorizedAdmin ? "/admin" : "/",
           message: "Your email is already verified. You are now logged in.",
         });
 
@@ -229,11 +246,23 @@ export async function POST(request: Request) {
         },
       });
 
-      const sessionToken = createSessionToken(updatedUser);
+      const isAuthorizedAdmin =
+        updatedUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase() ||
+        (updatedUser.role || "").toUpperCase() === "ADMIN";
+
+      const sanitizedUser = {
+        ...updatedUser,
+        role: isAuthorizedAdmin ? ("ADMIN" as const) : ("USER" as const),
+      };
+
+      const sessionToken = createSessionToken(sanitizedUser);
       const response = NextResponse.json({
         success: true,
-        user: updatedUser,
-        message: "Email verified successfully! You are now logged in.",
+        user: sanitizedUser,
+        redirectUrl: isAuthorizedAdmin ? "/admin" : "/",
+        message: isAuthorizedAdmin
+          ? "Administrator verified successfully! Directing to Admin Portal..."
+          : "Email verified successfully! You are now logged in.",
       });
 
       response.cookies.set("vn_session", sessionToken, {
@@ -299,11 +328,23 @@ export async function POST(request: Request) {
       },
     });
 
-    const sessionToken = createSessionToken(updatedUser);
+    const isAuthorizedAdmin =
+      updatedUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase() ||
+      (updatedUser.role || "").toUpperCase() === "ADMIN";
+
+    const sanitizedUser = {
+      ...updatedUser,
+      role: isAuthorizedAdmin ? ("ADMIN" as const) : ("USER" as const),
+    };
+
+    const sessionToken = createSessionToken(sanitizedUser);
     const response = NextResponse.json({
       success: true,
-      user: updatedUser,
-      message: "Email verified successfully! You are now logged in.",
+      user: sanitizedUser,
+      redirectUrl: isAuthorizedAdmin ? "/admin" : "/",
+      message: isAuthorizedAdmin
+        ? "Administrator verified successfully! Directing to Admin Portal..."
+        : "Email verified successfully! You are now logged in.",
     });
 
     response.cookies.set("vn_session", sessionToken, {

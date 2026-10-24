@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sendUserVerificationEmail } from "@/lib/email";
-import { generateSecureOtp, hashOtp } from "@/lib/auth";
+import { sendUserVerificationEmail, sendAdminVerificationEmail } from "@/lib/email";
+import { generateSecureOtp, hashOtp, ADMIN_EMAIL } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/rateLimit";
 import crypto from "crypto";
 
@@ -35,7 +35,9 @@ export async function POST(request: Request) {
       );
     }
 
-    if (user.emailVerified) {
+    const isAdmin = user.role === "ADMIN" || email === ADMIN_EMAIL.toLowerCase();
+
+    if (user.emailVerified && !isAdmin) {
       return NextResponse.json({
         success: true,
         message: "Your email is already verified. You can log in directly.",
@@ -78,14 +80,22 @@ export async function POST(request: Request) {
       },
     });
 
-    // Send verification email through Gmail SMTP
+    // Send verification email through Gmail SMTP: Admin uses dedicated admin template, User uses user template
     let emailResult = null;
     try {
-      emailResult = await sendUserVerificationEmail(
-        { id: user.id, name: user.name, email: user.email },
-        newToken,
-        otp
-      );
+      if (isAdmin) {
+        emailResult = await sendAdminVerificationEmail(
+          { id: user.id, name: user.name, email: ADMIN_EMAIL },
+          newToken,
+          otp
+        );
+      } else {
+        emailResult = await sendUserVerificationEmail(
+          { id: user.id, name: user.name, email: user.email },
+          newToken,
+          otp
+        );
+      }
     } catch (emailErr) {
       console.error("[EMAIL DISPATCH ERROR] Could not send verification email:", emailErr);
     }

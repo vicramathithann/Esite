@@ -191,6 +191,7 @@ export async function getAuthenticatedUser(request?: Request) {
       name: true,
       email: true,
       phone: true,
+      address: true,
       role: true,
       emailVerified: true,
       createdAt: true,
@@ -199,9 +200,9 @@ export async function getAuthenticatedUser(request?: Request) {
 
   if (!user) return null;
 
-  // Strict RBAC: Admin if email matches ADMIN_EMAIL or role is ADMIN
+  // Strict RBAC: Admin strictly if email matches ADMIN_EMAIL and role is ADMIN
   const isAuthorizedAdmin =
-    user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase() ||
+    user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase() &&
     (user.role || "").toUpperCase() === "ADMIN";
 
   return {
@@ -215,6 +216,7 @@ export type AuthUser = {
   name: string;
   email: string;
   phone: string;
+  address?: string | null;
   role: string;
   emailVerified: boolean;
   createdAt: Date;
@@ -249,7 +251,7 @@ export async function requireAdmin(request: Request): Promise<AuthUser | NextRes
     );
   }
   const isAuthorizedAdmin =
-    (user.role || "").toUpperCase() === "ADMIN" ||
+    (user.role || "").toUpperCase() === "ADMIN" &&
     user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
   if (!isAuthorizedAdmin) {

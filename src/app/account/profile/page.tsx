@@ -9,7 +9,10 @@ export default function ProfilePage() {
   const { currentUser, login } = useApp();
 
   const [name, setName] = useState(currentUser?.name || "");
+  const [email, setEmail] = useState(currentUser?.email || "");
   const [phone, setPhone] = useState(currentUser?.phone || "");
+  const [address, setAddress] = useState(currentUser?.address || "");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [resending, setResending] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -17,6 +20,28 @@ export default function ProfilePage() {
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) return;
+
+    setErrorMessage(null);
+    const cleanName = name.trim();
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPhone = phone.trim().replace(/[^0-9]/g, "");
+    const cleanAddress = address.trim();
+
+    if (!cleanName || cleanName.length < 2) {
+      setErrorMessage("Please enter a valid full name (at least 2 characters).");
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!cleanEmail || !emailRegex.test(cleanEmail)) {
+      setErrorMessage("Please enter a valid email address.");
+      return;
+    }
+
+    if (!cleanPhone || cleanPhone.length < 10) {
+      setErrorMessage("Please enter a valid 10-digit mobile number.");
+      return;
+    }
 
     setSaving(true);
     setSavedSuccess(false);
@@ -27,21 +52,23 @@ export default function ProfilePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: currentUser.id,
-          name: name.trim(),
-          phone: phone.trim(),
+          name: cleanName,
+          email: cleanEmail,
+          phone: cleanPhone,
+          address: cleanAddress,
         }),
       });
 
       const data = await res.json();
-      if (data.success) {
-        login({ ...currentUser, name: name.trim(), phone: phone.trim() });
+      if (data.success && data.user) {
+        login(data.user);
         setSavedSuccess(true);
         setTimeout(() => setSavedSuccess(false), 3000);
       } else {
-        alert(data.error || "Failed to update profile.");
+        setErrorMessage(data.error || "Failed to update profile.");
       }
     } catch {
-      alert("Error updating profile.");
+      setErrorMessage("Error updating profile. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -157,14 +184,16 @@ export default function ProfilePage() {
 
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
-                Email Address (Account Identifier)
+                Email Address
               </label>
               <div className="relative">
                 <input
                   type="email"
-                  value={currentUser.email}
-                  disabled
-                  className="w-full px-4 py-2.5 bg-slate-950/60 border border-slate-800 rounded-xl text-slate-400 text-sm cursor-not-allowed"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={currentUser.role === "ADMIN" && (currentUser.email || "").toLowerCase() === "rrroyce20@gmail.com"}
+                  className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-[#C9A66B] dark:focus:border-[#D4B483] disabled:opacity-60 disabled:cursor-not-allowed"
+                  required
                 />
                 <span className="absolute right-3 top-2.5 text-[11px] font-semibold text-emerald-400 flex items-center gap-1">
                   {isVerified ? <CheckCircle2 className="w-3.5 h-3.5" /> : null}
@@ -180,15 +209,35 @@ export default function ProfilePage() {
               <input
                 type="text"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+91 XXXXX XXXXX"
+                onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, ""))}
+                placeholder="10-digit mobile number"
                 className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-[#C9A66B] dark:focus:border-[#D4B483]"
+                required
               />
             </div>
 
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+                Delivery Address
+              </label>
+              <textarea
+                rows={3}
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="Flat/House no., Street, Area, City, State, PIN code"
+                className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-[#C9A66B] dark:focus:border-[#D4B483] resize-none"
+              />
+            </div>
+
+            {errorMessage && (
+              <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-xs rounded-xl flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" /> {errorMessage}
+              </div>
+            )}
+
             {savedSuccess && (
               <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs rounded-xl flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4" /> Profile updated successfully!
+                <CheckCircle2 className="w-4 h-4 shrink-0" /> Profile updated successfully!
               </div>
             )}
 

@@ -8,6 +8,7 @@ export interface UserProfile {
   name: string;
   email: string;
   phone: string;
+  address?: string;
   role: "USER" | "ADMIN";
   emailVerified?: boolean;
 }
@@ -55,7 +56,21 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const savedUser = localStorage.getItem("novamobile_user");
+        if (savedUser) {
+          const parsed = JSON.parse(savedUser);
+          if (parsed.role === "ADMIN" && (parsed.email || "").toLowerCase() !== "rrroyce20@gmail.com") {
+            parsed.role = "USER";
+          }
+          return parsed;
+        }
+      } catch {}
+    }
+    return null;
+  });
   const [cart, setCart] = useState<CartItem[]>([]);
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -88,6 +103,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {
       console.error("Failed to load local storage state", e);
     }
+  }, []);
+
+  // Sync session from signed HTTP-only cookie
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.success && data?.user) {
+          const isRealAdmin =
+            data.user.role === "ADMIN" &&
+            (data.user.email || "").toLowerCase() === "rrroyce20@gmail.com";
+          const sanitizedUser: UserProfile = {
+            ...data.user,
+            role: isRealAdmin ? "ADMIN" : "USER",
+          };
+          setCurrentUser(sanitizedUser);
+          try {
+            localStorage.setItem("novamobile_user", JSON.stringify(sanitizedUser));
+          } catch {}
+        }
+      })
+      .catch(() => {});
   }, []);
 
   // Refresh storefront visibility settings from backend

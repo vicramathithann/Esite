@@ -17,14 +17,19 @@ import {
   Mail,
   Phone,
   LogOut,
-  X
+  X,
+  Pencil,
+  MapPin,
+  CheckCircle2,
+  AlertCircle,
+  Save
 } from "lucide-react";
 import { formatDateOnly, getDaysRemaining } from "@/lib/formatters";
 import { isOrderCancelled, canOrderBeCancelled } from "@/lib/orderStatus";
 import { useApp } from "@/context/AppContext";
 
 export default function AccountPage() {
-  const { currentUser, logout } = useApp();
+  const { currentUser, logout, login } = useApp();
 
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,6 +37,87 @@ export default function AccountPage() {
   const [cancelModalOrder, setCancelModalOrder] = useState<any | null>(null);
   const [cancelReason, setCancelReason] = useState<string>("Order created by mistake");
   const [cancelling, setCancelling] = useState(false);
+
+  // Edit Profile States
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editAddress, setEditAddress] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editSuccess, setEditSuccess] = useState<string | null>(null);
+
+  const openEditProfile = () => {
+    if (!currentUser) return;
+    setEditName(currentUser.name || "");
+    setEditEmail(currentUser.email || "");
+    setEditPhone(currentUser.phone || "");
+    setEditAddress(currentUser.address || "");
+    setEditError(null);
+    setEditSuccess(null);
+    setIsEditProfileOpen(true);
+  };
+
+  const handleSaveProfile = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!currentUser) return;
+    setEditError(null);
+
+    const cleanName = editName.trim();
+    const cleanEmail = editEmail.trim().toLowerCase();
+    const cleanPhone = editPhone.trim().replace(/[^0-9]/g, "");
+    const cleanAddress = editAddress.trim();
+
+    // Validations
+    if (!cleanName || cleanName.length < 2) {
+      setEditError("Please enter your full name (at least 2 characters).");
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!cleanEmail || !emailRegex.test(cleanEmail)) {
+      setEditError("Please enter a valid email address (e.g. name@domain.com).");
+      return;
+    }
+
+    if (!cleanPhone || cleanPhone.length < 10) {
+      setEditError("Please enter a valid 10-digit mobile number.");
+      return;
+    }
+
+    try {
+      setEditSaving(true);
+      const res = await fetch("/api/auth/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: currentUser.id,
+          name: cleanName,
+          email: cleanEmail,
+          phone: cleanPhone,
+          address: cleanAddress,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success && data.user) {
+        login(data.user);
+        setEditSuccess("Profile updated successfully!");
+        setTimeout(() => {
+          setIsEditProfileOpen(false);
+          setEditSuccess(null);
+        }, 1000);
+      } else {
+        setEditError(data.error || "Failed to update profile. Please try again.");
+      }
+    } catch (err) {
+      console.error("Save profile error:", err);
+      setEditError("Network error. Please check your connection and try again.");
+    } finally {
+      setEditSaving(false);
+    }
+  };
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -161,44 +247,73 @@ export default function AccountPage() {
       <div className="max-w-6xl mx-auto px-4 space-y-6">
         {/* User Profile Hero Banner */}
         {currentUser ? (
-          <div className="bg-gradient-to-r from-[#131921] via-[#232f3e] to-[#131921] rounded-lg p-6 text-white shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-[#febd69] to-[#f3a847] text-[#131921] flex items-center justify-center text-2xl font-black shadow-md">
-                {currentUser.name.charAt(0).toUpperCase()}
+          <div className="bg-gradient-to-r from-[#131921] via-[#232f3e] to-[#131921] rounded-lg p-6 text-white shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-5">
+            <div className="flex items-start sm:items-center gap-4">
+              <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-[#febd69] to-[#f3a847] text-[#131921] flex items-center justify-center text-2xl font-black shadow-md shrink-0">
+                {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "U"}
               </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-2xl font-bold text-white">{currentUser.name}</h1>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-2xl font-bold text-white tracking-tight">{currentUser.name}</h1>
+                  <button
+                    onClick={openEditProfile}
+                    className="p-1 text-gray-300 hover:text-[#febd69] hover:bg-white/10 rounded-full transition-colors cursor-pointer"
+                    title="Edit Personal Details"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
                   <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
                     {currentUser.role === "ADMIN" ? "👑 Administrator" : "✓ Verified Customer"}
                   </span>
                 </div>
-                <p className="text-xs text-gray-300 mt-1 flex flex-wrap items-center gap-3">
-                  <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5 text-[#febd69]" /> {currentUser.email}</span>
-                  <span className="flex items-center gap-1"><Phone className="w-3.5 h-3.5 text-[#febd69]" /> {currentUser.phone}</span>
-                </p>
+                <div className="text-xs text-gray-300 flex flex-wrap items-center gap-x-4 gap-y-1">
+                  <span className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 text-[#febd69] shrink-0" /> {currentUser.email}</span>
+                  <span className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 text-[#febd69] shrink-0" /> {currentUser.phone}</span>
+                  <span className="flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-[#febd69] shrink-0" />
+                    {currentUser.address ? (
+                      <span className="max-w-[280px] truncate" title={currentUser.address}>{currentUser.address}</span>
+                    ) : (
+                      <button
+                        onClick={openEditProfile}
+                        className="text-[#febd69] hover:underline cursor-pointer"
+                      >
+                        + Add Delivery Address
+                      </button>
+                    )}
+                  </span>
+                </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-white/10">
+              <button
+                onClick={openEditProfile}
+                className="px-3.5 py-1.5 bg-[#febd69] hover:bg-[#f3a847] active:bg-[#e2932b] text-[#131921] text-xs font-bold rounded-md flex items-center gap-1.5 shadow-sm cursor-pointer transition-colors"
+                title="Edit Profile"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                <span>Edit Profile</span>
+              </button>
+
               {currentUser.role === "ADMIN" && (currentUser.email || "").toLowerCase() === "rrroyce20@gmail.com" && (
                 <Link
                   href="/admin"
                   className="px-3 py-1.5 bg-[#C9A66B] hover:bg-[#B8914A] active:bg-[#A67C3D] text-[#FFFCFA] text-xs font-bold rounded-md flex items-center gap-1.5 shadow"
                 >
                   <ShieldCheck className="w-4 h-4" />
-                  <span>Admin Control Center</span>
+                  <span>Admin Control</span>
                 </Link>
               )}
               <Link
                 href="/"
-                className="px-3 py-1.5 bg-[#C9A66B]/20 hover:bg-[#C9A66B]/30 text-[#FFF8F0] text-xs font-semibold rounded-md border border-[#C9A66B]/40"
+                className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold rounded-md border border-white/20 transition-colors"
               >
                 Shop Mobiles
               </Link>
               <button
                 onClick={logout}
-                className="px-3 py-1.5 bg-[#C9A66B]/15 hover:bg-[#C9A66B]/25 active:bg-[#A67C3D] text-[#FFF8F0] border border-[#C9A66B]/30 text-xs font-semibold rounded-md flex items-center gap-1 cursor-pointer transition-colors"
+                className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 active:bg-red-500/40 text-red-200 border border-red-500/30 text-xs font-semibold rounded-md flex items-center gap-1 cursor-pointer transition-colors"
               >
                 <LogOut className="w-3.5 h-3.5" />
                 <span>Sign Out</span>
@@ -638,6 +753,163 @@ export default function AccountPage() {
                 )}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Profile Modal */}
+      {isEditProfileOpen && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !editSaving) {
+              setIsEditProfileOpen(false);
+            }
+          }}
+        >
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full border border-gray-200 overflow-hidden text-gray-900 transition-all">
+            {/* Modal Header */}
+            <div className="bg-[#131921] px-5 py-4 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-[#febd69] text-[#131921] flex items-center justify-center font-bold">
+                  <Pencil className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-white leading-tight">Edit Profile Details</h3>
+                  <p className="text-[11px] text-gray-300">Update your name, email, phone number & delivery address</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => !editSaving && setIsEditProfileOpen(false)}
+                disabled={editSaving}
+                className="text-gray-400 hover:text-white p-1 rounded-md transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Form */}
+            <form onSubmit={handleSaveProfile} className="p-5 space-y-4 text-xs">
+              {/* Alert Feedback */}
+              {editError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-700 flex items-start gap-2 animate-fade-in">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-600" />
+                  <span className="leading-tight">{editError}</span>
+                </div>
+              )}
+              {editSuccess && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-md text-emerald-800 flex items-center gap-2 animate-fade-in font-medium">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                  <span>{editSuccess}</span>
+                </div>
+              )}
+
+              {/* Name Field */}
+              <div>
+                <label className="block font-semibold text-gray-800 mb-1">
+                  Full Name <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <User className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    required
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    placeholder="Enter your full name"
+                    className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-md text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#C9A66B] focus:border-transparent transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Email Field */}
+              <div>
+                <label className="block font-semibold text-gray-800 mb-1">
+                  Email Address <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="email"
+                    required
+                    value={editEmail}
+                    onChange={(e) => setEditEmail(e.target.value)}
+                    placeholder="name@example.com"
+                    disabled={currentUser?.role === "ADMIN" && (currentUser?.email || "").toLowerCase() === "rrroyce20@gmail.com"}
+                    className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-md text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#C9A66B] focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed transition-all"
+                  />
+                </div>
+                <p className="text-[10px] text-gray-500 mt-1">Used for sign-in, order updates, and warranty protection certificates.</p>
+              </div>
+
+              {/* Phone Field */}
+              <div>
+                <label className="block font-semibold text-gray-800 mb-1">
+                  Phone Number <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <Phone className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="tel"
+                    required
+                    maxLength={15}
+                    value={editPhone}
+                    onChange={(e) => setEditPhone(e.target.value.replace(/[^0-9]/g, ""))}
+                    placeholder="10-digit mobile number"
+                    className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-md text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#C9A66B] focus:border-transparent transition-all font-mono"
+                  />
+                </div>
+                <p className="text-[10px] text-gray-500 mt-1">Used for delivery confirmation and courier OTP.</p>
+              </div>
+
+              {/* Address Field */}
+              <div>
+                <label className="block font-semibold text-gray-800 mb-1">
+                  Delivery Address
+                </label>
+                <div className="relative">
+                  <MapPin className="w-4 h-4 text-gray-400 absolute left-3 top-2.5 pointer-events-none" />
+                  <textarea
+                    rows={3}
+                    value={editAddress}
+                    onChange={(e) => setEditAddress(e.target.value)}
+                    placeholder="House/Flat no., Building, Street, Area, City, State, PIN code"
+                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#C9A66B] focus:border-transparent resize-none transition-all"
+                  />
+                </div>
+                <p className="text-[10px] text-gray-500 mt-1">Saved for fast, 1-click checkout on your next smartphone purchase.</p>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="pt-3 border-t border-gray-200 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setIsEditProfileOpen(false)}
+                  disabled={editSaving}
+                  className="py-2 px-4 text-xs font-semibold rounded-md border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 cursor-pointer transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={editSaving}
+                  className="py-2 px-5 text-xs font-bold rounded-md bg-[#C9A66B] hover:bg-[#B8914A] active:bg-[#A67C3D] text-[#FFFCFA] shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
+                >
+                  {editSaving ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-3.5 h-3.5" />
+                      <span>Save Changes</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

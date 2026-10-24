@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sendLoginOtpEmail } from "@/lib/email";
+import { sendLoginOtpEmail, sendAdminLoginOtpEmail } from "@/lib/email";
 import { generateSecureOtp, hashOtp, isValidEmail, ADMIN_EMAIL } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/rateLimit";
 import { logSecurityEvent, getClientIp } from "@/lib/securityLogger";
@@ -45,16 +45,7 @@ export async function POST(request: Request) {
       });
     }
 
-    // Keep customer authentication separate from admin authentication
-    if (user.role === "ADMIN" || cleanEmail === ADMIN_EMAIL.toLowerCase()) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Administrator accounts must sign in using their administrator password.",
-        },
-        { status: 403 }
-      );
-    }
+    const isAdmin = user.role === "ADMIN" || cleanEmail === ADMIN_EMAIL.toLowerCase();
 
     // Enforce 60-second cooldown between OTP requests
     if (user.lastLoginOtpSentAt) {
@@ -89,13 +80,20 @@ export async function POST(request: Request) {
       },
     });
 
-    // Dispatch OTP via Gmail SMTP
+    // Dispatch OTP via Gmail SMTP: Admin receives dedicated Admin OTP, User receives User OTP
     let emailResult = null;
     try {
-      emailResult = await sendLoginOtpEmail(
-        { id: user.id, name: user.name, email: user.email },
-        otp
-      );
+      if (isAdmin) {
+        emailResult = await sendAdminLoginOtpEmail(
+          { id: user.id, name: user.name, email: ADMIN_EMAIL },
+          otp
+        );
+      } else {
+        emailResult = await sendLoginOtpEmail(
+          { id: user.id, name: user.name, email: user.email },
+          otp
+        );
+      }
     } catch (emailErr) {
       console.error("[LOGIN OTP DISPATCH ERROR] Could not send OTP email:", emailErr);
     }

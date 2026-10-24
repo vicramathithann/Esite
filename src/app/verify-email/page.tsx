@@ -62,7 +62,7 @@ function VerifyEmailContent() {
 
         // Auto redirect after successful verification
         setTimeout(() => {
-          const target = redirectParam ? safeRedirect : "/";
+          const target = redirectParam ? safeRedirect : (data.redirectUrl || "/");
           router.push(target);
         }, 1200);
       } else {
@@ -111,7 +111,7 @@ function VerifyEmailContent() {
 
         // Auto-redirect to intended destination without forcing user to re-enter password
         setTimeout(() => {
-          const target = redirectParam ? safeRedirect : "/";
+          const target = redirectParam ? safeRedirect : (data.redirectUrl || "/");
           router.push(target);
         }, 1200);
       } else {

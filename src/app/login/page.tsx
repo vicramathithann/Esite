@@ -268,7 +268,7 @@ function LoginForm() {
 
         setTimeout(() => {
           const targetUrl = isAdmin
-            ? "/admin"
+            ? (redirectParam && redirectParam.startsWith("/admin") ? redirectParam : "/admin/dashboard")
             : (redirectParam && redirectParam !== "/admin" && !redirectParam.startsWith("/admin")
                 ? redirectParam
                 : "/user");
