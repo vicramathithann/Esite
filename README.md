@@ -27,3 +27,10 @@ Frontend: Next.js, React, Tailwind CSS
 Backend: Next.js API Routes
 Authentication: Custom OTP and password based auth
 Email: Transactional emails (OTP, orders, warranty alerts)
+
+Getting Started
+Step 1 Clone the repository
+git clone https://github.com/your-username/vn-mobiles.git
+
+Step 2 Navigate to the project directory
+cd vn-mobiles
