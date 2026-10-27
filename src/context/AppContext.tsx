@@ -56,21 +56,7 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const savedUser = localStorage.getItem("novamobile_user");
-        if (savedUser) {
-          const parsed = JSON.parse(savedUser);
-          if (parsed.role === "ADMIN" && (parsed.email || "").toLowerCase() !== "rrroyce20@gmail.com") {
-            parsed.role = "USER";
-          }
-          return parsed;
-        }
-      } catch {}
-    }
-    return null;
-  });
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);

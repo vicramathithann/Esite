@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useTheme } from "next-themes";
+import { useTheme } from "@/components/ThemeProvider";
 import { flushSync } from "react-dom";
 import { Sun, Moon, Monitor } from "lucide-react";
 

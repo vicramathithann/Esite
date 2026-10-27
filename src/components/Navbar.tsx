@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, Suspense } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useApp } from "@/context/AppContext";
@@ -89,6 +89,11 @@ export default function Navbar() {
     siteSettings,
   } = useApp();
 
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const [searchQuery, setSearchQuery] = useState("");
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -145,7 +150,7 @@ export default function Navbar() {
         <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           {/* User Account / Sign In */}
           <div className="relative group">
-            {currentUser ? (
+            {mounted && currentUser ? (
               <div className="relative">
                 <Link
                   href="/account"
@@ -211,7 +216,7 @@ export default function Navbar() {
               title="Compare Mobiles"
             >
               <Layers className="w-4 h-4" />
-              {compareList.length > 0 && (
+              {mounted && compareList.length > 0 && (
                 <span className="absolute top-0.5 right-0.5 bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center ring-2 ring-card shadow-2xs">
                   {compareList.length}
                 </span>
@@ -227,7 +232,7 @@ export default function Navbar() {
               title="Wishlist"
             >
               <Heart className="w-4 h-4" />
-              {wishlistCount > 0 && (
+              {mounted && wishlistCount > 0 && (
                 <span className="absolute top-0.5 right-0.5 bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center ring-2 ring-card shadow-2xs">
                   {wishlistCount}
                 </span>
@@ -252,7 +257,7 @@ export default function Navbar() {
             title="Shopping Cart"
           >
             <ShoppingBag className="w-4 h-4" />
-            {cartCount > 0 && (
+            {mounted && cartCount > 0 && (
               <span className="bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] text-[10px] font-semibold px-1.5 py-0.2 rounded-full min-w-4 text-center shadow-2xs">
                 {cartCount}
               </span>

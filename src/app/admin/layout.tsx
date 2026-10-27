@@ -23,24 +23,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const isAuthPage = pathname === "/admin/reset-password";
 
   // Check if we already have proof that this user is the authorized admin
-  const [authState, setAuthState] = useState<"CHECKING" | "AUTHORIZED" | "UNAUTHORIZED">(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem("novamobile_user");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (isAuthorizedAdmin(parsed)) {
-            return "AUTHORIZED";
-          }
-          // If logged in as someone else (regular user), immediately mark unauthorized
-          if (parsed.email && !isAuthorizedAdmin(parsed)) {
-            return "UNAUTHORIZED";
-          }
-        }
-      } catch {}
-    }
-    return "CHECKING";
-  });
+  const [authState, setAuthState] = useState<"CHECKING" | "AUTHORIZED" | "UNAUTHORIZED">("CHECKING");
 
   const verifySession = useCallback(async () => {
     try {
@@ -80,8 +63,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       return;
     }
 
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("novamobile_user");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (isAuthorizedAdmin(parsed)) {
+            setAuthState("AUTHORIZED");
+            login(parsed);
+            return;
+          }
+          if (parsed.email && !isAuthorizedAdmin(parsed)) {
+            setAuthState("UNAUTHORIZED");
+            return;
+          }
+        }
+      } catch {}
+    }
+
     verifySession();
-  }, [currentUser, isAuthPage, verifySession]);
+  }, [currentUser, isAuthPage, verifySession, login]);
 
   if (isAuthPage) {
     return <>{children}</>;
