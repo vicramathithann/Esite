@@ -1,36 +1,48 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# VN Mobiles
+
+VN Mobiles is a modern full-stack e-commerce platform for buying smartphones online. It offers a smooth shopping experience for customers and a powerful admin dashboard for store management.
+
+## Features
+
+### Customer Side
+
+- Browse the latest smartphones (Flagship, Mid-range, Budget)
+- Advanced filters and search
+- Product comparison
+- Wishlist
+- Secure OTP-based login
+- Order placement and tracking
+- Warranty registration and alerts
+- Customer support chatbot
+- Profile management
+
+### Admin Side
+
+- Secure admin panel with restricted access
+- Dashboard with sales and order analytics
+- Manage products, orders, users and warranties
+- Invite system
+- Email logs
+- Admin AI assistant
+
+## Tech Stack
+
+- Frontend: Next.js, React, Tailwind CSS
+- Backend: Next.js API Routes
+- Authentication: Custom OTP and password based auth
+- Email: Transactional emails (OTP, orders, warranty alerts)
 
 ## Getting Started
 
-First, run the development server:
+### Step 1: Clone the repository
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/vicramathithann/Esite.git
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Step 2: Navigate to the project directory
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+cd Esite
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
