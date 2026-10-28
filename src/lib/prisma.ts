@@ -31,7 +31,7 @@ function getDatabaseClient(): PrismaClient {
   return createSupabasePrismaClient() as unknown as PrismaClient;
 }
 
-export const prisma: PrismaClient = globalForDb.prisma ?? getDatabaseClient();
+export const prisma: PrismaClient = (globalForDb.prisma ?? getDatabaseClient()) as unknown as PrismaClient;
 
 if (process.env.NODE_ENV !== "production") {
   globalForDb.prisma = prisma;

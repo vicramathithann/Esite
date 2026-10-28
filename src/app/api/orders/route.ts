@@ -209,7 +209,7 @@ export async function POST(request: Request) {
 
     // 5. Atomic Database Transaction: Deduct stock and create order records together
     // Guarantees zero stock leaks or inconsistent records under high concurrency
-    const { order, createdWarranties } = await prisma.$transaction(async (tx) => {
+    const { order, createdWarranties } = await prisma.$transaction(async (tx: any) => {
       // 5a. Deduct stock
       for (const item of items) {
         if (item.productId) {
@@ -333,13 +333,20 @@ export async function POST(request: Request) {
         customerName: customerName.trim(),
         customerEmail: cleanCustomerEmail,
         totalAmount: order.totalAmount,
-        items: order.items.map((i) => ({
+        items: (order.items || []).map((i: {
+          productName: string;
+          quantity: number;
+          price: number;
+          selectedStorage?: string | null;
+          selectedColor?: string | null;
+          imeiNumber?: string | null;
+        }) => ({
           productName: i.productName,
           quantity: i.quantity,
           price: i.price,
-          selectedStorage: i.selectedStorage,
-          selectedColor: i.selectedColor,
-          imeiNumber: i.imeiNumber,
+          selectedStorage: i.selectedStorage || undefined,
+          selectedColor: i.selectedColor || undefined,
+          imeiNumber: i.imeiNumber || undefined,
         })),
         address: order.address,
         city: order.city,

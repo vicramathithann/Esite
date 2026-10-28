@@ -53,7 +53,7 @@ export async function GET(request: Request) {
       },
     });
 
-    const enriched = items.map((p) => {
+    const enriched = items.map((p: { stock: number; [key: string]: any }) => {
       let inventoryStatus: "Available" | "Low Stock" | "Out of Stock" = "Available";
       if (p.stock <= 0) {
         inventoryStatus = "Out of Stock";

@@ -166,7 +166,7 @@ export async function POST(request: Request) {
         });
 
         if (orderRecord) {
-          const itemNames = orderRecord.items.map((i) => i.productName).join(", ") || "Smartphone";
+          const itemNames = (orderRecord.items || []).map((i: { productName: string }) => i.productName).join(", ") || "Smartphone";
           const isCancelled = orderRecord.orderStatus === "CANCELLED" || orderRecord.orderStatus === "Cancelled";
 
           let statusDetail = "";

@@ -41,10 +41,10 @@ export async function DELETE(
       );
     }
 
-    const orderIds = targetUser.orders.map((o) => o.id);
+    const orderIds = (targetUser.orders || []).map((o: { id: string }) => o.id);
 
     // Clean up all related data in an atomic database transaction
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: any) => {
       // 1. Delete warranties associated with orders or this user
       await tx.warranty.deleteMany({
         where: {

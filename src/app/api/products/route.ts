@@ -76,7 +76,13 @@ export async function GET(request: Request) {
       },
     });
 
-    const parsed = products.map((p) => ({
+    const parsed = products.map((p: {
+      galleryImages?: string | null;
+      colors?: string | null;
+      storageOptions?: string | null;
+      highlightFeatures?: string | null;
+      [key: string]: any;
+    }) => ({
       ...p,
       galleryImages: JSON.parse(p.galleryImages || "[]"),
       colors: JSON.parse(p.colors || "[]"),

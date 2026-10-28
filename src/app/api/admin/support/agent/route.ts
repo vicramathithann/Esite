@@ -98,13 +98,13 @@ export async function POST(request: Request) {
         }
       });
 
-      const totalRevenue = nonCancelledOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+      const totalRevenue = nonCancelledOrders.reduce((sum: number, o: { totalAmount: number | null }) => sum + (o.totalAmount || 0), 0);
       const orderCount = nonCancelledOrders.length;
       const aov = orderCount > 0 ? Math.round(totalRevenue / orderCount) : 0;
 
       // Group by payment method
       const paymentBreakdown: Record<string, { count: number; sum: number }> = {};
-      nonCancelledOrders.forEach((o) => {
+      nonCancelledOrders.forEach((o: { paymentMethod?: string | null; totalAmount?: number | null }) => {
         const method = o.paymentMethod || "Other";
         if (!paymentBreakdown[method]) paymentBreakdown[method] = { count: 0, sum: 0 };
         paymentBreakdown[method].count += 1;
@@ -158,7 +158,7 @@ export async function POST(request: Request) {
       });
 
       const recentLines = recentAccepted.length > 0
-        ? recentAccepted.map((inv) => `  - \`${inv.email}\` (Accepted: ${inv.acceptedAt ? new Date(inv.acceptedAt).toLocaleDateString("en-IN") : "Recent"})`).join("\n")
+        ? recentAccepted.map((inv: { email: string; acceptedAt: Date | string | null }) => `  - \`${inv.email}\` (Accepted: ${inv.acceptedAt ? new Date(inv.acceptedAt).toLocaleDateString("en-IN") : "Recent"})`).join("\n")
         : "  - No accepted invites yet.";
 
       return NextResponse.json({
@@ -299,7 +299,7 @@ export async function POST(request: Request) {
       });
 
       const productSalesMap: Record<string, { count: number; revenue: number }> = {};
-      orderItems.forEach((item) => {
+      orderItems.forEach((item: { productName?: string | null; quantity?: number | null; price?: number | null }) => {
         const name = item.productName || "Unknown Phone";
         if (!productSalesMap[name]) productSalesMap[name] = { count: 0, revenue: 0 };
         productSalesMap[name].count += item.quantity || 1;
@@ -431,7 +431,7 @@ export async function POST(request: Request) {
       where: { orderStatus: { notIn: ["Cancelled", "CANCELLED"] } },
       select: { totalAmount: true }
     });
-    const totalRev = nonCancelledOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+    const totalRev = nonCancelledOrders.reduce((sum: number, o: { totalAmount: number | null }) => sum + (o.totalAmount || 0), 0);
     const totalOrdersCount = await prisma.order.count();
     const cancelledOrdersCount = await prisma.order.count({ where: { orderStatus: { in: ["Cancelled", "CANCELLED"] } } });
     const userCount = await prisma.user.count({ where: { role: "USER" } });

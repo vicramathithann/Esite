@@ -44,11 +44,19 @@ export async function GET(request: Request) {
       },
     });
 
-    const customers = users.map((u) => {
+    const customers = users.map((u: {
+      id: string;
+      name: string;
+      email: string;
+      phone: string;
+      emailVerified: boolean;
+      createdAt: Date | string;
+      orders: Array<{ orderStatus: string; totalAmount: number | null }>;
+    }) => {
       const orderCount = u.orders.length;
       const totalSpent = u.orders
-        .filter((o) => o.orderStatus !== "Cancelled" && o.orderStatus !== "CANCELLED")
-        .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+        .filter((o: { orderStatus: string }) => o.orderStatus !== "Cancelled" && o.orderStatus !== "CANCELLED")
+        .reduce((sum: number, o: { totalAmount: number | null }) => sum + (o.totalAmount || 0), 0);
 
       return {
         id: u.id,

@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     });
 
     const isTaken = allUsers.some(
-      (u) => u.name && u.name.trim().toLowerCase() === name.toLowerCase()
+      (u: { name: string | null }) => u.name && u.name.trim().toLowerCase() === name.toLowerCase()
     );
 
     if (isTaken) {

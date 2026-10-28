@@ -28,7 +28,15 @@ export async function GET(request: Request) {
       orderBy: { createdAt: "desc" },
     });
 
-    const products = items.map((item) => {
+    const products = items.map((item: {
+      product: {
+        galleryImages?: string | null;
+        colors?: string | null;
+        storageOptions?: string | null;
+        highlightFeatures?: string | null;
+        [key: string]: any;
+      };
+    }) => {
       const p = item.product;
       return {
         ...p,

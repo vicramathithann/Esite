@@ -67,7 +67,7 @@ export async function GET(request: Request) {
       }),
     ]);
 
-    const totalSales = paidOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+    const totalSales = paidOrders.reduce((sum: number, o: { totalAmount: number | null }) => sum + (o.totalAmount || 0), 0);
 
     return NextResponse.json({
       success: true,

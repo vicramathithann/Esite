@@ -25,7 +25,7 @@ export async function GET(request: Request) {
     const rows = await prisma.siteSetting.findMany();
     const settingsMap: Record<string, string> = { ...DEFAULT_SETTINGS };
 
-    rows.forEach((r) => {
+    rows.forEach((r: { key: string; value: string }) => {
       settingsMap[r.key] = r.value;
     });
 
@@ -73,7 +73,7 @@ export async function POST(request: Request) {
     // Fetch updated
     const rows = await prisma.siteSetting.findMany();
     const settingsMap: Record<string, string> = { ...DEFAULT_SETTINGS };
-    rows.forEach((r) => {
+    rows.forEach((r: { key: string; value: string }) => {
       settingsMap[r.key] = r.value;
     });
 

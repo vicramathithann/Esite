@@ -63,7 +63,11 @@ export async function GET(request: Request) {
       },
     });
 
-    const normalizedWarranties = warranties.map((w) => {
+    const normalizedWarranties = warranties.map((w: {
+      order?: { orderStatus?: string | null } | null;
+      warrantyStatus?: string | null;
+      [key: string]: any;
+    }) => {
       const orderCancelled = w.order ? isOrderCancelled(w.order.orderStatus) : false;
       const effectiveStatus = orderCancelled || w.warrantyStatus === "CANCELLED" ? "CANCELLED" : w.warrantyStatus;
       return {

@@ -58,7 +58,7 @@ export async function GET(request: Request) {
     }
 
     // Check if token has already been consumed
-    const usedTokens = admin.resetOtpHash ? admin.resetOtpHash.split(",").map((t) => t.trim()) : [];
+    const usedTokens = admin.resetOtpHash ? admin.resetOtpHash.split(",").map((t: string) => t.trim()) : [];
     if (usedTokens.includes(token)) {
       return NextResponse.json({
         valid: false,
@@ -135,7 +135,7 @@ export async function POST(request: Request) {
     }
 
     // Check if token was already used
-    const usedTokens = admin.resetOtpHash ? admin.resetOtpHash.split(",").map((t) => t.trim()) : [];
+    const usedTokens = admin.resetOtpHash ? admin.resetOtpHash.split(",").map((t: string) => t.trim()) : [];
     if (usedTokens.includes(cleanToken)) {
       return NextResponse.json(
         {

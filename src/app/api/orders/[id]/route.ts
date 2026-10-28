@@ -111,11 +111,11 @@ export async function PATCH(
         customerName: existingOrder.customerName,
         customerEmail: existingOrder.customerEmail,
         totalAmount: existingOrder.totalAmount,
-        items: existingOrder.items.map((i) => ({
+        items: (existingOrder.items || []).map((i: { productName: string; quantity: number; price: number; selectedStorage?: string | null }) => ({
           productName: i.productName,
           quantity: i.quantity,
           price: i.price,
-          selectedStorage: i.selectedStorage,
+          selectedStorage: i.selectedStorage || undefined,
         })),
       });
 
@@ -196,7 +196,7 @@ export async function PATCH(
     // Extract phone name(s) for user-friendly notifications
     const phoneNames =
       updatedOrder.items && updatedOrder.items.length > 0
-        ? updatedOrder.items.map((i) => i.productName).filter(Boolean).join(", ")
+        ? updatedOrder.items.map((i: { productName: string }) => i.productName).filter(Boolean).join(", ")
         : "Smartphone";
 
     // Record Status History & Send Status Email if status changed
@@ -236,11 +236,11 @@ export async function PATCH(
           note,
           {
             phoneName: phoneNames,
-            items: updatedOrder.items.map((i) => ({
+            items: (updatedOrder.items || []).map((i: { productName: string; quantity: number; price: number; selectedStorage?: string | null }) => ({
               productName: i.productName,
               quantity: i.quantity,
               price: i.price,
-              selectedStorage: i.selectedStorage,
+              selectedStorage: i.selectedStorage || undefined,
             })),
           }
         );

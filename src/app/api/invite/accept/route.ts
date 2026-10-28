@@ -116,7 +116,7 @@ export async function POST(request: Request) {
     });
 
     const isNameTaken = allUsers.some(
-      (u) => u.name && u.name.trim().toLowerCase() === cleanName.toLowerCase()
+      (u: { id: string; name: string | null }) => u.name && u.name.trim().toLowerCase() === cleanName.toLowerCase()
     );
 
     if (isNameTaken) {

@@ -19,7 +19,7 @@ export async function GET() {
     const rows = await prisma.siteSetting.findMany();
     const settingsMap: Record<string, string> = { ...DEFAULT_SETTINGS };
 
-    rows.forEach((r) => {
+    rows.forEach((r: { key: string; value: string }) => {
       settingsMap[r.key] = r.value;
     });
 
