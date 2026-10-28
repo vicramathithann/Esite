@@ -2,6 +2,7 @@ import nodemailer from "nodemailer";
 import type { Transporter } from "nodemailer";
 import { prisma } from "@/lib/prisma";
 import { isOrderCancelled } from "@/lib/orderStatus";
+import { getAppUrl } from "@/lib/appUrl";
 
 /**
  * Gmail SMTP Email Gateway Integration (Backend Only)
@@ -682,7 +683,7 @@ export async function sendPasswordResetEmail(
   token?: string
 ): Promise<EmailSendResult> {
   const codeDisplay = (otp || "").slice(0, 6);
-  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
+  const appUrl = getAppUrl();
   const resetLink = token
     ? `${appUrl}/reset-password?token=${encodeURIComponent(token)}&email=${encodeURIComponent(user.email)}`
     : "";
@@ -2268,7 +2269,7 @@ export async function sendAdminPasswordResetLinkEmail(
   expiresInMinutes: number = 60,
   baseUrl?: string
 ): Promise<EmailSendResult> {
-  const appUrl = (baseUrl || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
+  const appUrl = (baseUrl || getAppUrl()).replace(/\/$/, "");
   const resetLink = `${appUrl}/reset-password?token=${encodeURIComponent(token)}&email=${encodeURIComponent(user.email)}`;
 
   const plainText = [

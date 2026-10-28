@@ -5,6 +5,7 @@ import { sendAdminPasswordResetEmail } from "@/lib/email";
 import { ADMIN_EMAIL, ensureAdminUser } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/rateLimit";
 import { logSecurityEvent } from "@/lib/securityLogger";
+import { getAppUrl } from "@/lib/appUrl";
 
 export const dynamic = "force-dynamic";
 
@@ -99,10 +100,7 @@ export async function POST(request: Request) {
       },
     });
 
-    const host = request.headers.get("x-forwarded-host") || request.headers.get("host");
-    const protocol = request.headers.get("x-forwarded-proto") || (host?.includes("localhost") ? "http" : "https");
-    const detectedOrigin = host ? `${protocol}://${host}` : null;
-    const appUrl = (detectedOrigin || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
+    const appUrl = getAppUrl(request);
     const resetLink = `${appUrl}/admin/reset-password?token=${encodeURIComponent(resetToken)}&email=${encodeURIComponent(cleanEmail)}`;
 
     // Dispatch secure email with reset link

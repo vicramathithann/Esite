@@ -5,6 +5,7 @@ import { requireAdmin, isValidEmail } from "@/lib/auth";
 import { sendUserInvitationEmail } from "@/lib/email";
 import { enforceRateLimit } from "@/lib/rateLimit";
 import { logSecurityEvent } from "@/lib/securityLogger";
+import { getAppUrl } from "@/lib/appUrl";
 
 export const dynamic = "force-dynamic";
 
@@ -104,10 +105,7 @@ export async function POST(request: Request) {
     });
 
     // Construct site URL and direct invite link
-    const host = request.headers.get("x-forwarded-host") || request.headers.get("host");
-    const protocol = request.headers.get("x-forwarded-proto") || (host?.includes("localhost") ? "http" : "https");
-    const detectedOrigin = host ? `${protocol}://${host}` : null;
-    const siteUrl = (detectedOrigin || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
+    const siteUrl = getAppUrl(request);
     const inviteLink = `${siteUrl}/invite?token=${encodeURIComponent(token)}`;
 
     // Dispatch professional invitation email

@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { requireMainAdmin, hashPassword, ADMIN_EMAIL } from "@/lib/auth";
 import { sendAdminPasswordResetLinkEmail } from "@/lib/email";
+import { getAppUrl } from "@/lib/appUrl";
 
 export async function POST(
   request: Request,
@@ -91,15 +92,13 @@ export async function POST(
         },
       });
 
-      const host = request.headers.get("x-forwarded-host") || request.headers.get("host");
-      const protocol = request.headers.get("x-forwarded-proto") || (host?.includes("localhost") ? "http" : "https");
-      const detectedOrigin = host ? `${protocol}://${host}` : undefined;
+      const originUrl = getAppUrl(request);
 
       const emailResult = await sendAdminPasswordResetLinkEmail(
         { id: user.id, name: user.name, email: user.email },
         resetToken,
         60,
-        detectedOrigin
+        originUrl
       );
 
       if (!emailResult.success) {
