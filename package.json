@@ -11,7 +11,7 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
-    "@prisma/client": "^6.19.3",
+    "@prisma/client": "^7.10.1",
     "@supabase/supabase-js": "^2.118.0",
     "canvas-confetti": "^1.9.4",
     "lucide-react": "^1.41.0",
