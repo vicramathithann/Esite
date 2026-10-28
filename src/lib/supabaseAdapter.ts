@@ -416,7 +416,11 @@ export class SupabaseModelDelegate {
     return count || 0;
   }
 
-  async create(options: { data: Record<string, any>; include?: Record<string, any> }): Promise<any> {
+  async create(options: {
+    data: Record<string, any>;
+    include?: Record<string, any>;
+    select?: Record<string, any>;
+  }): Promise<any> {
     const rawData = options.data || {};
     const insertData = this.cleanData(rawData);
 
@@ -502,6 +506,7 @@ export class SupabaseModelDelegate {
     where: Record<string, any>;
     data: Record<string, any>;
     include?: Record<string, any>;
+    select?: Record<string, any>;
   }): Promise<any> {
     const rawData = options.data || {};
     const updateData = this.cleanData(rawData);
@@ -601,11 +606,28 @@ export class SupabaseModelDelegate {
   }
 }
 
+export interface SupabaseDatabaseClient {
+  user: SupabaseModelDelegate;
+  mobileProduct: SupabaseModelDelegate;
+  productVariant: SupabaseModelDelegate;
+  order: SupabaseModelDelegate;
+  orderItem: SupabaseModelDelegate;
+  orderStatusHistory: SupabaseModelDelegate;
+  warranty: SupabaseModelDelegate;
+  emailNotification: SupabaseModelDelegate;
+  wishlist: SupabaseModelDelegate;
+  review: SupabaseModelDelegate;
+  siteSetting: SupabaseModelDelegate;
+  invitation: SupabaseModelDelegate;
+  mobile: SupabaseModelDelegate;
+  $transaction: (arg: any) => Promise<any>;
+}
+
 /**
- * Creates the complete Prisma-compatible database client interface backed by Supabase.
+ * Creates the complete database client interface backed directly by Supabase.
  */
-export function createSupabasePrismaClient() {
-  const client: any = {
+export function createSupabasePrismaClient(): SupabaseDatabaseClient {
+  const client: SupabaseDatabaseClient = {
     user: new SupabaseModelDelegate("User", "user"),
     mobileProduct: new SupabaseModelDelegate("MobileProduct", "mobileProduct"),
     productVariant: new SupabaseModelDelegate("ProductVariant", "productVariant"),
