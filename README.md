@@ -1,48 +1,49 @@
 # VN Mobiles
 
-VN Mobiles is a modern full-stack e-commerce platform for buying smartphones online. It offers a smooth shopping experience for customers and a powerful admin dashboard for store management.
+A smartphone e-commerce store built with Next.js and Supabase, deployed on Vercel.
+
+🔗 **Live:** [vnmobiles.vercel.app](https://vnmobiles.vercel.app)
 
 ## Features
 
-### Customer Side
-
-- Browse the latest smartphones (Flagship, Mid-range, Budget)
-- Advanced filters and search
-- Product comparison
-- Wishlist
-- Secure OTP-based login
-- Order placement and tracking
-- Warranty registration and alerts
-- Customer support chatbot
-- Profile management
-
-### Admin Side
-
-- Secure admin panel with restricted access
-- Dashboard with sales and order analytics
-- Manage products, orders, users and warranties
-- Invite system
-- Email logs
-- Admin AI assistant
+- Browse smartphones with specs, colors and storage variants
+- Search, filter and sort by brand and price
+- Cart, orders and order status tracking
+- Wishlist and product reviews
+- User accounts
+- Admin management for products and orders
 
 ## Tech Stack
 
-- Frontend: Next.js, React, Tailwind CSS
-- Backend: Next.js API Routes
-- Authentication: Custom OTP and password based auth
-- Email: Transactional emails (OTP, orders, warranty alerts)
+- Next.js 16
+- TypeScript
+- Supabase (PostgreSQL)
+- Vercel
 
 ## Getting Started
 
-### Step 1: Clone the repository
-
 ```bash
 git clone https://github.com/vicramathithann/Esite.git
+cd Esite
+npm install
 ```
 
-### Step 2: Navigate to the project directory
+Create a `.env.local` file:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+```
+
+Run `supabase/schema.sql` in the Supabase SQL Editor, then start the app:
 
 ```bash
-cd Esite
+npm run dev
 ```
 
+Open [http://localhost:3000](http://localhost:3000).
+
+## Author
+
+**Vicramathithan** · [@vicramathithann](https://github.com/vicramathithann)
