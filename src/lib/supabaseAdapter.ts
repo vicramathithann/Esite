@@ -29,6 +29,8 @@ const DATE_COLUMNS = new Set([
   "warrantyExpiryDate",
   "expiresAt",
   "sentAt",
+  "usedAt",
+  "deletedAt",
 ]);
 
 function logSupabaseError(tableName: string, operation: string, error: any): void {
@@ -709,6 +711,8 @@ export interface SupabaseDatabaseClient {
   siteSetting: SupabaseModelDelegate;
   invitation: SupabaseModelDelegate;
   mobile: SupabaseModelDelegate;
+  accountDeletionRequest: SupabaseModelDelegate;
+  accountDeletionAudit: SupabaseModelDelegate;
   $transaction: (arg: any) => Promise<any>;
 }
 
@@ -732,6 +736,8 @@ export function createSupabasePrismaClient(): SupabaseDatabaseClient {
     siteSetting: new SupabaseModelDelegate("SiteSetting", "siteSetting", true),
     invitation: new SupabaseModelDelegate("invitations", "invitation", false),
     mobile: new SupabaseModelDelegate("mobiles", "mobile", true),
+    accountDeletionRequest: new SupabaseModelDelegate("AccountDeletionRequest", "accountDeletionRequest", false),
+    accountDeletionAudit: new SupabaseModelDelegate("AccountDeletionAudit", "accountDeletionAudit", false),
 
     async $transaction(arg: any) {
       if (typeof arg === "function") {

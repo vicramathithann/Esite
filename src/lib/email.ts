@@ -23,7 +23,7 @@ export interface SendEmailOptions {
   recipientName: string;
   recipientEmail: string;
   subject: string;
-  emailType: "EMAIL_VERIFICATION" | "ORDER_CONFIRMATION" | "ORDER_STATUS" | "WARRANTY_NOTIFICATION" | "WARRANTY_REMINDER_6M" | "WARRANTY_REMINDER_1D" | "LOGIN_OTP" | "PASSWORD_RESET";
+  emailType: "EMAIL_VERIFICATION" | "ORDER_CONFIRMATION" | "ORDER_STATUS" | "WARRANTY_NOTIFICATION" | "WARRANTY_REMINDER_6M" | "WARRANTY_REMINDER_1D" | "LOGIN_OTP" | "PASSWORD_RESET" | "ACCOUNT_DELETION_OTP" | "ACCOUNT_DELETED";
   orderId?: string | null;
   productName?: string | null;
   templateId?: string;
@@ -2360,6 +2360,209 @@ export async function sendAdminPasswordResetLinkEmail(
     recipientEmail: user.email,
     subject: "Reset your VN Mobiles password",
     emailType: "PASSWORD_RESET",
+    contentSummary: plainText,
+    text: plainText,
+    html,
+  });
+}
+
+
+/**
+ * Sends a 6-digit OTP verification email for self-service account deletion.
+ * Valid for 10 minutes. Includes prominent security warning and consequences notice.
+ */
+export async function sendAccountDeletionOtpEmail(
+  user: {
+    id: string;
+    name: string;
+    email: string;
+  },
+  otp: string
+): Promise<EmailSendResult> {
+  const codeDisplay = (otp || "").slice(0, 6);
+
+  const plainText = [
+    "Verification Code to Delete Your VN Mobiles Account",
+    "",
+    `Dear ${user.name},`,
+    "",
+    "We received a request to permanently delete your VN Mobiles customer account.",
+    "",
+    `Your Verification Code: ${codeDisplay}`,
+    "",
+    "This code will expire in 10 minutes.",
+    "",
+    "IMPORTANT WARNING:",
+    "Entering this verification code will permanently delete your account, saved preferences, and wishlist.",
+    "Past orders and warranties will be retained in anonymized format for accounting and warranty legal obligations.",
+    "",
+    "If you didn't request this, ignore this email and change your password immediately. Your account remains secure.",
+    "",
+    getEmailFooterText(),
+  ].join("\n");
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verification Code: Delete Your VN Mobiles Account</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f6f8fa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#24292f;-webkit-font-smoothing:antialiased;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f6f8fa;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width:520px;background-color:#ffffff;border:1px solid #d0d7de;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.05);">
+          <tr>
+            <td style="padding:28px 32px 20px 32px;border-bottom:1px solid #f0f2f5;background:linear-gradient(135deg, #1f2328 0%, #24292f 100%);">
+              <h1 style="margin:0;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:-0.2px;">VN Mobiles</h1>
+              <p style="margin:4px 0 0 0;font-size:12px;color:#d0d7de;">Account Security &amp; Identity Verification</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px 32px;">
+              <div style="display:inline-block;padding:4px 10px;background-color:#fff1f0;border:1px solid #ffccc7;border-radius:6px;color:#cf1322;font-size:12px;font-weight:600;margin-bottom:16px;">
+                ⚠️ Sensitive Action: Account Deletion Request
+              </div>
+              <p style="margin:0 0 14px 0;font-size:14px;line-height:1.6;color:#24292f;">
+                Hello <strong>${user.name}</strong>,
+              </p>
+              <p style="margin:0 0 18px 0;font-size:14px;line-height:1.6;color:#57606a;">
+                We received a request to permanently delete your VN Mobiles customer account associated with <strong>${user.email}</strong>. Use the verification code below to authorize this request:
+              </p>
+              
+              <div style="background-color:#fbfcfd;border:2px dashed #cf222e;border-radius:10px;padding:22px;text-align:center;margin:22px 0;">
+                <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#57606a;letter-spacing:1.5px;margin-bottom:8px;">6-Digit Deletion Code</div>
+                <div style="font-size:36px;font-weight:800;letter-spacing:10px;color:#cf222e;font-family:ui-monospace,SFMono-Regular,Consolas,'Liberation Mono',Menlo,monospace;margin-left:10px;">${codeDisplay}</div>
+                <div style="margin-top:10px;font-size:12px;color:#cf222e;font-weight:600;">⏳ Code expires in 10 minutes (single-use)</div>
+              </div>
+
+              <div style="background-color:#fffbe6;border:1px solid #ffe58f;border-radius:8px;padding:14px;margin:20px 0;font-size:12px;color:#873800;line-height:1.6;">
+                <strong>Security Alert:</strong> If you did not initiate this deletion request, <strong>ignore this email and change your password immediately</strong>. Do not share this code with anyone. VN Mobiles support will never ask for your code.
+              </div>
+
+              <p style="margin:16px 0 0 0;font-size:12px;line-height:1.5;color:#8c959f;">
+                Once confirmed, your profile and wishlist will be permanently removed. Past orders and warranty certificates will be detached and anonymized for tax and regulatory record-keeping.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              ${getEmailFooterHtml()}
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  return sendGmailEmail({
+    userId: user.id,
+    recipientName: user.name,
+    recipientEmail: user.email,
+    subject: "Action Required: Verification Code to Delete Your VN Mobiles Account",
+    emailType: "ACCOUNT_DELETION_OTP",
+    contentSummary: plainText,
+    text: plainText,
+    html,
+  });
+}
+
+/**
+ * Sends a confirmation email after an account has been permanently deleted.
+ */
+export async function sendAccountDeletionConfirmationEmail(user: {
+  name: string;
+  email: string;
+}): Promise<EmailSendResult> {
+  const plainText = [
+    "Your VN Mobiles Account Has Been Deleted",
+    "",
+    `Dear ${user.name},`,
+    "",
+    "This email confirms that your VN Mobiles customer account has been permanently deleted as requested.",
+    "",
+    "What this means:",
+    "- Your profile, address, and credentials have been erased.",
+    "- Your active sessions and login cookies have been revoked.",
+    "- Historical order and warranty data have been detached and personal information anonymized to fulfill legal and accounting requirements.",
+    "",
+    "If you ever wish to shop with us again in the future, you are always welcome to register a new account at https://vnmobiles.in.",
+    "",
+    "Thank you for being part of the VN Mobiles community.",
+    "",
+    getEmailFooterText(),
+  ].join("\n");
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your VN Mobiles Account Has Been Deleted</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f6f8fa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#24292f;-webkit-font-smoothing:antialiased;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f6f8fa;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width:520px;background-color:#ffffff;border:1px solid #d0d7de;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.05);">
+          <tr>
+            <td style="padding:28px 32px 20px 32px;border-bottom:1px solid #f0f2f5;background:linear-gradient(135deg, #1f2328 0%, #24292f 100%);">
+              <h1 style="margin:0;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:-0.2px;">VN Mobiles</h1>
+              <p style="margin:4px 0 0 0;font-size:12px;color:#d0d7de;">Account Deletion Confirmation</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px 32px;">
+              <div style="display:inline-block;padding:4px 10px;background-color:#f6ffed;border:1px solid #b7eb8f;border-radius:6px;color:#389e0d;font-size:12px;font-weight:600;margin-bottom:16px;">
+                ✓ Account Deleted Successfully
+              </div>
+              <p style="margin:0 0 14px 0;font-size:14px;line-height:1.6;color:#24292f;">
+                Hello <strong>${user.name}</strong>,
+              </p>
+              <p style="margin:0 0 18px 0;font-size:14px;line-height:1.6;color:#57606a;">
+                This email confirms that your VN Mobiles customer account (<strong>${user.email}</strong>) has been permanently deleted in accordance with your verified request.
+              </p>
+              
+              <div style="background-color:#fbfcfd;border:1px solid #e1e4e8;border-radius:10px;padding:16px;margin:20px 0;font-size:13px;color:#24292f;line-height:1.6;">
+                <div style="font-weight:600;margin-bottom:6px;">Summary of actions completed:</div>
+                <ul style="margin:0;padding-left:18px;color:#57606a;">
+                  <li>Personal details, phone numbers, and address records have been erased.</li>
+                  <li>Wishlists and active sessions have been terminated.</li>
+                  <li>Historical orders and warranty records have been detached and personal data anonymized for statutory tax and warranty obligations.</li>
+                </ul>
+              </div>
+
+              <p style="margin:18px 0 0 0;font-size:13px;line-height:1.6;color:#57606a;">
+                If you ever wish to purchase smartphones, access express shipping, or explore flagship deals in the future, you are always welcome to register a new account on our platform.
+              </p>
+
+              <div style="text-align:center;margin:26px 0 10px 0;">
+                <a href="${(process.env.NEXT_PUBLIC_APP_URL || "https://vnmobiles.in").replace(/\/$/, "")}" style="display:inline-block;background-color:#C9A66B;color:#ffffff;font-size:13px;font-weight:600;text-decoration:none;padding:12px 28px;border-radius:8px;">
+                  Visit VN Mobiles
+                </a>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              ${getEmailFooterHtml()}
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  return sendGmailEmail({
+    recipientName: user.name,
+    recipientEmail: user.email,
+    subject: "Your VN Mobiles Account Has Been Deleted",
+    emailType: "ACCOUNT_DELETED",
     contentSummary: plainText,
     text: plainText,
     html,
