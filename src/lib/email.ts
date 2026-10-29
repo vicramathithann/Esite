@@ -42,29 +42,85 @@ export interface EmailSendResult {
   error?: string;
 }
 
-let cachedTransporter: Transporter | null = null;
-
-export function getTransporter(): Transporter | null {
+export function createTransporter(): Transporter | null {
   const user = process.env.GMAIL_USER?.trim();
-  const pass = process.env.GMAIL_APP_PASSWORD?.trim();
+  // Strip all whitespace & spaces (Google displays App Passwords as 4 groups of 4: "abcd efgh ijkl mnop")
+  const pass = (process.env.GMAIL_APP_PASSWORD || "").replace(/\s+/g, "").trim();
 
   if (!user || !pass) {
     return null;
   }
 
-  if (!cachedTransporter) {
-    cachedTransporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
-      auth: {
-        user,
-        pass,
-      },
-    });
+  const port = parseInt(process.env.SMTP_PORT || "465", 10);
+  const isSecure = port === 465;
+
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST || "smtp.gmail.com",
+    port,
+    secure: isSecure,
+    auth: {
+      user,
+      pass,
+    },
+    // Serverless timeouts: prevent hanging executions in Vercel Lambdas
+    connectionTimeout: 10000, // 10s connection timeout
+    greetingTimeout: 10000,   // 10s greeting timeout
+    socketTimeout: 15000,     // 15s socket timeout
+  });
+}
+
+// In serverless environments, create fresh or verify connections to avoid stale socket reuse
+export function getTransporter(): Transporter | null {
+  return createTransporter();
+}
+
+/**
+ * Validates the live SMTP connection with Google Mail servers without sending an email.
+ * Used by the /api/email-health diagnostic endpoint.
+ */
+export async function verifySmtpConnection(): Promise<{ success: boolean; message?: string; error?: string; code?: string }> {
+  const user = process.env.GMAIL_USER?.trim();
+  const pass = (process.env.GMAIL_APP_PASSWORD || "").replace(/\s+/g, "").trim();
+
+  if (!user || !pass) {
+    const missing: string[] = [];
+    if (!user) missing.push("GMAIL_USER");
+    if (!pass) missing.push("GMAIL_APP_PASSWORD");
+    return {
+      success: false,
+      error: `Missing required environment variable(s): ${missing.join(", ")}`,
+      code: "MISSING_CREDENTIALS",
+    };
   }
 
-  return cachedTransporter;
+  const transporter = createTransporter();
+  if (!transporter) {
+    return {
+      success: false,
+      error: "Could not initialize nodemailer transporter.",
+      code: "INIT_FAILED",
+    };
+  }
+
+  try {
+    await transporter.verify();
+    return {
+      success: true,
+      message: `SMTP connection verified successfully with smtp.gmail.com as ${user}`,
+    };
+  } catch (err: unknown) {
+    const errObj = (typeof err === "object" && err !== null) ? (err as Record<string, any>) : {};
+    const code = errObj.code || (errObj.errno ? String(errObj.errno) : "UNKNOWN");
+    const response = errObj.response || "";
+    const message = err instanceof Error ? err.message : String(err);
+
+    console.error(`[SMTP VERIFY ERROR] Code: ${code} | Response: ${response} | Message: ${message}`);
+    return {
+      success: false,
+      code,
+      error: `[${code}] ${message}${response ? ` (${response})` : ""}`,
+    };
+  }
 }
 
 /**
@@ -191,25 +247,39 @@ export async function sendGmailEmail(options: SendEmailOptions): Promise<EmailSe
       notificationId: notificationRecord?.id,
     };
   } catch (err: unknown) {
-    const errorMessage = err instanceof Error ? err.message : "Unknown error while sending email via Gmail SMTP.";
-    console.error(`[GMAIL SMTP ERROR] Delivery failed to ${cleanRecipientEmail}:`, errorMessage);
+    const errObj = (typeof err === "object" && err !== null) ? (err as Record<string, any>) : {};
+    const errorCode = errObj.code || (errObj.errno ? String(errObj.errno) : "PROVIDER_ERROR");
+    const errorResponse = errObj.response || "";
+    const rawErrorMessage = err instanceof Error ? err.message : "Unknown error while sending email via Gmail SMTP.";
+    const detailedErrorMessage = `[${errorCode}] ${rawErrorMessage}${errorResponse ? ` (${errorResponse})` : ""}`;
+
+    console.error(
+      `[GMAIL SMTP ERROR] Delivery failed to ${cleanRecipientEmail}:\n` +
+      `  Error Code: ${errorCode}\n` +
+      `  SMTP Response: ${errorResponse || "None"}\n` +
+      `  Message: ${rawErrorMessage}`
+    );
 
     if (notificationRecord) {
-      await prisma.emailNotification.update({
-        where: { id: notificationRecord.id },
-        data: {
-          status: "FAILED",
-          errorMessage,
-        },
-      });
+      try {
+        await prisma.emailNotification.update({
+          where: { id: notificationRecord.id },
+          data: {
+            status: "FAILED",
+            errorMessage: detailedErrorMessage,
+          },
+        });
+      } catch (logErr) {
+        console.error("[EMAIL AUDIT DB UPDATE ERROR]", logErr);
+      }
     }
 
     return {
       success: false,
       status: "FAILED",
       statusCode: 500,
-      message: errorMessage,
-      error: errorMessage,
+      message: detailedErrorMessage,
+      error: detailedErrorMessage,
       notificationId: notificationRecord?.id,
     };
   }
@@ -283,6 +353,174 @@ export const sendEmail = sendGmailEmail;
  * - Identical plain-text representation
  * - Clear 5-minute expiry warning and security notice
  */
+
+export type OtpEmailPurpose = 
+  | "EMAIL_VERIFICATION" 
+  | "PASSWORD_RESET" 
+  | "LOGIN_OTP" 
+  | "ACCOUNT_DELETION_OTP";
+
+export interface SendOtpOptions {
+  userId?: string | null;
+  name: string;
+  email: string;
+  otp: string;
+  purpose: OtpEmailPurpose;
+  token?: string;
+  expiresInMinutes?: number;
+}
+
+/**
+ * ONE shared email helper for all OTP flows (signup, resend code, forgot password, delete account).
+ * Guarantees identical deliverability, styling, error logging, and audit tracking.
+ * Strictly avoids logging or storing the plain OTP in EmailNotification.
+ */
+export async function sendOtpEmail(options: SendOtpOptions): Promise<EmailSendResult> {
+  const codeDisplay = (options.otp || "").slice(0, 6);
+  const cleanEmail = options.email.trim().toLowerCase();
+  const cleanName = options.name?.trim() || "Customer";
+  const minutes = options.expiresInMinutes || (options.purpose === "ACCOUNT_DELETION_OTP" ? 10 : 5);
+  const digits = codeDisplay.padEnd(6, "•").split("");
+
+  let subject = "Your VN Mobiles verification code";
+  let title = "Verification Code";
+  let description = "Please enter the 6-digit code below to proceed with your request:";
+  let securityWarning = "If you did not request this verification code, please ignore this email. Your account remains secure.";
+
+  if (options.purpose === "EMAIL_VERIFICATION") {
+    subject = "Your VN Mobiles verification code";
+    title = "Verify Your Account";
+    description = "Welcome to VN Mobiles! Please enter the 6-digit verification code below to verify your email address:";
+    securityWarning = "If you did not create an account with VN Mobiles, please disregard this email.";
+  } else if (options.purpose === "PASSWORD_RESET") {
+    subject = "Reset your VN Mobiles password";
+    title = "Password Reset Code";
+    description = "We received a request to reset the password for your VN Mobiles account. Use this 6-digit code to proceed:";
+    securityWarning = "If you did not request a password reset, you can safely ignore this email. Your existing password remains unchanged.";
+  } else if (options.purpose === "LOGIN_OTP") {
+    subject = "Your VN Mobiles Login Code";
+    title = "Login Verification Code";
+    description = "Use this 6-digit security code to sign in to your VN Mobiles account:";
+    securityWarning = "If you did not attempt to sign in, please update your account password immediately.";
+  } else if (options.purpose === "ACCOUNT_DELETION_OTP") {
+    subject = "Action Required: Verification Code to Delete Your VN Mobiles Account";
+    title = "⚠️ Account Deletion Authorization";
+    description = "We received a request to permanently delete your VN Mobiles customer account. Use this code to authorize deletion:";
+    securityWarning = "WARNING: Entering this code will permanently delete your account, saved preferences, and wishlist. If you did not request this, change your password immediately.";
+  }
+
+  const plainText = [
+    subject,
+    "",
+    `Dear ${cleanName},`,
+    "",
+    description,
+    "",
+    `Verification Code: ${codeDisplay}`,
+    "",
+    `This code expires in ${minutes} minutes.`,
+    "",
+    securityWarning,
+    "",
+    getEmailFooterText(),
+  ].join("\n");
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${subject}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#F8FAFC;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1E293B;-webkit-font-smoothing:antialiased;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#F8FAFC;padding:36px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width:520px;background-color:#FFFFFF;border:1px solid #E2E8F0;border-radius:16px;overflow:hidden;box-shadow:0 10px 25px -5px rgba(15,23,42,0.05);">
+          <tr>
+            <td style="height:4px;background:linear-gradient(90deg, #C9A66B 0%, #E5CBA2 50%, #C9A66B 100%);"></td>
+          </tr>
+          <tr>
+            <td style="padding:28px 36px 20px 36px;border-bottom:1px solid #F1F5F9;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td align="left" style="vertical-align:middle;">
+                    <div style="font-size:16px;font-weight:800;color:#0F172A;letter-spacing:-0.3px;">VN MOBILES</div>
+                    <div style="font-size:10px;font-weight:700;color:#8C6226;letter-spacing:1px;text-transform:uppercase;margin-top:2px;">SECURITY VERIFICATION</div>
+                  </td>
+                  <td align="right" style="vertical-align:middle;">
+                    <span style="display:inline-block;background-color:#FEF3C7;border:1px solid #FDE68A;color:#92400E;font-size:10px;font-weight:700;padding:4px 10px;border-radius:9999px;">
+                      ⏱ ${minutes} min expiry
+                    </span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px 36px 32px 36px;">
+              <h2 style="margin:0 0 12px 0;font-size:18px;font-weight:700;color:#0F172A;letter-spacing:-0.2px;">
+                ${title}
+              </h2>
+              <p style="margin:0 0 16px 0;font-size:14px;line-height:1.6;color:#334155;">
+                Hello <strong>${cleanName}</strong>,
+              </p>
+              <p style="margin:0 0 20px 0;font-size:14px;line-height:1.6;color:#334155;">
+                ${description}
+              </p>
+              <div style="background-color:#FAF8F5;border:1px solid #EBE4D6;border-radius:14px;padding:24px 20px;text-align:center;margin:0 0 24px 0;">
+                <div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#8C6226;letter-spacing:1.8px;margin-bottom:16px;">
+                  YOUR 6-DIGIT CODE
+                </div>
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:0 auto;">
+                  <tr>
+                    ${digits.map((digit) => `
+                      <td style="padding:0 3px;">
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                          <tr>
+                            <td align="center" valign="middle" style="width:44px;height:52px;background-color:#FFFFFF;border:2px solid #D8CABB;border-radius:10px;font-size:24px;font-weight:800;color:#0F172A;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;text-align:center;vertical-align:middle;box-shadow:0 2px 4px rgba(140,98,38,0.06);">
+                              ${digit}
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    `).join("")}
+                  </tr>
+                </table>
+                <div style="margin-top:14px;font-size:11px;color:#cf222e;font-weight:600;">
+                  Expires in ${minutes} minutes &bull; Single-use only
+                </div>
+              </div>
+              <div style="background-color:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:14px;font-size:12px;line-height:1.6;color:#64748B;">
+                <strong>Security Notice:</strong> ${securityWarning}
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              ${getEmailFooterHtml()}
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  // Explicitly avoid storing plain OTPs in the database contentSummary
+  return sendGmailEmail({
+    userId: options.userId,
+    recipientName: cleanName,
+    recipientEmail: cleanEmail,
+    subject,
+    emailType: options.purpose,
+    contentSummary: `Security verification code dispatched for ${options.purpose}. Valid for ${minutes} minutes.`,
+    text: plainText,
+    html,
+  });
+}
+
 export async function sendUserVerificationEmail(
   user: {
     id: string;
@@ -682,92 +920,14 @@ export async function sendPasswordResetEmail(
   otp: string,
   token?: string
 ): Promise<EmailSendResult> {
-  const codeDisplay = (otp || "").slice(0, 6);
-  const appUrl = getAppUrl();
-  const resetLink = token
-    ? `${appUrl}/reset-password?token=${encodeURIComponent(token)}&email=${encodeURIComponent(user.email)}`
-    : "";
-
-  const plainText = [
-    "Reset your VN Mobiles password",
-    "",
-    `Hi ${user.name},`,
-    "",
-    "We received a request to reset the password for your VN Mobiles account.",
-    "",
-    `Reset Code: ${codeDisplay}`,
-    ...(resetLink ? ["", `Direct Reset Link: ${resetLink}`] : []),
-    "",
-    "This code and link expire in 5 minutes.",
-    "",
-    "If you did not request a password reset, you can safely ignore this email. Your current password will remain unchanged.",
-    "",
-    getEmailFooterText(),
-  ].join("\n");
-
-  const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reset your VN Mobiles password</title>
-</head>
-<body style="margin:0;padding:0;background-color:#f6f8fa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#24292f;-webkit-font-smoothing:antialiased;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f6f8fa;padding:32px 16px;">
-    <tr>
-      <td align="center">
-        <table role="presentation" width="100%" style="max-width:500px;background-color:#ffffff;border:1px solid #d0d7de;border-radius:12px;overflow:hidden;">
-          <tr>
-            <td style="padding:28px 32px 20px 32px;border-bottom:1px solid #f0f2f5;">
-              <h1 style="margin:0;font-size:20px;font-weight:700;color:#1f2328;letter-spacing:-0.2px;">VN Mobiles</h1>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:24px 32px;">
-              <p style="margin:0 0 16px 0;font-size:14px;line-height:1.6;color:#24292f;">
-                Hi <strong>${user.name}</strong>,
-              </p>
-              <p style="margin:0 0 20px 0;font-size:14px;line-height:1.6;color:#57606a;">
-                We received a request to reset your VN Mobiles password. Enter the code below or click the reset link to choose a new password:
-              </p>
-              <div style="background-color:#f6f8fa;border:1px solid #d0d7de;border-radius:8px;padding:20px;text-align:center;margin:20px 0;">
-                <div style="font-size:11px;font-weight:600;text-transform:uppercase;color:#57606a;letter-spacing:1px;margin-bottom:6px;">Password Reset Code</div>
-                <div style="font-size:34px;font-weight:700;letter-spacing:8px;color:#1f2328;font-family:ui-monospace,SFMono-Regular,Consolas,'Liberation Mono',Menlo,monospace;">${codeDisplay}</div>
-                <div style="margin-top:8px;font-size:12px;color:#cf222e;font-weight:600;">Expires in 5 minutes</div>
-              </div>
-              ${
-                resetLink
-                  ? `<div style="text-align:center;margin:24px 0;">
-                <a href="${resetLink}" style="display:inline-block;background-color:#C9A66B;color:#ffffff;font-size:13px;font-weight:600;text-decoration:none;padding:12px 28px;border-radius:8px;">Reset Password Directly</a>
-              </div>`
-                  : ""
-              }
-              <p style="margin:20px 0 0 0;font-size:13px;line-height:1.5;color:#57606a;">
-                If you did not request a password reset, you can safely ignore this email. Your password will remain unchanged.
-              </p>
-            </td>
-          </tr>
-          <tr>
-            <td>
-              ${getEmailFooterHtml()}
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
-
-  return sendGmailEmail({
+  return sendOtpEmail({
     userId: user.id,
-    recipientName: user.name,
-    recipientEmail: user.email,
-    subject: "Reset your VN Mobiles password",
-    emailType: "PASSWORD_RESET",
-    contentSummary: plainText,
-    text: plainText,
-    html,
+    name: user.name,
+    email: user.email,
+    otp,
+    purpose: "PASSWORD_RESET",
+    token,
+    expiresInMinutes: 5,
   });
 }
 
@@ -848,7 +1008,7 @@ export async function sendAdminLoginOtpEmail(
     recipientEmail: admin.email,
     subject: "VN Mobiles Admin Portal: Your Login Verification Code",
     emailType: "LOGIN_OTP",
-    contentSummary: plainText,
+    contentSummary: "VN Mobiles Admin Portal: Login Verification Code dispatched (5-minute expiry).",
     text: plainText,
     html,
   });
@@ -935,7 +1095,7 @@ export async function sendAdminVerificationEmail(
     recipientEmail: "rrroyce20@gmail.com",
     subject: "VN Mobiles Admin Portal: Your 6-Digit Email Verification Code",
     emailType: "EMAIL_VERIFICATION",
-    contentSummary: plainText,
+    contentSummary: "VN Mobiles Admin Portal: Email Verification Code dispatched (5-minute expiry).",
     text: plainText,
     html,
   });
@@ -2379,94 +2539,13 @@ export async function sendAccountDeletionOtpEmail(
   },
   otp: string
 ): Promise<EmailSendResult> {
-  const codeDisplay = (otp || "").slice(0, 6);
-
-  const plainText = [
-    "Verification Code to Delete Your VN Mobiles Account",
-    "",
-    `Dear ${user.name},`,
-    "",
-    "We received a request to permanently delete your VN Mobiles customer account.",
-    "",
-    `Your Verification Code: ${codeDisplay}`,
-    "",
-    "This code will expire in 10 minutes.",
-    "",
-    "IMPORTANT WARNING:",
-    "Entering this verification code will permanently delete your account, saved preferences, and wishlist.",
-    "Past orders and warranties will be retained in anonymized format for accounting and warranty legal obligations.",
-    "",
-    "If you didn't request this, ignore this email and change your password immediately. Your account remains secure.",
-    "",
-    getEmailFooterText(),
-  ].join("\n");
-
-  const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Verification Code: Delete Your VN Mobiles Account</title>
-</head>
-<body style="margin:0;padding:0;background-color:#f6f8fa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#24292f;-webkit-font-smoothing:antialiased;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f6f8fa;padding:32px 16px;">
-    <tr>
-      <td align="center">
-        <table role="presentation" width="100%" style="max-width:520px;background-color:#ffffff;border:1px solid #d0d7de;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.05);">
-          <tr>
-            <td style="padding:28px 32px 20px 32px;border-bottom:1px solid #f0f2f5;background:linear-gradient(135deg, #1f2328 0%, #24292f 100%);">
-              <h1 style="margin:0;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:-0.2px;">VN Mobiles</h1>
-              <p style="margin:4px 0 0 0;font-size:12px;color:#d0d7de;">Account Security &amp; Identity Verification</p>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:28px 32px;">
-              <div style="display:inline-block;padding:4px 10px;background-color:#fff1f0;border:1px solid #ffccc7;border-radius:6px;color:#cf1322;font-size:12px;font-weight:600;margin-bottom:16px;">
-                ⚠️ Sensitive Action: Account Deletion Request
-              </div>
-              <p style="margin:0 0 14px 0;font-size:14px;line-height:1.6;color:#24292f;">
-                Hello <strong>${user.name}</strong>,
-              </p>
-              <p style="margin:0 0 18px 0;font-size:14px;line-height:1.6;color:#57606a;">
-                We received a request to permanently delete your VN Mobiles customer account associated with <strong>${user.email}</strong>. Use the verification code below to authorize this request:
-              </p>
-              
-              <div style="background-color:#fbfcfd;border:2px dashed #cf222e;border-radius:10px;padding:22px;text-align:center;margin:22px 0;">
-                <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#57606a;letter-spacing:1.5px;margin-bottom:8px;">6-Digit Deletion Code</div>
-                <div style="font-size:36px;font-weight:800;letter-spacing:10px;color:#cf222e;font-family:ui-monospace,SFMono-Regular,Consolas,'Liberation Mono',Menlo,monospace;margin-left:10px;">${codeDisplay}</div>
-                <div style="margin-top:10px;font-size:12px;color:#cf222e;font-weight:600;">⏳ Code expires in 10 minutes (single-use)</div>
-              </div>
-
-              <div style="background-color:#fffbe6;border:1px solid #ffe58f;border-radius:8px;padding:14px;margin:20px 0;font-size:12px;color:#873800;line-height:1.6;">
-                <strong>Security Alert:</strong> If you did not initiate this deletion request, <strong>ignore this email and change your password immediately</strong>. Do not share this code with anyone. VN Mobiles support will never ask for your code.
-              </div>
-
-              <p style="margin:16px 0 0 0;font-size:12px;line-height:1.5;color:#8c959f;">
-                Once confirmed, your profile and wishlist will be permanently removed. Past orders and warranty certificates will be detached and anonymized for tax and regulatory record-keeping.
-              </p>
-            </td>
-          </tr>
-          <tr>
-            <td>
-              ${getEmailFooterHtml()}
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
-
-  return sendGmailEmail({
+  return sendOtpEmail({
     userId: user.id,
-    recipientName: user.name,
-    recipientEmail: user.email,
-    subject: "Action Required: Verification Code to Delete Your VN Mobiles Account",
-    emailType: "ACCOUNT_DELETION_OTP",
-    contentSummary: plainText,
-    text: plainText,
-    html,
+    name: user.name,
+    email: user.email,
+    otp,
+    purpose: "ACCOUNT_DELETION_OTP",
+    expiresInMinutes: 10,
   });
 }
 

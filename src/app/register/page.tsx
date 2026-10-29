@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, Suspense } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, AlertCircle } from "lucide-react";
+import { ArrowRight, AlertCircle, RefreshCw, CheckCircle2 } from "lucide-react";
 import { isValidInternalRedirect } from "@/lib/auth";
 
 function RegisterForm() {
@@ -21,6 +21,21 @@ function RegisterForm() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Email delivery failure & resend code state
+  const [emailDeliveryFailed, setEmailDeliveryFailed] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resending, setResending] = useState(false);
+  const [resendNotice, setResendNotice] = useState<string | null>(null);
+
+  // Live countdown timer for the 60-second resend cooldown
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const interval = setInterval(() => {
+      setResendCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [resendCooldown]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,6 +57,7 @@ function RegisterForm() {
     try {
       setLoading(true);
       setError(null);
+      setResendNotice(null);
 
       const res = await fetch("/api/auth/register", {
         method: "POST",
@@ -53,6 +69,10 @@ function RegisterForm() {
       if (data.success) {
         const redirectQuery = redirectParam ? `&redirect=${encodeURIComponent(safeRedirect)}` : "";
         router.push(`/verify-email?email=${encodeURIComponent(formData.email.trim())}${redirectQuery}`);
+      } else if (data.emailDeliveryFailed || res.status === 502) {
+        setEmailDeliveryFailed(true);
+        setResendCooldown(60);
+        setError(data.error || "Your account was created, but we could not deliver the verification code to your email. Click Resend Code below.");
       } else {
         setError(data.error || "Registration failed. Please check your details.");
       }
@@ -61,6 +81,38 @@ function RegisterForm() {
       setError("An unexpected error occurred during account creation. Please try again.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    if (resendCooldown > 0 || resending || !formData.email.trim()) return;
+
+    try {
+      setResending(true);
+      setError(null);
+      setResendNotice(null);
+
+      const res = await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: formData.email.trim() }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setResendNotice(data.message || `A new 6-digit verification code was dispatched to ${formData.email}.`);
+        setResendCooldown(data.cooldown || 60);
+      } else {
+        setError(data.error || "Could not resend verification code. Please try again.");
+        if (data.cooldown) {
+          setResendCooldown(data.cooldown);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Failed to reach server. Please check your internet connection.");
+    } finally {
+      setResending(false);
     }
   };
 
@@ -89,7 +141,45 @@ function RegisterForm() {
           A 6-digit verification code will be sent to your email address (valid for 5 minutes).
         </p>
 
-        {error && (
+        {/* Actionable Email Delivery Warning with Resend & Direct Verification Actions */}
+        {emailDeliveryFailed && (
+          <div className="mb-4 p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs space-y-2.5">
+            <div className="flex items-start gap-2 text-amber-700 dark:text-amber-400 font-semibold">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+              <span>Verification email could not be delivered</span>
+            </div>
+            <p className="text-muted leading-relaxed text-[11px]">
+              Your account was created for <strong className="text-foreground">{formData.email}</strong>, but our mail gateway could not reach your inbox. Check your spam folder or retry below.
+            </p>
+
+            {resendNotice && (
+              <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-700 dark:text-emerald-400 text-[11px] flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                <span>{resendNotice}</span>
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <button
+                type="button"
+                onClick={handleResendCode}
+                disabled={resendCooldown > 0 || resending}
+                className="px-3 py-1.5 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] text-[#FFFCFA] font-medium rounded-lg text-xs flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3 h-3 ${resending ? "animate-spin" : ""}`} />
+                {resending ? "Sending..." : resendCooldown > 0 ? `Resend Code (${resendCooldown}s)` : "Resend Code"}
+              </button>
+              <Link
+                href={`/verify-email?email=${encodeURIComponent(formData.email.trim())}${redirectParam ? `&redirect=${encodeURIComponent(safeRedirect)}` : ""}`}
+                className="px-3 py-1.5 border border-border text-foreground hover:bg-tile rounded-lg font-medium text-xs transition-colors"
+              >
+                Enter Code Manually →
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {error && !emailDeliveryFailed && (
           <div className="mb-4 p-3.5 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-500 flex items-start gap-2">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
             <span>{error}</span>

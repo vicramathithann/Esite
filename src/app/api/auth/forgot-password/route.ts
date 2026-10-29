@@ -184,10 +184,12 @@ export async function POST(request: Request) {
     }
 
     if (!emailResult || !emailResult.success) {
+      console.error(`[FORGOT PASSWORD EMAIL FAILED] Could not send OTP to ${user.email}:`, emailResult?.error || "Unknown error");
       return NextResponse.json(
         {
           success: false,
           error: "Failed to dispatch password reset email. Please try again in a few moments.",
+          providerError: emailResult?.error,
           cooldown: 60,
         },
         { status: 502 }

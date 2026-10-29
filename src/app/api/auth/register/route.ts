@@ -50,10 +50,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // 4. Default friendly phone if omitted
-    const cleanPhone = (phone && phone.trim()) || `+91 ${Math.floor(6000000000 + Math.random() * 3999999999)}`;
-
-    // 5. Check whether the email already exists
+    // 4. Check whether the email already exists
     const existingUser = await prisma.user.findUnique({
       where: { email: cleanEmail },
     });
@@ -65,7 +62,25 @@ export async function POST(request: Request) {
       );
     }
 
-    // 6. Generate cryptographically secure OTP (6 digits) & expiring token
+    // Friendly phone handling: preserve existing phone if blank on retry, or generate fallback
+    const rawPhone = phone && phone.trim();
+    const cleanPhone = rawPhone || existingUser?.phone || `+91 ${Math.floor(6000000000 + Math.random() * 3999999999)}`;
+
+    // Validate phone uniqueness across other accounts
+    if (rawPhone) {
+      const phoneOwner = await prisma.user.findUnique({
+        where: { phone: rawPhone },
+        select: { id: true },
+      });
+      if (phoneOwner && (!existingUser || phoneOwner.id !== existingUser.id)) {
+        return NextResponse.json(
+          { success: false, error: "An account with this phone number already exists." },
+          { status: 409 }
+        );
+      }
+    }
+
+    // 5. Generate cryptographically secure OTP (6 digits) & expiring token
     const otp = generateSecureOtp();
     const otpHash = hashOtp(otp);
     const otpExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
@@ -154,12 +169,14 @@ export async function POST(request: Request) {
     }
 
     if (!emailResult || !emailResult.success) {
+      console.error(`[REGISTER EMAIL FAILED] Could not send OTP to ${cleanEmail}:`, emailResult?.error || "Unknown error");
       return NextResponse.json(
         {
           success: false,
           error: "Your account was created, but we could not deliver the verification code to your email. Please check your email or click Resend Code.",
           emailDeliveryFailed: true,
           email: cleanEmail,
+          providerError: emailResult?.error,
         },
         { status: 502 }
       );

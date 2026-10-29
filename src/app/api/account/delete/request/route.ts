@@ -179,10 +179,26 @@ export async function POST(request: Request) {
     }
 
     // 11. Send OTP email via existing Gmail SMTP gateway
-    await sendAccountDeletionOtpEmail(
-      { id: authUser.id, name: authUser.name, email: authUser.email },
-      otp
-    );
+    let emailResult = null;
+    try {
+      emailResult = await sendAccountDeletionOtpEmail(
+        { id: authUser.id, name: authUser.name, email: authUser.email },
+        otp
+      );
+    } catch (emailErr) {
+      console.error("[AccountDeletion] Error dispatching deletion OTP email:", emailErr);
+    }
+
+    if (!emailResult || !emailResult.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Could not deliver the verification code to your email. Please check your connection and try again.",
+          details: emailResult?.error,
+        },
+        { status: 502 }
+      );
+    }
 
     // Log masked email for audit trail without leaking full PII
     const maskedEmail = authUser.email.replace(/^(.)(.*)(@.*)$/, (_, first, middle, domain) => `${first}***${domain}`);

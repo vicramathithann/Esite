@@ -101,10 +101,12 @@ export async function POST(request: Request) {
     }
 
     if (!emailResult || !emailResult.success) {
+      console.error(`[RESEND VERIFICATION EMAIL FAILED] Could not send OTP to ${email}:`, emailResult?.error || "Unknown error");
       return NextResponse.json(
         {
           success: false,
           error: "Failed to dispatch verification code via email. Please check your connection and try again.",
+          providerError: emailResult?.error,
           cooldown: 60,
         },
         { status: 502 }
