@@ -100,10 +100,39 @@ export default function MobileDetailPage({
     fetchProduct();
   }, [resolvedParams.id]);
 
-  if (loading || !product || !selectedColor || !selectedStorage) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center text-foreground font-medium">
-        Loading flagship details...
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center text-foreground font-medium gap-3">
+        <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+        <span className="text-xs text-muted">Loading flagship details...</span>
+      </div>
+    );
+  }
+
+  if (!product || !selectedColor || !selectedStorage) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center text-foreground p-6 text-center">
+        <div className="w-14 h-14 rounded-2xl bg-tile border border-border flex items-center justify-center text-accent mb-4">
+          <AlertCircle className="w-7 h-7" />
+        </div>
+        <h2 className="text-xl font-bold tracking-tight mb-2">Smartphone Not Found</h2>
+        <p className="text-xs text-muted max-w-md mb-6">
+          We couldn&apos;t load the requested device details. The product may have been relocated or updated.
+        </p>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/"
+            className="px-5 py-2.5 rounded-full bg-accent text-accent-foreground text-xs font-semibold hover:opacity-90 transition shadow-xs"
+          >
+            Browse All Phones
+          </Link>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-5 py-2.5 rounded-full border border-border bg-card text-foreground text-xs font-medium hover:bg-tile transition"
+          >
+            Try Again
+          </button>
+        </div>
       </div>
     );
   }

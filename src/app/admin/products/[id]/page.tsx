@@ -108,10 +108,31 @@ export default function AdminEditProductPage() {
     }
   };
 
-  if (loading || !formData) {
+  if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center p-8">
-        <p className="text-muted text-sm">Loading product details...</p>
+      <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
+        <div className="w-8 h-8 border-2 border-[#C9A66B] border-t-transparent rounded-full animate-spin mb-3" />
+        <p className="text-muted text-xs">Loading product details...</p>
+      </div>
+    );
+  }
+
+  if (!formData) {
+    return (
+      <div className="flex-1 max-w-md mx-auto my-12 p-8 bg-card border border-border rounded-2xl text-center space-y-4">
+        <div className="w-12 h-12 mx-auto rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center">
+          <AlertCircle className="w-6 h-6" />
+        </div>
+        <h2 className="text-base font-bold text-foreground">Failed to Load Product</h2>
+        <p className="text-xs text-muted">
+          {statusMessage?.text || "The requested product could not be found or failed to load."}
+        </p>
+        <Link
+          href="/admin/products"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-tile hover:bg-tile/80 text-foreground rounded-xl text-xs font-medium border border-border transition"
+        >
+          <ArrowLeft className="w-4 h-4" /> Back to Products
+        </Link>
       </div>
     );
   }

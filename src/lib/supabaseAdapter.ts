@@ -1,10 +1,14 @@
 /**
  * Production Supabase Database Adapter for VN Mobiles
- * Provides a drop-in Prisma-compatible interface backed directly by Supabase PostgREST via @supabase/supabase-js.
- * Eliminates local SQLite filesystem locks and connection limits for Vercel Serverless deployments.
+ * Provides a drop-in database client interface backed directly by Supabase PostgREST via @supabase/supabase-js.
+ *
+ * Rules:
+ * 1. Public reads (MobileProduct, ProductVariant, SiteSetting, Review, mobiles) use the public anon client (`supabase`).
+ * 2. Orders, users, admin actions, and any write operations use the service-role client (`supabaseAdmin`) on the server.
+ * 3. All PostgREST errors are explicitly inspected and logged with message, code, hint, and details.
  */
 
-import { supabaseAdmin, isSupabaseConfigured } from "./supabase";
+import { supabase, supabaseAdmin } from "./supabase";
 import crypto from "crypto";
 
 // Known date column names to deserialize back to real Date instances
@@ -27,7 +31,39 @@ const DATE_COLUMNS = new Set([
   "sentAt",
 ]);
 
-function deserializeRow(row: any): any {
+function logSupabaseError(tableName: string, operation: string, error: any): void {
+  if (!error) return;
+  console.error(
+    `[Supabase ${tableName}.${operation} ERROR] ` +
+    `Code: ${error.code || "UNKNOWN"} | ` +
+    `Message: ${error.message || "Unknown database error"} | ` +
+    `Hint: ${error.hint || "None"} | ` +
+    `Details: ${error.details || "None"}`
+  );
+}
+
+function mapColumnToDb(tableName: string, col: string): string {
+  if (tableName === "mobiles") {
+    if (col === "imageUrl") return "image_url";
+    if (col === "displaySize") return "display_size";
+    if (col === "operatingSystem") return "operating_system";
+    if (col === "createdAt") return "created_at";
+  }
+  return col;
+}
+
+function mapRowFromDb(tableName: string, row: any): any {
+  if (!row || typeof row !== "object") return row;
+  if (tableName === "mobiles") {
+    if ("image_url" in row && !("imageUrl" in row)) row.imageUrl = row.image_url;
+    if ("display_size" in row && !("displaySize" in row)) row.displaySize = row.display_size;
+    if ("operating_system" in row && !("operatingSystem" in row)) row.operatingSystem = row.operating_system;
+    if ("created_at" in row && !("createdAt" in row)) row.createdAt = row.created_at;
+  }
+  return row;
+}
+
+function deserializeRow(row: any, tableName?: string): any {
   if (!row || typeof row !== "object") return row;
   const result: any = Array.isArray(row) ? [] : {};
   for (const [key, value] of Object.entries(row)) {
@@ -42,7 +78,7 @@ function deserializeRow(row: any): any {
       result[key] = value;
     }
   }
-  return result;
+  return tableName ? mapRowFromDb(tableName, result) : result;
 }
 
 function serializeValue(val: any): any {
@@ -52,26 +88,27 @@ function serializeValue(val: any): any {
   return val;
 }
 
-function applyWhere(query: any, where?: Record<string, any>): any {
+function applyWhere(query: any, where: Record<string, any> | undefined, tableName: string): any {
   if (!where || typeof where !== "object") return query;
 
-  for (const [col, val] of Object.entries(where)) {
+  for (const [rawCol, val] of Object.entries(where)) {
     if (val === undefined) continue;
 
     // Handle compound unique index for Wishlist: { userId_productId: { userId, productId } }
-    if (col === "userId_productId" && typeof val === "object" && val !== null) {
+    if (rawCol === "userId_productId" && typeof val === "object" && val !== null) {
       if (val.userId) query = query.eq("userId", val.userId);
       if (val.productId) query = query.eq("productId", val.productId);
       continue;
     }
 
     // Handle OR filters: where: { OR: [ { a: 1 }, { b: 2 } ] }
-    if (col === "OR" && Array.isArray(val)) {
+    if (rawCol === "OR" && Array.isArray(val)) {
       const orClauses: string[] = [];
       for (const condition of val) {
         if (!condition || typeof condition !== "object") continue;
-        for (const [cCol, cVal] of Object.entries(condition)) {
+        for (const [cRawCol, cVal] of Object.entries(condition)) {
           if (cVal === undefined) continue;
+          const cCol = mapColumnToDb(tableName, cRawCol);
           if (cVal === null) {
             orClauses.push(`${cCol}.is.null`);
           } else if (typeof cVal === "object" && "contains" in cVal) {
@@ -88,6 +125,8 @@ function applyWhere(query: any, where?: Record<string, any>): any {
       }
       continue;
     }
+
+    const col = mapColumnToDb(tableName, rawCol);
 
     if (val === null) {
       query = query.is(col, null);
@@ -132,13 +171,14 @@ function applyWhere(query: any, where?: Record<string, any>): any {
   return query;
 }
 
-function applyOrderBy(query: any, orderBy?: any): any {
+function applyOrderBy(query: any, orderBy: any, tableName: string): any {
   if (!orderBy) return query;
   const orders = Array.isArray(orderBy) ? orderBy : [orderBy];
   for (const order of orders) {
     if (!order || typeof order !== "object") continue;
     for (const [col, dir] of Object.entries(order)) {
-      query = query.order(col, { ascending: (dir as string).toLowerCase() === "asc" });
+      const dbCol = mapColumnToDb(tableName, col);
+      query = query.order(dbCol, { ascending: (dir as string).toLowerCase() === "asc" });
     }
   }
   return query;
@@ -156,8 +196,21 @@ interface QueryOptions {
 export class SupabaseModelDelegate {
   constructor(
     public readonly tableName: string,
-    public readonly modelName: string
+    public readonly modelName: string,
+    public readonly isPublicReadModel: boolean = false
   ) {}
+
+  /**
+   * Selects the appropriate Supabase client:
+   * - Public reads on storefront models use the public anon client (`supabase`)
+   * - All writes, admin actions, orders, users and warranties use `supabaseAdmin`
+   */
+  private getClient(isWrite: boolean = false) {
+    if (isWrite || !this.isPublicReadModel) {
+      return supabaseAdmin;
+    }
+    return supabase;
+  }
 
   private cleanData(data: Record<string, any>): Record<string, any> {
     const clean: Record<string, any> = {};
@@ -175,11 +228,11 @@ export class SupabaseModelDelegate {
 
       // Handle increment/decrement: { retryCount: { increment: 1 } }
       if (typeof val === "object" && val !== null && "increment" in val) {
-        // Will be resolved in update method
         continue;
       }
 
-      clean[key] = serializeValue(val);
+      const dbKey = mapColumnToDb(this.tableName, key);
+      clean[dbKey] = serializeValue(val);
     }
     return clean;
   }
@@ -192,12 +245,14 @@ export class SupabaseModelDelegate {
       const orderIds = records.map((r) => r.id).filter(Boolean);
 
       if (include.items && orderIds.length > 0) {
-        const { data: items } = await supabaseAdmin
+        const { data: items, error: itemsErr } = await supabaseAdmin
           .from("OrderItem")
           .select("*")
           .in("orderId", orderIds);
+        if (itemsErr) logSupabaseError("OrderItem", "attachRelations(items)", itemsErr);
+
         const itemMap = new Map<string, any[]>();
-        for (const item of (items || []).map(deserializeRow)) {
+        for (const item of (items || []).map((r) => deserializeRow(r, "OrderItem"))) {
           if (!itemMap.has(item.orderId)) itemMap.set(item.orderId, []);
           itemMap.get(item.orderId)!.push(item);
         }
@@ -207,13 +262,15 @@ export class SupabaseModelDelegate {
       }
 
       if (include.statusHistory && orderIds.length > 0) {
-        const { data: histories } = await supabaseAdmin
+        const { data: histories, error: histErr } = await supabaseAdmin
           .from("OrderStatusHistory")
           .select("*")
           .in("orderId", orderIds)
           .order("createdAt", { ascending: true });
+        if (histErr) logSupabaseError("OrderStatusHistory", "attachRelations(statusHistory)", histErr);
+
         const histMap = new Map<string, any[]>();
-        for (const h of (histories || []).map(deserializeRow)) {
+        for (const h of (histories || []).map((r) => deserializeRow(r, "OrderStatusHistory"))) {
           if (!histMap.has(h.orderId)) histMap.set(h.orderId, []);
           histMap.get(h.orderId)!.push(h);
         }
@@ -225,9 +282,14 @@ export class SupabaseModelDelegate {
       if (include.user) {
         const userIds = records.map((r) => r.userId).filter(Boolean);
         if (userIds.length > 0) {
-          const { data: users } = await supabaseAdmin.from("User").select("*").in("id", userIds);
+          const { data: users, error: userErr } = await supabaseAdmin
+            .from("User")
+            .select("*")
+            .in("id", userIds);
+          if (userErr) logSupabaseError("User", "attachRelations(user)", userErr);
+
           const userMap = new Map<string, any>();
-          for (const u of (users || []).map(deserializeRow)) {
+          for (const u of (users || []).map((r) => deserializeRow(r, "User"))) {
             userMap.set(u.id, u);
           }
           for (const rec of records) {
@@ -237,17 +299,19 @@ export class SupabaseModelDelegate {
       }
     }
 
-    // Attach relations for MobileProduct
+    // Attach relations for MobileProduct (public read models use anon client)
     if (this.modelName === "mobileProduct") {
       const productIds = records.map((r) => r.id).filter(Boolean);
 
       if (include.variants && productIds.length > 0) {
-        const { data: variants } = await supabaseAdmin
+        const { data: variants, error: varErr } = await supabase
           .from("ProductVariant")
           .select("*")
           .in("productId", productIds);
+        if (varErr) logSupabaseError("ProductVariant", "attachRelations(variants)", varErr);
+
         const varMap = new Map<string, any[]>();
-        for (const v of (variants || []).map(deserializeRow)) {
+        for (const v of (variants || []).map((r) => deserializeRow(r, "ProductVariant"))) {
           if (!varMap.has(v.productId)) varMap.set(v.productId, []);
           varMap.get(v.productId)!.push(v);
         }
@@ -257,12 +321,14 @@ export class SupabaseModelDelegate {
       }
 
       if (include.reviews && productIds.length > 0) {
-        const { data: reviews } = await supabaseAdmin
+        const { data: reviews, error: revErr } = await supabase
           .from("Review")
           .select("*")
           .in("productId", productIds);
+        if (revErr) logSupabaseError("Review", "attachRelations(reviews)", revErr);
+
         const revMap = new Map<string, any[]>();
-        for (const r of (reviews || []).map(deserializeRow)) {
+        for (const r of (reviews || []).map((row) => deserializeRow(row, "Review"))) {
           if (!revMap.has(r.productId)) revMap.set(r.productId, []);
           revMap.get(r.productId)!.push(r);
         }
@@ -277,9 +343,14 @@ export class SupabaseModelDelegate {
       if (include.order) {
         const orderIds = records.map((r) => r.orderId).filter(Boolean);
         if (orderIds.length > 0) {
-          const { data: orders } = await supabaseAdmin.from("Order").select("*").in("id", orderIds);
+          const { data: orders, error: ordErr } = await supabaseAdmin
+            .from("Order")
+            .select("*")
+            .in("id", orderIds);
+          if (ordErr) logSupabaseError("Order", "attachRelations(order)", ordErr);
+
           const orderMap = new Map<string, any>();
-          for (const o of (orders || []).map(deserializeRow)) {
+          for (const o of (orders || []).map((r) => deserializeRow(r, "Order"))) {
             orderMap.set(o.id, o);
           }
           for (const rec of records) {
@@ -302,12 +373,14 @@ export class SupabaseModelDelegate {
               selectCols = keys.join(",");
             }
           }
-          const { data: orders } = await supabaseAdmin
+          const { data: orders, error: ordErr } = await supabaseAdmin
             .from("Order")
             .select(selectCols)
             .in("id", orderIds);
+          if (ordErr) logSupabaseError("Order", "attachRelations(emailOrder)", ordErr);
+
           const orderMap = new Map<string, any>();
-          for (const o of (orders || []).map(deserializeRow)) {
+          for (const o of (orders || []).map((r) => deserializeRow(r, "Order"))) {
             orderMap.set(o.id, o);
           }
           for (const rec of records) {
@@ -322,12 +395,14 @@ export class SupabaseModelDelegate {
       if (include.product) {
         const productIds = records.map((r) => r.productId).filter(Boolean);
         if (productIds.length > 0) {
-          const { data: products } = await supabaseAdmin
+          const { data: products, error: prodErr } = await supabase
             .from("MobileProduct")
             .select("*")
             .in("id", productIds);
+          if (prodErr) logSupabaseError("MobileProduct", "attachRelations(wishlistProduct)", prodErr);
+
           const prodMap = new Map<string, any>();
-          for (const p of (products || []).map(deserializeRow)) {
+          for (const p of (products || []).map((r) => deserializeRow(r, "MobileProduct"))) {
             prodMap.set(p.id, p);
           }
           for (const rec of records) {
@@ -342,12 +417,14 @@ export class SupabaseModelDelegate {
       if (include.orders) {
         const userIds = records.map((r) => r.id).filter(Boolean);
         if (userIds.length > 0) {
-          const { data: orders } = await supabaseAdmin
+          const { data: orders, error: ordErr } = await supabaseAdmin
             .from("Order")
             .select("id, userId")
             .in("userId", userIds);
+          if (ordErr) logSupabaseError("Order", "attachRelations(userOrders)", ordErr);
+
           const orderMap = new Map<string, any[]>();
-          for (const o of (orders || []).map(deserializeRow)) {
+          for (const o of (orders || []).map((r) => deserializeRow(r, "Order"))) {
             if (!orderMap.has(o.userId)) orderMap.set(o.userId, []);
             orderMap.get(o.userId)!.push(o);
           }
@@ -362,9 +439,10 @@ export class SupabaseModelDelegate {
   }
 
   async findMany(options?: QueryOptions): Promise<any[]> {
-    let query = supabaseAdmin.from(this.tableName).select("*");
-    query = applyWhere(query, options?.where);
-    query = applyOrderBy(query, options?.orderBy);
+    const client = this.getClient(false);
+    let query = client.from(this.tableName).select("*");
+    query = applyWhere(query, options?.where, this.tableName);
+    query = applyOrderBy(query, options?.orderBy, this.tableName);
 
     if (options?.skip !== undefined && options?.take !== undefined) {
       query = query.range(options.skip, options.skip + options.take - 1);
@@ -374,11 +452,11 @@ export class SupabaseModelDelegate {
 
     const { data, error } = await query;
     if (error) {
-      console.error(`[Supabase ${this.tableName}.findMany Error]:`, error);
-      throw error;
+      logSupabaseError(this.tableName, "findMany", error);
+      throw new Error(`Database error in ${this.tableName}.findMany: ${error.message} (${error.code})`);
     }
 
-    const records = (data || []).map(deserializeRow);
+    const records = (data || []).map((r) => deserializeRow(r, this.tableName));
     return this.attachRelations(records, options?.include);
   }
 
@@ -387,31 +465,33 @@ export class SupabaseModelDelegate {
   }
 
   async findFirst(options?: QueryOptions): Promise<any | null> {
-    let query = supabaseAdmin.from(this.tableName).select("*");
-    query = applyWhere(query, options?.where);
-    query = applyOrderBy(query, options?.orderBy);
+    const client = this.getClient(false);
+    let query = client.from(this.tableName).select("*");
+    query = applyWhere(query, options?.where, this.tableName);
+    query = applyOrderBy(query, options?.orderBy, this.tableName);
     query = query.limit(1);
 
     const { data, error } = await query;
     if (error) {
-      console.error(`[Supabase ${this.tableName}.findFirst Error]:`, error);
-      throw error;
+      logSupabaseError(this.tableName, "findFirst", error);
+      throw new Error(`Database error in ${this.tableName}.findFirst: ${error.message} (${error.code})`);
     }
 
     if (!data || data.length === 0) return null;
-    const records = [deserializeRow(data[0])];
+    const records = [deserializeRow(data[0], this.tableName)];
     const withRelations = await this.attachRelations(records, options?.include);
     return withRelations[0] || null;
   }
 
   async count(options?: { where?: Record<string, any> }): Promise<number> {
-    let query = supabaseAdmin.from(this.tableName).select("*", { count: "exact", head: true });
-    query = applyWhere(query, options?.where);
+    const client = this.getClient(false);
+    let query = client.from(this.tableName).select("*", { count: "exact", head: true });
+    query = applyWhere(query, options?.where, this.tableName);
 
     const { count, error } = await query;
     if (error) {
-      console.error(`[Supabase ${this.tableName}.count Error]:`, error);
-      throw error;
+      logSupabaseError(this.tableName, "count", error);
+      throw new Error(`Database error in ${this.tableName}.count: ${error.message} (${error.code})`);
     }
     return count || 0;
   }
@@ -421,6 +501,7 @@ export class SupabaseModelDelegate {
     include?: Record<string, any>;
     select?: Record<string, any>;
   }): Promise<any> {
+    const client = this.getClient(true); // Always uses service role for write
     const rawData = options.data || {};
     const insertData = this.cleanData(rawData);
 
@@ -436,18 +517,18 @@ export class SupabaseModelDelegate {
       }
     }
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await client
       .from(this.tableName)
       .insert(insertData)
       .select()
       .single();
 
     if (error) {
-      console.error(`[Supabase ${this.tableName}.create Error]:`, error);
-      throw error;
+      logSupabaseError(this.tableName, "create", error);
+      throw new Error(`Database error in ${this.tableName}.create: ${error.message} (${error.code})`);
     }
 
-    const createdRecord = deserializeRow(data);
+    const createdRecord = deserializeRow(data, this.tableName);
 
     // Handle nested Order items and statusHistory creation
     if (this.modelName === "order") {
@@ -469,11 +550,12 @@ export class SupabaseModelDelegate {
           createdAt: new Date().toISOString(),
         }));
         if (itemsToInsert.length > 0) {
-          const { data: insertedItems } = await supabaseAdmin
+          const { data: insertedItems, error: itemsErr } = await supabaseAdmin
             .from("OrderItem")
             .insert(itemsToInsert)
             .select();
-          createdRecord.items = (insertedItems || []).map(deserializeRow);
+          if (itemsErr) logSupabaseError("OrderItem", "create(items)", itemsErr);
+          createdRecord.items = (insertedItems || []).map((r) => deserializeRow(r, "OrderItem"));
         }
       }
 
@@ -488,11 +570,12 @@ export class SupabaseModelDelegate {
           createdAt: new Date().toISOString(),
         }));
         if (historiesToInsert.length > 0) {
-          const { data: insertedHistories } = await supabaseAdmin
+          const { data: insertedHistories, error: histErr } = await supabaseAdmin
             .from("OrderStatusHistory")
             .insert(historiesToInsert)
             .select();
-          createdRecord.statusHistory = (insertedHistories || []).map(deserializeRow);
+          if (histErr) logSupabaseError("OrderStatusHistory", "create(statusHistory)", histErr);
+          createdRecord.statusHistory = (insertedHistories || []).map((r) => deserializeRow(r, "OrderStatusHistory"));
         }
       }
     }
@@ -508,6 +591,7 @@ export class SupabaseModelDelegate {
     include?: Record<string, any>;
     select?: Record<string, any>;
   }): Promise<any> {
+    const client = this.getClient(true); // Always uses service role for write
     const rawData = options.data || {};
     const updateData = this.cleanData(rawData);
 
@@ -516,20 +600,21 @@ export class SupabaseModelDelegate {
       if (typeof val === "object" && val !== null && "increment" in val) {
         const current = await this.findFirst({ where: options.where });
         const currentNum = current && typeof current[key] === "number" ? current[key] : 0;
-        updateData[key] = currentNum + ((val as any).increment || 1);
+        const dbKey = mapColumnToDb(this.tableName, key);
+        updateData[dbKey] = currentNum + ((val as any).increment || 1);
       }
     }
 
-    let query = supabaseAdmin.from(this.tableName).update(updateData);
-    query = applyWhere(query, options.where);
+    let query = client.from(this.tableName).update(updateData);
+    query = applyWhere(query, options.where, this.tableName);
     const { data, error } = await query.select();
 
     if (error) {
-      console.error(`[Supabase ${this.tableName}.update Error]:`, error);
-      throw error;
+      logSupabaseError(this.tableName, "update", error);
+      throw new Error(`Database error in ${this.tableName}.update: ${error.message} (${error.code})`);
     }
 
-    const updatedRecord = (data && data.length > 0) ? deserializeRow(data[0]) : null;
+    const updatedRecord = (data && data.length > 0) ? deserializeRow(data[0], this.tableName) : null;
 
     // Handle nested Order statusHistory creation during update
     if (this.modelName === "order" && rawData.statusHistory?.create && Array.isArray(rawData.statusHistory.create) && updatedRecord) {
@@ -543,7 +628,8 @@ export class SupabaseModelDelegate {
         createdAt: new Date().toISOString(),
       }));
       if (historiesToInsert.length > 0) {
-        await supabaseAdmin.from("OrderStatusHistory").insert(historiesToInsert);
+        const { error: histErr } = await supabaseAdmin.from("OrderStatusHistory").insert(historiesToInsert);
+        if (histErr) logSupabaseError("OrderStatusHistory", "update(statusHistory)", histErr);
       }
     }
 
@@ -556,38 +642,41 @@ export class SupabaseModelDelegate {
     where?: Record<string, any>;
     data: Record<string, any>;
   }): Promise<{ count: number }> {
+    const client = this.getClient(true); // Always uses service role for write
     const updateData = this.cleanData(options.data || {});
-    let query = supabaseAdmin.from(this.tableName).update(updateData);
-    query = applyWhere(query, options.where);
+    let query = client.from(this.tableName).update(updateData);
+    query = applyWhere(query, options.where, this.tableName);
     const { data, error } = await query.select();
 
     if (error) {
-      console.error(`[Supabase ${this.tableName}.updateMany Error]:`, error);
-      throw error;
+      logSupabaseError(this.tableName, "updateMany", error);
+      throw new Error(`Database error in ${this.tableName}.updateMany: ${error.message} (${error.code})`);
     }
     return { count: data?.length || 0 };
   }
 
   async delete(options: { where: Record<string, any> }): Promise<any> {
-    let query = supabaseAdmin.from(this.tableName).delete();
-    query = applyWhere(query, options.where);
+    const client = this.getClient(true); // Always uses service role for write
+    let query = client.from(this.tableName).delete();
+    query = applyWhere(query, options.where, this.tableName);
     const { data, error } = await query.select();
 
     if (error) {
-      console.error(`[Supabase ${this.tableName}.delete Error]:`, error);
-      throw error;
+      logSupabaseError(this.tableName, "delete", error);
+      throw new Error(`Database error in ${this.tableName}.delete: ${error.message} (${error.code})`);
     }
-    return data && data.length > 0 ? deserializeRow(data[0]) : { success: true };
+    return data && data.length > 0 ? deserializeRow(data[0], this.tableName) : { success: true };
   }
 
   async deleteMany(options?: { where?: Record<string, any> }): Promise<{ count: number }> {
-    let query = supabaseAdmin.from(this.tableName).delete();
-    query = applyWhere(query, options?.where);
+    const client = this.getClient(true); // Always uses service role for write
+    let query = client.from(this.tableName).delete();
+    query = applyWhere(query, options?.where, this.tableName);
     const { data, error } = await query.select();
 
     if (error) {
-      console.error(`[Supabase ${this.tableName}.deleteMany Error]:`, error);
-      throw error;
+      logSupabaseError(this.tableName, "deleteMany", error);
+      throw new Error(`Database error in ${this.tableName}.deleteMany: ${error.message} (${error.code})`);
     }
     return { count: data?.length || 0 };
   }
@@ -625,24 +714,25 @@ export interface SupabaseDatabaseClient {
 
 /**
  * Creates the complete database client interface backed directly by Supabase.
+ * - Public reads on storefront tables (MobileProduct, ProductVariant, SiteSetting, Review, mobiles) use anon client
+ * - Writes and private tables use service-role client on the server
  */
 export function createSupabasePrismaClient(): SupabaseDatabaseClient {
   const client: SupabaseDatabaseClient = {
-    user: new SupabaseModelDelegate("User", "user"),
-    mobileProduct: new SupabaseModelDelegate("MobileProduct", "mobileProduct"),
-    productVariant: new SupabaseModelDelegate("ProductVariant", "productVariant"),
-    order: new SupabaseModelDelegate("Order", "order"),
-    orderItem: new SupabaseModelDelegate("OrderItem", "orderItem"),
-    orderStatusHistory: new SupabaseModelDelegate("OrderStatusHistory", "orderStatusHistory"),
-    warranty: new SupabaseModelDelegate("Warranty", "warranty"),
-    emailNotification: new SupabaseModelDelegate("EmailNotification", "emailNotification"),
-    wishlist: new SupabaseModelDelegate("Wishlist", "wishlist"),
-    review: new SupabaseModelDelegate("Review", "review"),
-    siteSetting: new SupabaseModelDelegate("SiteSetting", "siteSetting"),
-    invitation: new SupabaseModelDelegate("invitations", "invitation"),
-    mobile: new SupabaseModelDelegate("mobiles", "mobile"),
+    user: new SupabaseModelDelegate("User", "user", false),
+    mobileProduct: new SupabaseModelDelegate("MobileProduct", "mobileProduct", true),
+    productVariant: new SupabaseModelDelegate("ProductVariant", "productVariant", true),
+    order: new SupabaseModelDelegate("Order", "order", false),
+    orderItem: new SupabaseModelDelegate("OrderItem", "orderItem", false),
+    orderStatusHistory: new SupabaseModelDelegate("OrderStatusHistory", "orderStatusHistory", false),
+    warranty: new SupabaseModelDelegate("Warranty", "warranty", false),
+    emailNotification: new SupabaseModelDelegate("EmailNotification", "emailNotification", false),
+    wishlist: new SupabaseModelDelegate("Wishlist", "wishlist", false),
+    review: new SupabaseModelDelegate("Review", "review", true),
+    siteSetting: new SupabaseModelDelegate("SiteSetting", "siteSetting", true),
+    invitation: new SupabaseModelDelegate("invitations", "invitation", false),
+    mobile: new SupabaseModelDelegate("mobiles", "mobile", true),
 
-    // Transaction implementation: invokes callback passing client proxy
     async $transaction(arg: any) {
       if (typeof arg === "function") {
         return arg(client);
@@ -656,4 +746,3 @@ export function createSupabasePrismaClient(): SupabaseDatabaseClient {
 
   return client;
 }
-
