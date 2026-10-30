@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sendOrderConfirmationEmail, sendWarrantyActivationEmail } from "@/lib/email";
+import { sendOrderConfirmationEmail } from "@/lib/email";
+import { sendWarrantyEmail } from "@/lib/mailer";
 import { getAuthenticatedUser } from "@/lib/auth";
 import { logSecurityEvent, getClientIp } from "@/lib/securityLogger";
+
+export const runtime = "nodejs";
+export const maxDuration = 30;
 
 export async function GET(request: Request) {
   try {
@@ -267,9 +271,12 @@ export async function POST(request: Request) {
 
       // 5c. Register Mobile Product Warranties
       const warranties = [];
-      for (const orderItem of newOrder.items) {
+      for (let i = 0; i < newOrder.items.length; i++) {
+        const orderItem = newOrder.items[i];
+        const warrantyNumber = `WRT-${newOrder.orderNumber}-${i + 1}`;
         const warranty = await tx.warranty.create({
           data: {
+            warrantyNumber,
             orderId: newOrder.id,
             orderItemId: orderItem.id,
             userId: validUserId,
@@ -278,10 +285,11 @@ export async function POST(request: Request) {
             productName: orderItem.productName,
             imeiNumber: orderItem.imeiNumber,
             purchaseDate: now,
-            warrantyDuration: `${Math.round(orderItem.warrantyMonths / 12)} Year`,
+            warrantyDuration: `${Math.round((orderItem.warrantyMonths || 12) / 12)} Year`,
             warrantyStartDate: now,
             warrantyExpiryDate: orderItem.warrantyExpiryDate,
             warrantyStatus: "ACTIVE",
+            emailSent: false,
           },
         });
         warranties.push(warranty);
@@ -301,29 +309,7 @@ export async function POST(request: Request) {
       },
     });
 
-    // 6. Asynchronous Non-blocking Email Delivery for Warranties
-    for (const warranty of createdWarranties) {
-      try {
-        await sendWarrantyActivationEmail({
-          id: warranty.id,
-          orderId: order.id,
-          orderNumber: order.orderNumber,
-          userId: validUserId,
-          customerName: customerName.trim(),
-          customerEmail: cleanCustomerEmail,
-          productName: warranty.productName,
-          imeiNumber: warranty.imeiNumber,
-          purchaseDate: now,
-          warrantyDuration: warranty.warrantyDuration,
-          warrantyStartDate: now,
-          warrantyExpiryDate: warranty.warrantyExpiryDate,
-        });
-      } catch (wErr) {
-        console.error("Error creating mobile warranty notification:", wErr);
-      }
-    }
-
-    // 8. Dispatch Order Confirmation Email via Gmail SMTP
+    // 6. Dispatch Order Confirmation Email via Gmail SMTP
     let emailResult = null;
     try {
       emailResult = await sendOrderConfirmationEmail({
@@ -357,12 +343,26 @@ export async function POST(request: Request) {
       console.error("[EMAIL NOTIFICATION WARNING] Could not send confirmation email:", mailErr);
     }
 
+    // 7. Dispatch Separate Warranty Email via Gmail SMTP (Strictly awaited, non-blocking)
+    let warrantyEmailResult = null;
+    try {
+      warrantyEmailResult = await sendWarrantyEmail(
+        order,
+        order.items || [],
+        createdWarranties || [],
+        request
+      );
+    } catch (wMailErr) {
+      console.error("[WARRANTY EMAIL WARNING] Could not send warranty certificate email:", wMailErr);
+    }
+
     return NextResponse.json({
       success: true,
       order,
       warranties: createdWarranties,
       emailStatus: emailResult?.status || "LOGGED",
-      message: `Order ${order.orderNumber} placed successfully! Confirmation email dispatched to ${cleanCustomerEmail}.`,
+      warrantyEmailStatus: warrantyEmailResult?.status || "LOGGED",
+      message: `Order ${order.orderNumber} placed successfully! Confirmation and warranty emails dispatched to ${cleanCustomerEmail}.`,
     });
   } catch (error) {
     console.error("Failed to create order:", error);

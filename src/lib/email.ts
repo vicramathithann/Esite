@@ -2795,3 +2795,8 @@ export async function sendAccountDeletionConfirmationEmail(user: {
     html,
   });
 }
+
+// Re-export sendWarrantyEmail from modern mailer module
+export { sendWarrantyEmail } from "./mailer";
+export type { WarrantyEmailResult } from "./mailer";
+

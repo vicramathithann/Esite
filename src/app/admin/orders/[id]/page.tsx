@@ -11,6 +11,7 @@ import {
   MapPin,
   Mail,
   Save,
+  ShieldCheck,
 } from "lucide-react";
 import { formatINR, formatDateOnly } from "@/lib/formatters";
 import { normalizeAdminOrderStatus } from "@/lib/orderStatus";
@@ -35,6 +36,16 @@ export default function AdminSingleOrderPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [resendingEmail, setResendingEmail] = useState(false);
+  const [resendingWarranty, setResendingWarranty] = useState(false);
+  const [warrantyCooldown, setWarrantyCooldown] = useState(0);
+
+  useEffect(() => {
+    if (warrantyCooldown <= 0) return;
+    const interval = setInterval(() => {
+      setWarrantyCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [warrantyCooldown]);
 
   const [formStatus, setFormStatus] = useState("Order Confirmed");
   const [formCarrier, setFormCarrier] = useState("BlueDart Express");
@@ -121,6 +132,32 @@ export default function AdminSingleOrderPage() {
     }
   };
 
+  const handleResendWarranty = async () => {
+    if (!order || warrantyCooldown > 0) return;
+    setResendingWarranty(true);
+    try {
+      const res = await fetch(`/api/orders/${order.id}/resend-warranty`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`Warranty details email resent to ${order.customerEmail}!`);
+        setWarrantyCooldown(60);
+        await loadOrder();
+      } else {
+        if (data.cooldownSeconds) {
+          setWarrantyCooldown(data.cooldownSeconds);
+        }
+        alert(data.error || "Failed to resend warranty email.");
+      }
+    } catch {
+      alert("Error contacting server.");
+    } finally {
+      setResendingWarranty(false);
+    }
+  };
+
   if (loading || !order) {
     return (
       <div className="flex-1 flex items-center justify-center p-8">
@@ -139,14 +176,25 @@ export default function AdminSingleOrderPage() {
             <ArrowLeft className="w-4 h-4" /> Back to Orders List
           </Link>
 
-          <button
-            onClick={handleResendEmail}
-            disabled={resendingEmail}
-            className="px-3 py-1.5 bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 text-[#8C6226] dark:text-[#E5CBA2] rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
-          >
-            <Mail className={`w-3.5 h-3.5 text-[#8C6226] dark:text-[#E5CBA2] ${resendingEmail ? "animate-spin" : ""}`} />
-            Resend Confirmation Email
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleResendEmail}
+              disabled={resendingEmail}
+              className="px-3 py-1.5 bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 hover:bg-[#C9A66B]/20 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 text-[#8C6226] dark:text-[#E5CBA2] rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+            >
+              <Mail className={`w-3.5 h-3.5 text-[#8C6226] dark:text-[#E5CBA2] ${resendingEmail ? "animate-spin" : ""}`} />
+              Resend Confirmation
+            </button>
+
+            <button
+              onClick={handleResendWarranty}
+              disabled={resendingWarranty || warrantyCooldown > 0}
+              className="px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+            >
+              <ShieldCheck className={`w-3.5 h-3.5 ${resendingWarranty ? "animate-spin" : ""}`} />
+              {warrantyCooldown > 0 ? `Resend Warranty (${warrantyCooldown}s)` : "Resend Warranty"}
+            </button>
+          </div>
         </div>
 
         {/* Order Header */}

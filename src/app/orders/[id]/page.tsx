@@ -31,6 +31,16 @@ export default function SingleOrderDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [resendingWarranty, setResendingWarranty] = useState(false);
+  const [warrantyCooldown, setWarrantyCooldown] = useState(0);
+
+  useEffect(() => {
+    if (warrantyCooldown <= 0) return;
+    const interval = setInterval(() => {
+      setWarrantyCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [warrantyCooldown]);
 
   useEffect(() => {
     if (!orderId) return;
@@ -108,6 +118,31 @@ export default function SingleOrderDetailsPage() {
       alert("Error cancelling order.");
     } finally {
       setCancelling(false);
+    }
+  };
+
+  const handleResendWarranty = async () => {
+    if (!order || warrantyCooldown > 0) return;
+    setResendingWarranty(true);
+    try {
+      const res = await fetch(`/api/orders/${order.id}/resend-warranty`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`Warranty details email resent to ${order.customerEmail}!`);
+        setWarrantyCooldown(60);
+      } else {
+        if (data.cooldownSeconds) {
+          setWarrantyCooldown(data.cooldownSeconds);
+        }
+        alert(data.error || "Failed to resend warranty email.");
+      }
+    } catch {
+      alert("Error contacting server. Please try again later.");
+    } finally {
+      setResendingWarranty(false);
     }
   };
 
@@ -316,12 +351,27 @@ export default function SingleOrderDetailsPage() {
         {/* Warranties & Device Shield Section */}
         {order.warranties && order.warranties.length > 0 && (
           <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
-            <h2 className="text-base font-bold text-foreground mb-4 flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-emerald-500" /> Device Shield Warranty Protection
-            </h2>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+              <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-emerald-500" /> Device Shield Warranty Protection
+              </h2>
+
+              {!isCancelled && (
+                <button
+                  onClick={handleResendWarranty}
+                  disabled={resendingWarranty || warrantyCooldown > 0}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 rounded-xl text-xs font-semibold transition-all cursor-pointer disabled:opacity-50 self-start sm:self-auto"
+                >
+                  <ShieldCheck className={`w-3.5 h-3.5 ${resendingWarranty ? "animate-spin" : ""}`} />
+                  {warrantyCooldown > 0 ? `Resend Certificate (${warrantyCooldown}s)` : "Resend Certificate Email"}
+                </button>
+              )}
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {order.warranties.map((w: any) => {
+              {order.warranties.map((w: any, idx: number) => {
                 const isWarrantyCancelled = isCancelled || w.warrantyStatus === "CANCELLED";
+                const displayWarrantyNum = w.warrantyNumber || `WRT-${order.orderNumber}-${idx + 1}`;
                 return (
                   <div
                     key={w.id}
@@ -341,7 +391,10 @@ export default function SingleOrderDetailsPage() {
                         {isWarrantyCancelled ? "CANCELLED" : w.warrantyStatus}
                       </span>
                     </div>
-                    <p className="text-xs font-mono text-muted">IMEI: {w.imeiNumber}</p>
+                    <div className="flex items-center justify-between text-xs font-mono text-muted">
+                      <span>IMEI: {w.imeiNumber}</span>
+                      <span className="text-[#8C6226] dark:text-[#E5CBA2] font-semibold">{displayWarrantyNum}</span>
+                    </div>
                     {isWarrantyCancelled ? (
                       <div className="text-xs text-red-500 pt-1 border-t border-red-500/15 font-medium">
                         Warranty coverage voided due to order cancellation

@@ -27,6 +27,7 @@ const DATE_COLUMNS = new Set([
   "purchaseDate",
   "warrantyStartDate",
   "warrantyExpiryDate",
+  "warrantyEmailSentAt",
   "expiresAt",
   "sentAt",
   "usedAt",
@@ -297,6 +298,41 @@ export class SupabaseModelDelegate {
           for (const rec of records) {
             rec.user = userMap.get(rec.userId) || null;
           }
+        }
+      }
+
+      if (include.warranties && orderIds.length > 0) {
+        const { data: warranties, error: warErr } = await supabaseAdmin
+          .from("Warranty")
+          .select("*")
+          .in("orderId", orderIds);
+        if (warErr) logSupabaseError("Warranty", "attachRelations(warranties)", warErr);
+
+        const warMap = new Map<string, any[]>();
+        for (const w of (warranties || []).map((r) => deserializeRow(r, "Warranty"))) {
+          if (!warMap.has(w.orderId)) warMap.set(w.orderId, []);
+          warMap.get(w.orderId)!.push(w);
+        }
+        for (const rec of records) {
+          rec.warranties = warMap.get(rec.id) || [];
+        }
+      }
+
+      if (include.emailNotifications && orderIds.length > 0) {
+        const { data: notifications, error: notifErr } = await supabaseAdmin
+          .from("EmailNotification")
+          .select("*")
+          .in("orderId", orderIds)
+          .order("createdAt", { ascending: false });
+        if (notifErr) logSupabaseError("EmailNotification", "attachRelations(emailNotifications)", notifErr);
+
+        const notifMap = new Map<string, any[]>();
+        for (const n of (notifications || []).map((r) => deserializeRow(r, "EmailNotification"))) {
+          if (!notifMap.has(n.orderId)) notifMap.set(n.orderId, []);
+          notifMap.get(n.orderId)!.push(n);
+        }
+        for (const rec of records) {
+          rec.emailNotifications = notifMap.get(rec.id) || [];
         }
       }
     }

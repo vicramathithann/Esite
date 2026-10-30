@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendOrderStatusEmail, sendOrderConfirmationEmail } from "@/lib/email";
+import { sendWarrantyEmail } from "@/lib/mailer";
 import { getAuthenticatedUser, requireAuth, requireAdmin } from "@/lib/auth";
 import { isOrderCancelled } from "@/lib/orderStatus";
+
+export const runtime = "nodejs";
+export const maxDuration = 30;
 
 export async function GET(
   request: Request,
@@ -122,6 +126,88 @@ export async function PATCH(
       return NextResponse.json({
         success: true,
         message: `Order confirmation email resent to ${existingOrder.customerEmail}.`,
+        emailStatus: emailRes.status,
+      });
+    }
+
+    // Action 2: Resend warranty certificate email (with 60-second cooldown)
+    if (body.action === "RESEND_WARRANTY" || body.resendWarranty) {
+      const recentWarrantyEmail = await prisma.emailNotification.findFirst({
+        where: {
+          orderId: existingOrder.id,
+          emailType: "WARRANTY",
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      const lastSentAt =
+        recentWarrantyEmail?.sentAt ||
+        recentWarrantyEmail?.createdAt ||
+        (existingOrder as any).warrantyEmailSentAt;
+
+      if (lastSentAt) {
+        const elapsedMs = Date.now() - new Date(lastSentAt).getTime();
+        const COOLDOWN_MS = 60 * 1000;
+        if (elapsedMs < COOLDOWN_MS) {
+          const remainingSeconds = Math.ceil((COOLDOWN_MS - elapsedMs) / 1000);
+          return NextResponse.json(
+            {
+              success: false,
+              error: `Please wait ${remainingSeconds}s before resending the warranty certificate.`,
+              cooldownSeconds: remainingSeconds,
+            },
+            { status: 429 }
+          );
+        }
+      }
+
+      let warranties = (existingOrder as any).warranties || [];
+      if (warranties.length === 0) {
+        warranties = await prisma.warranty.findMany({ where: { orderId: existingOrder.id } });
+      }
+
+      // If legacy order without warranty rows, generate them on the fly
+      if (warranties.length === 0 && existingOrder.items && existingOrder.items.length > 0) {
+        for (let i = 0; i < existingOrder.items.length; i++) {
+          const item = existingOrder.items[i];
+          const wNum = `WRT-${existingOrder.orderNumber}-${i + 1}`;
+          try {
+            const w = await prisma.warranty.create({
+              data: {
+                warrantyNumber: wNum,
+                orderId: existingOrder.id,
+                orderItemId: item.id,
+                userId: existingOrder.userId || authUser.id,
+                customerName: existingOrder.customerName,
+                customerEmail: existingOrder.customerEmail,
+                productName: item.productName,
+                imeiNumber: item.imeiNumber || `86${Math.floor(1000000000000 + Math.random() * 9000000000000)}`,
+                purchaseDate: existingOrder.createdAt || new Date(),
+                warrantyDuration: `${Math.round((item.warrantyMonths || 12) / 12)} Year`,
+                warrantyStartDate: item.warrantyStartDate || existingOrder.createdAt || new Date(),
+                warrantyExpiryDate: item.warrantyExpiryDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+                warrantyStatus: "ACTIVE",
+                emailSent: false,
+              },
+            });
+            warranties.push(w);
+          } catch {}
+        }
+      }
+
+      const emailRes = await sendWarrantyEmail(
+        existingOrder,
+        existingOrder.items || [],
+        warranties,
+        request,
+        { forceResend: true }
+      );
+
+      return NextResponse.json({
+        success: emailRes.success,
+        message: emailRes.success
+          ? `Warranty details email resent to ${existingOrder.customerEmail}.`
+          : emailRes.error || "Failed to send warranty email.",
         emailStatus: emailRes.status,
       });
     }
