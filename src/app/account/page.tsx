@@ -247,15 +247,7 @@ export default function AccountPage() {
         <Link href="/" className="text-[#007185] hover:underline">Storefront</Link>
         <ChevronRight className="w-3 h-3 text-gray-400" />
         <span className="text-gray-900 font-medium">Customer Account & Orders</span>
-        {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+      </div>
 
       <div className="max-w-6xl mx-auto px-4 space-y-6">
         {/* User Profile Hero Banner */}
@@ -264,15 +256,7 @@ export default function AccountPage() {
             <div className="flex items-start sm:items-center gap-4">
               <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-[#febd69] to-[#f3a847] text-[#131921] flex items-center justify-center text-2xl font-black shadow-md shrink-0">
                 {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "U"}
-                {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+              </div>
               <div className="space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="text-2xl font-bold text-white tracking-tight">{currentUser.name}</h1>
@@ -286,15 +270,7 @@ export default function AccountPage() {
                   <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
                     {currentUser.role === "ADMIN" ? "👑 Administrator" : "✓ Verified Customer"}
                   </span>
-                  {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                </div>
                 <div className="text-xs text-gray-300 flex flex-wrap items-center gap-x-4 gap-y-1">
                   <span className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 text-[#febd69] shrink-0" /> {currentUser.email}</span>
                   <span className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 text-[#febd69] shrink-0" /> {currentUser.phone}</span>
@@ -311,33 +287,9 @@ export default function AccountPage() {
                       </button>
                     )}
                   </span>
-                  {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
-                {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
-              {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                </div>
+              </div>
+            </div>
 
             <div className="flex flex-wrap items-center gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-white/10">
               <button
@@ -371,44 +323,8 @@ export default function AccountPage() {
                 <LogOut className="w-3.5 h-3.5" />
                 <span>Sign Out</span>
               </button>
-              {currentUser.role !== "ADMIN" && (
-                <button
-                  onClick={() => setIsDeleteModalOpen(true)}
-                  className="px-3 py-1.5 bg-red-600/30 hover:bg-red-600/45 active:bg-red-600/60 text-red-100 border border-red-400/40 text-xs font-semibold rounded-md flex items-center gap-1 cursor-pointer transition-colors"
-                  title="Delete My Account"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Delete Account</span>
-                </button>
-              )}
-              {currentUser.role !== "ADMIN" && (
-                <button
-                  onClick={() => setIsDeleteModalOpen(true)}
-                  className="px-3 py-1.5 bg-red-600/30 hover:bg-red-600/45 active:bg-red-600/60 text-red-100 border border-red-400/40 text-xs font-semibold rounded-md flex items-center gap-1 cursor-pointer transition-colors"
-                  title="Delete My Account"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Delete Account</span>
-                </button>
-              )}
-              {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
-            {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+            </div>
+          </div>
         ) : (
           <div className="bg-white p-5 rounded-lg border border-gray-300 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -416,39 +332,15 @@ export default function AccountPage() {
               <div>
                 <h2 className="font-bold text-sm text-[#0f1111]">You are browsing as Guest</h2>
                 <p className="text-xs text-gray-500">Sign in to view your orders, tracked packages, and warranty shields.</p>
-                {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
-              {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+              </div>
+            </div>
             <Link
               href="/login?redirect=/account"
               className="px-4 py-2 btn-amazon-yellow text-xs font-bold rounded-md"
             >
               Sign In to Your Account
             </Link>
-            {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+          </div>
         )}
 
         {/* Title & Refresh row */}
@@ -460,15 +352,7 @@ export default function AccountPage() {
             <p className="text-xs text-gray-500">
               Registered IMEIs, 1-Year Device Shield warranty, and shipment tracking
             </p>
-            {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+          </div>
 
           <div className="flex items-center gap-2">
             <button
@@ -478,24 +362,8 @@ export default function AccountPage() {
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
               <span>Refresh</span>
             </button>
-            {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
-          {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+          </div>
+        </div>
 
         {/* Amazon Tabs */}
         {(() => {
@@ -540,15 +408,7 @@ export default function AccountPage() {
                 >
                   Full Order History ({orders.length})
                 </button>
-                {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+              </div>
 
               {/* Feature Banner */}
               <div className="bg-[#fef8f2] border border-[#fbd8b4] rounded-sm p-4 mb-6 text-xs text-[#703800] flex items-center justify-between gap-3">
@@ -557,39 +417,15 @@ export default function AccountPage() {
                   <span>
                     <strong>VN Mobiles Automated Warranty Protection:</strong> You will receive automated email alerts 6 months and 1 day before your hardware warranty expires.
                   </span>
-                  {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
-                {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                </div>
+              </div>
 
               {/* Orders List */}
               {loading && orders.length === 0 ? (
                 <div className="py-20 text-center text-gray-600">
                   <div className="w-8 h-8 border-3 border-[#e77600] border-t-transparent rounded-full animate-spin mx-auto mb-2" />
                   <p className="text-xs">Loading your orders...</p>
-                  {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                </div>
               ) : filteredOrders.length === 0 ? (
                 <div className="bg-white border border-gray-200 rounded-sm p-12 text-center text-gray-600 space-y-3">
                   <Smartphone className="w-12 h-12 mx-auto text-gray-400" />
@@ -612,15 +448,7 @@ export default function AccountPage() {
                       Start Shopping
                     </Link>
                   )}
-                  {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                </div>
               ) : (
                 <div className="space-y-6">
                   {filteredOrders.map((order) => {
@@ -635,74 +463,26 @@ export default function AccountPage() {
                           <div>
                             <span className="block text-[10px] uppercase font-semibold text-gray-500">Order Placed</span>
                             <span className="font-medium text-[#0f1111]">{formatDateOnly(order.createdAt)}</span>
-                            {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                          </div>
                           <div>
                             <span className="block text-[10px] uppercase font-semibold text-gray-500">Total</span>
-                            <span className="font-bold text-[#0f1111]">₹{order.totalAmount.toLocaleString("en-IN")}</span>
-                            {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                            <span className="font-bold text-[#0f1111]">Γé╣{order.totalAmount.toLocaleString("en-IN")}</span>
+                          </div>
                           <div>
                             <span className="block text-[10px] uppercase font-semibold text-gray-500">Ship To</span>
                             <span className="text-[#007185] hover:underline cursor-pointer">{order.customerName}</span>
-                            {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                          </div>
                           <div>
                             <span className="block text-[10px] uppercase font-semibold text-gray-500">Verified Mobile</span>
                             <span className="font-mono text-emerald-700 font-bold">{order.customerPhone}</span>
-                            {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
-                          {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                          </div>
+                        </div>
 
                         <div className="text-right flex flex-col items-end gap-1.5">
                           <div>
                             <span className="block text-[10px] uppercase font-semibold text-gray-500">Order # {order.orderNumber}</span>
                             <span className="text-[#007185] hover:underline cursor-pointer text-xs">View invoice</span>
-                            {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                          </div>
                           <div className="flex items-center gap-1.5">
                             {!orderIsCancelled && (
                               <Link
@@ -731,81 +511,25 @@ export default function AccountPage() {
                                 <span>Cancel Order</span>
                               </button>
                             ) : null}
-                            {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
-                          {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
-                        {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                          </div>
+                        </div>
+                      </div>
 
                       {/* Cancelled Order Banner */}
                       {orderIsCancelled && (
                         <div className="bg-red-50 border-b border-red-200 px-5 py-3 text-xs text-red-900 flex items-start gap-2.5">
                           <div className="p-1 rounded bg-red-600 text-white shrink-0 mt-0.5">
                             <X className="w-3.5 h-3.5" />
-                            {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                          </div>
                           <div>
                             <div className="font-bold text-red-700 text-sm">
                               ORDER CANCELLED & REFUND PROCESSED
-                              {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                            </div>
                             <p className="mt-0.5 text-red-800 leading-relaxed font-sans">
-                              Your order for <strong className="text-gray-900">{order.items?.map((i: any) => i.productName).filter(Boolean).join(", ") || "Smartphone"}</strong> has been cancelled and the amount of <strong className="text-red-700">₹{order.totalAmount?.toLocaleString("en-IN")}</strong> will be refunded to your original payment method.
+                              Your order for <strong className="text-gray-900">{order.items?.map((i: any) => i.productName).filter(Boolean).join(", ") || "Smartphone"}</strong> has been cancelled and the amount of <strong className="text-red-700">Γé╣{order.totalAmount?.toLocaleString("en-IN")}</strong> will be refunded to your original payment method.
                             </p>
-                            {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
-                          {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                          </div>
+                        </div>
                       )}
 
                 {/* Admin / Support Alteration Alert Banner */}
@@ -822,76 +546,28 @@ export default function AccountPage() {
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#febd69] text-[#131921]">
                           Status: {order.orderStatus?.replace(/_/g, " ")}
                         </span>
-                        {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                      </div>
 
                       {order.shippingCarrier && order.trackingNumber && (
                         <div className="flex items-center gap-1.5 font-mono text-xs bg-white px-2.5 py-1 rounded border border-amber-200">
                           <Truck className="w-3.5 h-3.5 text-[#007185]" />
                           <span><strong>{order.shippingCarrier}</strong> AWB: <strong>{order.trackingNumber}</strong></span>
-                          {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                        </div>
                       )}
-                      {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                    </div>
 
                     {order.adminNotes && (
                       <div className="mt-2 text-xs text-gray-800 bg-white/80 p-2 rounded border border-amber-200/60 leading-relaxed font-sans">
-                        <strong className="text-[#0f1111] block mb-0.5">🔔 Latest Update from Support Desk:</strong>
+                        <strong className="text-[#0f1111] block mb-0.5">≡ƒöö Latest Update from Support Desk:</strong>
                         <span>{order.adminNotes.split("|").pop()?.trim()}</span>
-                        {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                      </div>
                     )}
 
                     <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-gray-600 pt-1.5 border-t border-amber-200/50">
-                      <span>📍 Delivery Destination: <strong>{order.address}, {order.city}, {order.state} - {order.pincode}</strong></span>
-                      <span className="text-gray-500 font-medium">🛡️ Protected by VN Shield Warranty</span>
-                      {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
-                    {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                      <span>≡ƒôì Delivery Destination: <strong>{order.address}, {order.city}, {order.state} - {order.pincode}</strong></span>
+                      <span className="text-gray-500 font-medium">≡ƒ¢í∩╕Å Protected by VN Shield Warranty</span>
+                    </div>
+                  </div>
                 )}
 
                 {/* Items in Order */}
@@ -908,87 +584,31 @@ export default function AccountPage() {
                           <div className="lg:col-span-5 flex gap-4">
                             <div className="relative w-20 h-20 bg-white border border-gray-200 p-1 shrink-0 rounded-sm">
                               <Image src={item.productImageUrl} alt={item.productName} fill unoptimized className="object-contain" />
-                              {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                            </div>
                             <div className="space-y-1 text-xs">
                               <h4 className="font-bold text-sm text-[#007185] hover:underline cursor-pointer leading-snug">
                                 {item.productName}
                               </h4>
-                              <p className="text-gray-500">{item.selectedStorage} • {item.selectedColor}</p>
+                              <p className="text-gray-500">{item.selectedStorage} ΓÇó {item.selectedColor}</p>
                               <div className="font-mono text-xs text-gray-700 bg-gray-50 px-2 py-0.5 border border-gray-200 inline-block font-semibold">
                                 Registered IMEI: <strong className="text-[#0f1111]">{item.imeiNumber}</strong>
-                                {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                              </div>
                               <div className="text-gray-500 text-[11px] pt-1">
                                 Return window closed on {formatDateOnly(new Date(new Date(item.warrantyStartDate).getTime() + 15 * 86400000))}
-                                {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
-                              {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
-                            {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                              </div>
+                            </div>
+                          </div>
 
                           {orderIsCancelled || item.warrantyStatus === "CANCELLED" ? (
                             <div className="lg:col-span-7 bg-red-50 border border-red-200 p-3.5 rounded-sm space-y-1 text-xs">
                               <div className="flex items-center gap-1.5 font-bold text-red-700">
                                 <X className="w-4 h-4" />
                                 <span>Warranty Cancelled (Order Cancelled)</span>
-                                {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                              </div>
                               <p className="text-[11px] text-red-600 leading-relaxed">
                                 This device was part of order #{order.orderNumber} which was cancelled. Warranty coverage is cancelled and void.
                               </p>
-                              {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                            </div>
                           ) : (
                             /* Warranty Status & Details (7 cols) - Clean normal view without test controls */
                             <div className="lg:col-span-7 bg-gray-50 border border-gray-200 p-3.5 rounded-sm space-y-2 text-xs">
@@ -998,28 +618,12 @@ export default function AccountPage() {
                                   Device Shield Warranty
                                 </span>
                                 {getStatusBadge(item.warrantyStatus, daysLeft)}
-                                {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                              </div>
 
                               <div className="flex justify-between text-gray-600 font-mono text-[11px]">
                                 <span>Valid until:</span>
                                 <strong className="text-gray-900">{formatDateOnly(item.warrantyExpiryDate)}</strong>
-                                {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                              </div>
 
                               {/* Progress bar */}
                               <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
@@ -1032,15 +636,7 @@ export default function AccountPage() {
                                       : "bg-[#007600] w-1/4"
                                   }`}
                                 />
-                                {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                              </div>
 
                               <p className="text-[11px] text-gray-500 leading-tight">
                                 {isExpired
@@ -1049,65 +645,17 @@ export default function AccountPage() {
                                   ? "⚠️ Warranty is expiring soon. Reminder email dispatched to buyer."
                                   : "Active coverage. Automated warranty alert emails sent 6 months & 1 day before expiry."}
                               </p>
-                              {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                            </div>
                           )}
-                          {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
-                        {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                        </div>
+                      </div>
                     );
                   })}
-                  {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
-                {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                </div>
+              </div>
             );
           })}
-          {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+        </div>
       )}
             </>
           );
@@ -1128,6 +676,7 @@ export default function AccountPage() {
               <button
                 onClick={() => setIsDeleteModalOpen(true)}
                 className="px-4 py-2 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-xs font-bold rounded-md shrink-0 flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-xs"
+                title="Delete Customer Account"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>Delete Account</span>
@@ -1135,62 +684,7 @@ export default function AccountPage() {
             </div>
           </div>
         )}
-
-        {/* Danger Zone: Delete Account */}
-        {currentUser && currentUser.role !== "ADMIN" && (
-          <div className="bg-white rounded-lg border border-red-200 p-5 shadow-xs">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="space-y-1">
-                <h3 className="text-sm font-bold text-red-700 flex items-center gap-1.5">
-                  <Trash2 className="w-4 h-4 text-red-600" /> Danger Zone: Delete Customer Account
-                </h3>
-                <p className="text-xs text-gray-600 max-w-xl leading-relaxed">
-                  Permanently remove your personal profile, credentials, and saved wishlist. Historical order and warranty data will be preserved in an anonymized format to fulfill legal, tax, and warranty obligations.
-                </p>
-                {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
-              <button
-                onClick={() => setIsDeleteModalOpen(true)}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-xs font-bold rounded-md shrink-0 flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-xs"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Delete Account</span>
-              </button>
-              {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
-            {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
-        )}
-        {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+      </div>
 
       {/* Cancellation Confirmation Modal */}
       {cancelModalOrder && (
@@ -1201,49 +695,25 @@ export default function AccountPage() {
               <div className="flex items-center gap-2 font-bold text-sm">
                 <X className="w-5 h-5 bg-white/20 p-0.5 rounded-full" />
                 <span>Cancel Order #{cancelModalOrder.orderNumber}</span>
-                {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+              </div>
               <button
                 onClick={() => setCancelModalOrder(null)}
                 className="text-white/80 hover:text-white p-1 rounded hover:bg-white/10 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
-              {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+            </div>
 
             {/* Modal Body */}
             <div className="p-5 space-y-4 text-xs text-gray-700">
               <div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-900 leading-relaxed">
-                <p className="font-bold mb-1">⚠️ Please confirm order cancellation:</p>
+                <p className="font-bold mb-1">ΓÜá∩╕Å Please confirm order cancellation:</p>
                 <p>
                   Once cancelled, your order will be stopped immediately. A full refund of{" "}
-                  <strong className="text-red-700">₹{cancelModalOrder.totalAmount?.toLocaleString("en-IN")}</strong>{" "}
+                  <strong className="text-red-700">Γé╣{cancelModalOrder.totalAmount?.toLocaleString("en-IN")}</strong>{" "}
                   will be credited back, and reserved phone inventory will be returned to stock.
                 </p>
-                {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+              </div>
 
               {/* Items Summary */}
               <div className="border border-gray-200 rounded-md p-3 bg-gray-50 space-y-2">
@@ -1251,28 +721,12 @@ export default function AccountPage() {
                 {cancelModalOrder.items?.map((it: any) => (
                   <div key={it.id} className="flex justify-between items-center text-xs">
                     <span className="truncate pr-2 font-medium text-gray-900">
-                      {it.productName} ({it.selectedStorage || "Default"} • {it.selectedColor || "Standard"}) × {it.quantity || 1}
+                      {it.productName} ({it.selectedStorage || "Default"} ΓÇó {it.selectedColor || "Standard"}) ├ù {it.quantity || 1}
                     </span>
-                    <span className="font-bold text-gray-900 shrink-0">₹{it.price?.toLocaleString("en-IN")}</span>
-                    {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                    <span className="font-bold text-gray-900 shrink-0">Γé╣{it.price?.toLocaleString("en-IN")}</span>
+                  </div>
                 ))}
-                {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+              </div>
 
               {/* Cancellation Reason Selection */}
               <div>
@@ -1292,36 +746,12 @@ export default function AccountPage() {
                   <option value="Incorrect phone model / color / storage selected">Incorrect phone model / color / storage selected</option>
                   <option value="Other reason">Other reason</option>
                 </select>
-                {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+              </div>
 
               <div className="text-[11px] text-gray-500 leading-tight">
-                ℹ️ An instant cancellation confirmation email will be dispatched to <strong>{cancelModalOrder.customerEmail || cancelModalOrder.email}</strong>.
-                {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
-              {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                Γä╣∩╕Å An instant cancellation confirmation email will be dispatched to <strong>{cancelModalOrder.customerEmail || cancelModalOrder.email}</strong>.
+              </div>
+            </div>
 
             {/* Modal Footer */}
             <div className="bg-gray-50 px-5 py-3 border-t border-gray-200 flex items-center justify-end gap-2.5">
@@ -1351,33 +781,9 @@ export default function AccountPage() {
                   </>
                 )}
               </button>
-              {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
-            {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
-          {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Edit Profile Modal */}
@@ -1396,36 +802,12 @@ export default function AccountPage() {
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-full bg-[#febd69] text-[#131921] flex items-center justify-center font-bold">
                   <Pencil className="w-4 h-4" />
-                  {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                </div>
                 <div>
                   <h3 className="font-bold text-sm text-white leading-tight">Edit Profile Details</h3>
                   <p className="text-[11px] text-gray-300">Update your name, email, phone number & delivery address</p>
-                  {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
-                {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={() => !editSaving && setIsEditProfileOpen(false)}
@@ -1434,15 +816,7 @@ export default function AccountPage() {
               >
                 <X className="w-5 h-5" />
               </button>
-              {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+            </div>
 
             {/* Modal Form */}
             <form onSubmit={handleSaveProfile} className="p-5 space-y-4 text-xs">
@@ -1451,29 +825,13 @@ export default function AccountPage() {
                 <div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-700 flex items-start gap-2 animate-fade-in">
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-600" />
                   <span className="leading-tight">{editError}</span>
-                  {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                </div>
               )}
               {editSuccess && (
                 <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-md text-emerald-800 flex items-center gap-2 animate-fade-in font-medium">
                   <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
                   <span>{editSuccess}</span>
-                  {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                </div>
               )}
 
               {/* Name Field */}
@@ -1491,24 +849,8 @@ export default function AccountPage() {
                     placeholder="Enter your full name"
                     className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-md text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#C9A66B] focus:border-transparent transition-all"
                   />
-                  {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
-                {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                </div>
+              </div>
 
               {/* Email Field */}
               <div>
@@ -1526,25 +868,9 @@ export default function AccountPage() {
                     disabled={currentUser?.role === "ADMIN" && (currentUser?.email || "").toLowerCase() === "rrroyce20@gmail.com"}
                     className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-md text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#C9A66B] focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed transition-all"
                   />
-                  {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                </div>
                 <p className="text-[10px] text-gray-500 mt-1">Used for sign-in, order updates, and warranty protection certificates.</p>
-                {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+              </div>
 
               {/* Phone Field */}
               <div>
@@ -1562,25 +888,9 @@ export default function AccountPage() {
                     placeholder="10-digit mobile number"
                     className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-md text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#C9A66B] focus:border-transparent transition-all font-mono"
                   />
-                  {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                </div>
                 <p className="text-[10px] text-gray-500 mt-1">Used for delivery confirmation and courier OTP.</p>
-                {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+              </div>
 
               {/* Address Field */}
               <div>
@@ -1596,25 +906,9 @@ export default function AccountPage() {
                     placeholder="House/Flat no., Building, Street, Area, City, State, PIN code"
                     className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#C9A66B] focus:border-transparent resize-none transition-all"
                   />
-                  {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+                </div>
                 <p className="text-[10px] text-gray-500 mt-1">Saved for fast, 1-click checkout on your next smartphone purchase.</p>
-                {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+              </div>
 
               {/* Modal Footer */}
               <div className="pt-3 border-t border-gray-200 flex items-center justify-end gap-2.5">
@@ -1643,43 +937,10 @@ export default function AccountPage() {
                     </>
                   )}
                 </button>
-                {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+              </div>
             </form>
-            {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-
-      {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
-          {/* Self-Service Account Deletion Modal */}
-      {currentUser && (
-        <DeleteAccountModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          currentUser={currentUser}
-        />
-      )}
-    </div>
+          </div>
+        </div>
       )}
       {/* Self-Service Account Deletion Modal */}
       {currentUser && (
