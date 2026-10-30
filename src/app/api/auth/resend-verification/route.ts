@@ -5,6 +5,9 @@ import { generateSecureOtp, hashOtp, ADMIN_EMAIL } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/rateLimit";
 import crypto from "crypto";
 
+export const dynamic = "force-dynamic";
+export const maxDuration = 30;
+
 export async function POST(request: Request) {
   try {
     const rateLimitError = enforceRateLimit(request, {
@@ -96,17 +99,33 @@ export async function POST(request: Request) {
           otp
         );
       }
-    } catch (emailErr) {
-      console.error("[EMAIL DISPATCH ERROR] Could not send verification email:", emailErr);
+    } catch (emailErr: any) {
+      console.error("[RESEND VERIFICATION EMAIL DISPATCH EXCEPTION] Exact Nodemailer error object:", {
+        message: emailErr?.message,
+        code: emailErr?.code,
+        response: emailErr?.response,
+        responseCode: emailErr?.responseCode,
+        command: emailErr?.command,
+        stack: emailErr?.stack,
+        fullError: emailErr,
+      });
     }
 
     if (!emailResult || !emailResult.success) {
-      console.error(`[RESEND VERIFICATION EMAIL FAILED] Could not send OTP to ${email}:`, emailResult?.error || "Unknown error");
+      console.error(`[RESEND VERIFICATION EMAIL FAILED] Nodemailer dispatch failed for ${email}:`, {
+        error: emailResult?.error,
+        rawError: emailResult?.rawError,
+        statusCode: emailResult?.statusCode,
+        status: emailResult?.status,
+        message: emailResult?.message,
+      });
+
       return NextResponse.json(
         {
           success: false,
           error: "Failed to dispatch verification code via email. Please check your connection and try again.",
           providerError: emailResult?.error,
+          providerCode: emailResult?.rawError?.code,
           cooldown: 60,
         },
         { status: 502 }

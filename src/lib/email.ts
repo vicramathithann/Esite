@@ -40,12 +40,42 @@ export interface EmailSendResult {
   message: string;
   notificationId?: string;
   error?: string;
+  rawError?: any;
+}
+
+/**
+ * Retrieves and sanitizes Gmail SMTP credentials from environment variables.
+ * Handles:
+ * - Stripping any wrapping quotes (e.g., "value" or 'value') that may be added in Vercel UI
+ * - Stripping all spaces from 16-character Google App Passwords ("xxxx xxxx xxxx xxxx" -> "xxxxxxxxxxxxxxxx")
+ * - Supporting common aliases (GMAIL_USER / GMAIL_EMAIL, GMAIL_APP_PASSWORD / GMAIL_PASSWORD)
+ */
+export function getGmailCredentials(): { user: string; pass: string } {
+  const user = (
+    process.env.GMAIL_USER ||
+    process.env.GMAIL_EMAIL ||
+    process.env.EMAIL_USER ||
+    ""
+  )
+    .replace(/^["']|["']$/g, "")
+    .trim();
+
+  const pass = (
+    process.env.GMAIL_APP_PASSWORD ||
+    process.env.GMAIL_APP_PASS ||
+    process.env.GMAIL_PASSWORD ||
+    process.env.GMAIL_PASS ||
+    ""
+  )
+    .replace(/^["']|["']$/g, "")
+    .replace(/\s+/g, "")
+    .trim();
+
+  return { user, pass };
 }
 
 export function createTransporter(): Transporter | null {
-  const user = process.env.GMAIL_USER?.trim();
-  // Strip all whitespace & spaces (Google displays App Passwords as 4 groups of 4: "abcd efgh ijkl mnop")
-  const pass = (process.env.GMAIL_APP_PASSWORD || "").replace(/\s+/g, "").trim();
+  const { user, pass } = getGmailCredentials();
 
   if (!user || !pass) {
     return null;
@@ -58,15 +88,21 @@ export function createTransporter(): Transporter | null {
     host: process.env.SMTP_HOST || "smtp.gmail.com",
     port,
     secure: isSecure,
+    family: 4,   // Force IPv4 DNS resolution to avoid serverless IPv6 connection timeouts
+    pool: false, // Serverless best practice: avoid stale persistent socket re-use
     auth: {
       user,
       pass,
     },
+    tls: {
+      rejectUnauthorized: true,
+      minVersion: "TLSv1.2",
+    },
     // Serverless timeouts: prevent hanging executions in Vercel Lambdas
-    connectionTimeout: 10000, // 10s connection timeout
-    greetingTimeout: 10000,   // 10s greeting timeout
-    socketTimeout: 15000,     // 15s socket timeout
-  });
+    connectionTimeout: 15000, // 15s connection timeout
+    greetingTimeout: 15000,   // 15s greeting timeout
+    socketTimeout: 20000,     // 20s socket timeout
+  } as any);
 }
 
 // In serverless environments, create fresh or verify connections to avoid stale socket reuse
@@ -78,9 +114,8 @@ export function getTransporter(): Transporter | null {
  * Validates the live SMTP connection with Google Mail servers without sending an email.
  * Used by the /api/email-health diagnostic endpoint.
  */
-export async function verifySmtpConnection(): Promise<{ success: boolean; message?: string; error?: string; code?: string }> {
-  const user = process.env.GMAIL_USER?.trim();
-  const pass = (process.env.GMAIL_APP_PASSWORD || "").replace(/\s+/g, "").trim();
+export async function verifySmtpConnection(): Promise<{ success: boolean; message?: string; error?: string; code?: string; rawError?: any }> {
+  const { user, pass } = getGmailCredentials();
 
   if (!user || !pass) {
     const missing: string[] = [];
@@ -90,6 +125,7 @@ export async function verifySmtpConnection(): Promise<{ success: boolean; messag
       success: false,
       error: `Missing required environment variable(s): ${missing.join(", ")}`,
       code: "MISSING_CREDENTIALS",
+      rawError: { missing },
     };
   }
 
@@ -114,11 +150,12 @@ export async function verifySmtpConnection(): Promise<{ success: boolean; messag
     const response = errObj.response || "";
     const message = err instanceof Error ? err.message : String(err);
 
-    console.error(`[SMTP VERIFY ERROR] Code: ${code} | Response: ${response} | Message: ${message}`);
+    console.error(`[SMTP VERIFY ERROR] Code: ${code} | Response: ${response} | Message: ${message}`, err);
     return {
       success: false,
       code,
       error: `[${code}] ${message}${response ? ` (${response})` : ""}`,
+      rawError: errObj,
     };
   }
 }
@@ -130,7 +167,7 @@ export async function verifySmtpConnection(): Promise<{ success: boolean; messag
 export async function sendGmailEmail(options: SendEmailOptions): Promise<EmailSendResult> {
   const cleanRecipientEmail = options.recipientEmail.trim().toLowerCase();
   const recipientName = options.recipientName.trim();
-  const userEmail = process.env.GMAIL_USER?.trim();
+  const { user: userEmail, pass: userPass } = getGmailCredentials();
 
   // 1. Create initial audit record in DB with PENDING status
   let notificationRecord: { id: string } | null = null;
@@ -166,8 +203,11 @@ export async function sendGmailEmail(options: SendEmailOptions): Promise<EmailSe
 
   // 2. Validate Gmail SMTP credentials
   const transporter = getTransporter();
-  if (!transporter || !userEmail) {
-    const errorMsg = "Gmail SMTP credentials (GMAIL_USER or GMAIL_APP_PASSWORD) are missing in environment variables.";
+  if (!transporter || !userEmail || !userPass) {
+    const missing: string[] = [];
+    if (!userEmail) missing.push("GMAIL_USER");
+    if (!userPass) missing.push("GMAIL_APP_PASSWORD");
+    const errorMsg = `Gmail SMTP credentials (${missing.join(", ")}) are missing or empty in environment variables.`;
     console.error(`[GMAIL SMTP ERROR] ${errorMsg}`);
 
     if (notificationRecord) {
@@ -186,6 +226,7 @@ export async function sendGmailEmail(options: SendEmailOptions): Promise<EmailSe
       statusCode: 500,
       message: errorMsg,
       error: errorMsg,
+      rawError: { code: "MISSING_CREDENTIALS", missing },
       notificationId: notificationRecord?.id,
     };
   }
@@ -257,7 +298,9 @@ export async function sendGmailEmail(options: SendEmailOptions): Promise<EmailSe
       `[GMAIL SMTP ERROR] Delivery failed to ${cleanRecipientEmail}:\n` +
       `  Error Code: ${errorCode}\n` +
       `  SMTP Response: ${errorResponse || "None"}\n` +
-      `  Message: ${rawErrorMessage}`
+      `  Message: ${rawErrorMessage}\n` +
+      `  Full Nodemailer Error Object:`,
+      err
     );
 
     if (notificationRecord) {
@@ -280,6 +323,13 @@ export async function sendGmailEmail(options: SendEmailOptions): Promise<EmailSe
       statusCode: 500,
       message: detailedErrorMessage,
       error: detailedErrorMessage,
+      rawError: {
+        code: errorCode,
+        message: rawErrorMessage,
+        response: errorResponse,
+        command: errObj.command,
+        responseCode: errObj.responseCode,
+      },
       notificationId: notificationRecord?.id,
     };
   }

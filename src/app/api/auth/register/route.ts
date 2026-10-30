@@ -6,6 +6,9 @@ import { enforceRateLimit } from "@/lib/rateLimit";
 import { logSecurityEvent, getClientIp } from "@/lib/securityLogger";
 import crypto from "crypto";
 
+export const dynamic = "force-dynamic";
+export const maxDuration = 30; // Extend serverless function execution budget to 30s for SMTP handshake
+
 export async function POST(request: Request) {
   try {
     const rateLimitError = enforceRateLimit(request, {
@@ -164,12 +167,27 @@ export async function POST(request: Request) {
         verificationToken,
         otp
       );
-    } catch (emailErr) {
-      console.error("[EMAIL DISPATCH ERROR] Could not send verification email:", emailErr);
+    } catch (emailErr: any) {
+      console.error("[REGISTER EMAIL DISPATCH EXCEPTION] Exact Nodemailer error object:", {
+        message: emailErr?.message,
+        code: emailErr?.code,
+        response: emailErr?.response,
+        responseCode: emailErr?.responseCode,
+        command: emailErr?.command,
+        stack: emailErr?.stack,
+        fullError: emailErr,
+      });
     }
 
     if (!emailResult || !emailResult.success) {
-      console.error(`[REGISTER EMAIL FAILED] Could not send OTP to ${cleanEmail}:`, emailResult?.error || "Unknown error");
+      console.error(`[REGISTER EMAIL FAILED] Nodemailer dispatch failed for ${cleanEmail}:`, {
+        error: emailResult?.error,
+        rawError: emailResult?.rawError,
+        statusCode: emailResult?.statusCode,
+        status: emailResult?.status,
+        message: emailResult?.message,
+      });
+
       return NextResponse.json(
         {
           success: false,
@@ -177,6 +195,7 @@ export async function POST(request: Request) {
           emailDeliveryFailed: true,
           email: cleanEmail,
           providerError: emailResult?.error,
+          providerCode: emailResult?.rawError?.code,
         },
         { status: 502 }
       );

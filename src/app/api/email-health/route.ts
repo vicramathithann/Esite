@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { verifySmtpConnection } from "@/lib/email";
+import { verifySmtpConnection, getGmailCredentials } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 30;
 
 /**
  * Temporary diagnostic endpoint for validating email delivery readiness on Vercel Production.
@@ -15,9 +16,8 @@ export const dynamic = "force-dynamic";
  * NOTE: Delete this file or restrict access after production email delivery is verified.
  */
 export async function GET() {
+  const credentials = getGmailCredentials();
   const requiredEnvVars = [
-    "GMAIL_USER",
-    "GMAIL_APP_PASSWORD",
     "NEXT_PUBLIC_APP_URL",
     "NEXT_PUBLIC_SUPABASE_URL",
     "SUPABASE_SERVICE_ROLE_KEY",
@@ -25,6 +25,18 @@ export async function GET() {
 
   const configured: string[] = [];
   const missing: string[] = [];
+
+  if (credentials.user) {
+    configured.push("GMAIL_USER");
+  } else {
+    missing.push("GMAIL_USER");
+  }
+
+  if (credentials.pass) {
+    configured.push("GMAIL_APP_PASSWORD");
+  } else {
+    missing.push("GMAIL_APP_PASSWORD");
+  }
 
   for (const envVar of requiredEnvVars) {
     if (process.env[envVar] && process.env[envVar]!.trim().length > 0) {
@@ -43,11 +55,12 @@ export async function GET() {
     message?: string;
     error?: string;
     code?: string;
+    rawError?: any;
   } = {
     connected: false,
     host: process.env.SMTP_HOST || "smtp.gmail.com",
     port: parseInt(process.env.SMTP_PORT || "465", 10),
-    userConfigured: !!process.env.GMAIL_USER,
+    userConfigured: Boolean(credentials.user && credentials.pass),
   };
 
   try {
@@ -56,6 +69,7 @@ export async function GET() {
     smtpStatus.message = smtpCheck.message;
     smtpStatus.error = smtpCheck.error;
     smtpStatus.code = smtpCheck.code;
+    smtpStatus.rawError = smtpCheck.rawError;
   } catch (err: unknown) {
     smtpStatus.connected = false;
     smtpStatus.error = err instanceof Error ? err.message : String(err);
