@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sendUserVerificationEmail, sendAdminVerificationEmail } from "@/lib/email";
+import { sendUserVerificationEmail, sendAdminVerificationEmail, mapEmailFailureReason } from "@/lib/email";
 import { generateSecureOtp, hashOtp, ADMIN_EMAIL } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/rateLimit";
 import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 export const maxDuration = 30;
 
 export async function POST(request: Request) {
@@ -112,7 +113,12 @@ export async function POST(request: Request) {
     }
 
     if (!emailResult || !emailResult.success) {
-      console.error(`[RESEND VERIFICATION EMAIL FAILED] Nodemailer dispatch failed for ${email}:`, {
+      const providerCode = emailResult?.rawError?.code || (emailResult?.statusCode ? String(emailResult.statusCode) : undefined);
+      const providerError = emailResult?.error || emailResult?.message || "Failed to dispatch verification code via email.";
+      const reason = mapEmailFailureReason(providerCode, providerError);
+
+      console.error(`[RESEND VERIFICATION EMAIL FAILED] Reason: ${reason} | Nodemailer dispatch failed for ${email}:`, {
+        reason,
         error: emailResult?.error,
         rawError: emailResult?.rawError,
         statusCode: emailResult?.statusCode,
@@ -124,8 +130,14 @@ export async function POST(request: Request) {
         {
           success: false,
           error: "Failed to dispatch verification code via email. Please check your connection and try again.",
+          reason,
+          details: {
+            code: providerCode || "UNKNOWN",
+            message: providerError,
+            response: emailResult?.rawError?.response,
+          },
           providerError: emailResult?.error,
-          providerCode: emailResult?.rawError?.code,
+          providerCode,
           cooldown: 60,
         },
         { status: 502 }
@@ -138,10 +150,24 @@ export async function POST(request: Request) {
       message: `A new 6-digit verification code has been dispatched to ${email}.`,
       cooldown: 60,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Resend verification error:", error);
+    const isSupabase =
+      error?.code?.startsWith?.("P") ||
+      error?.message?.includes?.("supabase") ||
+      error?.message?.includes?.("database") ||
+      error?.name?.includes?.("Prisma");
+
     return NextResponse.json(
-      { success: false, error: "Failed to resend verification email." },
+      {
+        success: false,
+        error: "Failed to resend verification email.",
+        reason: isSupabase ? "SUPABASE_ERROR" : "UNKNOWN",
+        details: {
+          code: error?.code,
+          message: error?.message || String(error),
+        },
+      },
       { status: 500 }
     );
   }

@@ -51,29 +51,38 @@ export interface EmailSendResult {
  * - Supporting common aliases (GMAIL_USER / GMAIL_EMAIL, GMAIL_APP_PASSWORD / GMAIL_PASSWORD)
  */
 export function getGmailCredentials(): { user: string; pass: string } {
-  const user = (
+  const rawUser = (
     process.env.GMAIL_USER ||
     process.env.GMAIL_EMAIL ||
     process.env.EMAIL_USER ||
     ""
-  )
-    .replace(/^["']|["']$/g, "")
+  );
+  const user = rawUser
+    .trim()
+    .replace(/^["']+|["']+$/g, "")
     .trim();
 
-  const pass = (
+  const rawPass = (
     process.env.GMAIL_APP_PASSWORD ||
     process.env.GMAIL_APP_PASS ||
     process.env.GMAIL_PASSWORD ||
     process.env.GMAIL_PASS ||
     ""
-  )
-    .replace(/^["']|["']$/g, "")
+  );
+  const pass = rawPass
+    .trim()
+    .replace(/^["']+|["']+$/g, "")
     .replace(/\s+/g, "")
     .trim();
 
   return { user, pass };
 }
 
+/**
+ * Standard serverless transport configuration for Gmail SMTP via Nodemailer.
+ * Uses built-in 'service: "gmail"' preset to avoid custom TLS/port/IPv6 handshake
+ * failures on Vercel AWS Lambda infrastructure.
+ */
 export function createTransporter(): Transporter | null {
   const { user, pass } = getGmailCredentials();
 
@@ -81,28 +90,13 @@ export function createTransporter(): Transporter | null {
     return null;
   }
 
-  const port = parseInt(process.env.SMTP_PORT || "465", 10);
-  const isSecure = port === 465;
-
   return nodemailer.createTransport({
-    host: process.env.SMTP_HOST || "smtp.gmail.com",
-    port,
-    secure: isSecure,
-    family: 4,   // Force IPv4 DNS resolution to avoid serverless IPv6 connection timeouts
-    pool: false, // Serverless best practice: avoid stale persistent socket re-use
+    service: "gmail",
     auth: {
       user,
       pass,
     },
-    tls: {
-      rejectUnauthorized: true,
-      minVersion: "TLSv1.2",
-    },
-    // Serverless timeouts: prevent hanging executions in Vercel Lambdas
-    connectionTimeout: 15000, // 15s connection timeout
-    greetingTimeout: 15000,   // 15s greeting timeout
-    socketTimeout: 20000,     // 20s socket timeout
-  } as any);
+  });
 }
 
 // In serverless environments, create fresh or verify connections to avoid stale socket reuse
@@ -111,30 +105,102 @@ export function getTransporter(): Transporter | null {
 }
 
 /**
+ * Maps raw Nodemailer / Supabase error codes and descriptions into high-level failure classifications:
+ * EAUTH | ETIMEDOUT | MISSING_ENV | SUPABASE_ERROR | UNKNOWN
+ */
+export function mapEmailFailureReason(
+  code?: string,
+  errorMsg?: string
+): "EAUTH" | "ETIMEDOUT" | "MISSING_ENV" | "SUPABASE_ERROR" | "UNKNOWN" {
+  const upperCode = (code || "").toUpperCase();
+  const upperMsg = (errorMsg || "").toUpperCase();
+
+  if (
+    upperCode === "MISSING_CREDENTIALS" ||
+    upperCode === "MISSING_ENV" ||
+    upperMsg.includes("MISSING REQUIRED") ||
+    upperMsg.includes("MISSING OR EMPTY") ||
+    upperMsg.includes("GMAIL SMTP CREDENTIALS")
+  ) {
+    return "MISSING_ENV";
+  }
+
+  if (
+    upperCode === "EAUTH" ||
+    upperMsg.includes("EAUTH") ||
+    upperMsg.includes("AUTHENTICATION") ||
+    upperMsg.includes("INVALID CREDENTIALS") ||
+    upperMsg.includes("535") ||
+    upperMsg.includes("534") ||
+    upperMsg.includes("USERNAME AND PASSWORD NOT ACCEPTED")
+  ) {
+    return "EAUTH";
+  }
+
+  if (
+    upperCode === "ETIMEDOUT" ||
+    upperCode === "ESOCKET" ||
+    upperCode === "ESOCKETTIMEDOUT" ||
+    upperCode === "ECONNECTION" ||
+    upperCode === "ECONNREFUSED" ||
+    upperCode === "ECONNRESET" ||
+    upperMsg.includes("TIMEOUT") ||
+    upperMsg.includes("TIMEDOUT") ||
+    upperMsg.includes("CONNECTION TIMED OUT")
+  ) {
+    return "ETIMEDOUT";
+  }
+
+  if (
+    upperCode.startsWith("P") ||
+    upperCode.includes("SUPABASE") ||
+    upperCode.includes("PRISMA") ||
+    upperMsg.includes("SUPABASE") ||
+    upperMsg.includes("DATABASE")
+  ) {
+    return "SUPABASE_ERROR";
+  }
+
+  return "UNKNOWN";
+}
+
+/**
  * Validates the live SMTP connection with Google Mail servers without sending an email.
- * Used by the /api/email-health diagnostic endpoint.
+ * Used by diagnostic and health check endpoints.
  */
 export async function verifySmtpConnection(): Promise<{ success: boolean; message?: string; error?: string; code?: string; rawError?: any }> {
   const { user, pass } = getGmailCredentials();
+
+  const envCheck = {
+    GMAIL_USER_DEFINED: Boolean(user),
+    GMAIL_APP_PASSWORD_DEFINED: Boolean(pass),
+    GMAIL_APP_PASSWORD_LENGTH: pass ? pass.length : 0,
+    NEXT_PUBLIC_APP_URL_DEFINED: Boolean(process.env.NEXT_PUBLIC_APP_URL),
+    NEXT_PUBLIC_SUPABASE_URL_DEFINED: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
+    SUPABASE_SERVICE_ROLE_KEY_DEFINED: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+  };
 
   if (!user || !pass) {
     const missing: string[] = [];
     if (!user) missing.push("GMAIL_USER");
     if (!pass) missing.push("GMAIL_APP_PASSWORD");
+    console.error("[SMTP VERIFY ERROR] Missing credentials:", { missing, envCheck });
     return {
       success: false,
       error: `Missing required environment variable(s): ${missing.join(", ")}`,
       code: "MISSING_CREDENTIALS",
-      rawError: { missing },
+      rawError: { missing, envCheck },
     };
   }
 
   const transporter = createTransporter();
   if (!transporter) {
+    console.error("[SMTP VERIFY ERROR] Transporter init failed:", envCheck);
     return {
       success: false,
       error: "Could not initialize nodemailer transporter.",
       code: "INIT_FAILED",
+      rawError: { envCheck },
     };
   }
 
@@ -142,20 +208,36 @@ export async function verifySmtpConnection(): Promise<{ success: boolean; messag
     await transporter.verify();
     return {
       success: true,
-      message: `SMTP connection verified successfully with smtp.gmail.com as ${user}`,
+      message: `SMTP connection verified successfully with Gmail service as ${user}`,
     };
   } catch (err: unknown) {
     const errObj = (typeof err === "object" && err !== null) ? (err as Record<string, any>) : {};
     const code = errObj.code || (errObj.errno ? String(errObj.errno) : "UNKNOWN");
     const response = errObj.response || "";
+    const command = errObj.command || "";
+    const responseCode = errObj.responseCode || "";
     const message = err instanceof Error ? err.message : String(err);
 
-    console.error(`[SMTP VERIFY ERROR] Code: ${code} | Response: ${response} | Message: ${message}`, err);
+    console.error(`[SMTP VERIFY ERROR] Code: ${code} | Command: ${command} | ResponseCode: ${responseCode} | Response: ${response} | Message: ${message}`, {
+      message,
+      code,
+      command,
+      response,
+      responseCode,
+      envCheck,
+    });
     return {
       success: false,
       code,
       error: `[${code}] ${message}${response ? ` (${response})` : ""}`,
-      rawError: errObj,
+      rawError: {
+        code,
+        command,
+        responseCode,
+        response,
+        message,
+        envCheck,
+      },
     };
   }
 }
@@ -203,12 +285,22 @@ export async function sendGmailEmail(options: SendEmailOptions): Promise<EmailSe
 
   // 2. Validate Gmail SMTP credentials
   const transporter = getTransporter();
+  const envCheck = {
+    GMAIL_USER_DEFINED: Boolean(userEmail),
+    GMAIL_APP_PASSWORD_DEFINED: Boolean(userPass),
+    GMAIL_APP_PASSWORD_LENGTH: userPass ? userPass.length : 0,
+    NEXT_PUBLIC_APP_URL_DEFINED: Boolean(process.env.NEXT_PUBLIC_APP_URL),
+    NEXT_PUBLIC_SUPABASE_URL_DEFINED: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
+    SUPABASE_SERVICE_ROLE_KEY_DEFINED: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+    NODE_ENV: process.env.NODE_ENV,
+  };
+
   if (!transporter || !userEmail || !userPass) {
     const missing: string[] = [];
     if (!userEmail) missing.push("GMAIL_USER");
     if (!userPass) missing.push("GMAIL_APP_PASSWORD");
     const errorMsg = `Gmail SMTP credentials (${missing.join(", ")}) are missing or empty in environment variables.`;
-    console.error(`[GMAIL SMTP ERROR] ${errorMsg}`);
+    console.error(`[GMAIL SMTP ERROR] ${errorMsg}`, { missing, envCheck });
 
     if (notificationRecord) {
       await prisma.emailNotification.update({
@@ -226,7 +318,7 @@ export async function sendGmailEmail(options: SendEmailOptions): Promise<EmailSe
       statusCode: 500,
       message: errorMsg,
       error: errorMsg,
-      rawError: { code: "MISSING_CREDENTIALS", missing },
+      rawError: { code: "MISSING_CREDENTIALS", missing, envCheck },
       notificationId: notificationRecord?.id,
     };
   }
@@ -251,7 +343,7 @@ export async function sendGmailEmail(options: SendEmailOptions): Promise<EmailSe
       options.emailType === "WARRANTY_REMINDER_1D" ||
       options.emailType === "ORDER_STATUS"
     ) {
-      const siteUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://vnmobiles.in").replace(/\/$/, "");
+      const siteUrl = getAppUrl();
       deliverabilityHeaders["List-Unsubscribe"] = `<mailto:${replyTo}?subject=Unsubscribe-Notification>, <${siteUrl}/account/profile>`;
       deliverabilityHeaders["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click";
     }
@@ -266,7 +358,7 @@ export async function sendGmailEmail(options: SendEmailOptions): Promise<EmailSe
       headers: deliverabilityHeaders,
     };
 
-    console.log(`[GMAIL SMTP] Dispatching ${options.emailType} to ${cleanRecipientEmail} via smtp.gmail.com:465`);
+    console.log(`[GMAIL SMTP] Dispatching ${options.emailType} to ${cleanRecipientEmail} via Gmail service`);
     const info = await transporter.sendMail(mailOptions);
     console.log(`[GMAIL SMTP SUCCESS] Message sent. MessageId: ${info.messageId}`);
 
@@ -291,14 +383,19 @@ export async function sendGmailEmail(options: SendEmailOptions): Promise<EmailSe
     const errObj = (typeof err === "object" && err !== null) ? (err as Record<string, any>) : {};
     const errorCode = errObj.code || (errObj.errno ? String(errObj.errno) : "PROVIDER_ERROR");
     const errorResponse = errObj.response || "";
+    const errorCommand = errObj.command || "";
+    const errorResponseCode = errObj.responseCode || "";
     const rawErrorMessage = err instanceof Error ? err.message : "Unknown error while sending email via Gmail SMTP.";
     const detailedErrorMessage = `[${errorCode}] ${rawErrorMessage}${errorResponse ? ` (${errorResponse})` : ""}`;
 
     console.error(
       `[GMAIL SMTP ERROR] Delivery failed to ${cleanRecipientEmail}:\n` +
-      `  Error Code: ${errorCode}\n` +
-      `  SMTP Response: ${errorResponse || "None"}\n` +
       `  Message: ${rawErrorMessage}\n` +
+      `  Code: ${errorCode}\n` +
+      `  Command: ${errorCommand || "N/A"}\n` +
+      `  Response: ${errorResponse || "N/A"}\n` +
+      `  ResponseCode: ${errorResponseCode || "N/A"}\n` +
+      `  Environment Checks: ${JSON.stringify(envCheck)}\n` +
       `  Full Nodemailer Error Object:`,
       err
     );
@@ -326,9 +423,10 @@ export async function sendGmailEmail(options: SendEmailOptions): Promise<EmailSe
       rawError: {
         code: errorCode,
         message: rawErrorMessage,
+        command: errorCommand,
         response: errorResponse,
-        command: errObj.command,
-        responseCode: errObj.responseCode,
+        responseCode: errorResponseCode,
+        envCheck,
       },
       notificationId: notificationRecord?.id,
     };

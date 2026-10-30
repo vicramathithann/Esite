@@ -21,7 +21,10 @@ export function getAppUrl(request?: Request): string {
     }
   }
 
-  // 3. Vercel System Environment Variable (provided by Vercel for all production/preview deployments)
+  // 3. Vercel System Environment Variables (provided automatically by Vercel)
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`.replace(/\/$/, "");
+  }
   if (process.env.VERCEL_URL) {
     return `https://${process.env.VERCEL_URL}`.replace(/\/$/, "");
   }

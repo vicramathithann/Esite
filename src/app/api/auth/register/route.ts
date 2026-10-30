@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, generateSecureOtp, hashOtp, isValidEmail } from "@/lib/auth";
-import { sendUserVerificationEmail } from "@/lib/email";
+import { sendUserVerificationEmail, mapEmailFailureReason } from "@/lib/email";
 import { enforceRateLimit } from "@/lib/rateLimit";
 import { logSecurityEvent, getClientIp } from "@/lib/securityLogger";
 import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 export const maxDuration = 30; // Extend serverless function execution budget to 30s for SMTP handshake
 
 export async function POST(request: Request) {
@@ -180,7 +181,12 @@ export async function POST(request: Request) {
     }
 
     if (!emailResult || !emailResult.success) {
-      console.error(`[REGISTER EMAIL FAILED] Nodemailer dispatch failed for ${cleanEmail}:`, {
+      const providerCode = emailResult?.rawError?.code || (emailResult?.statusCode ? String(emailResult.statusCode) : undefined);
+      const providerError = emailResult?.error || emailResult?.message || "Email dispatch failed";
+      const reason = mapEmailFailureReason(providerCode, providerError);
+
+      console.error(`[REGISTER EMAIL FAILED] Reason: ${reason} | Nodemailer dispatch failed for ${cleanEmail}:`, {
+        reason,
         error: emailResult?.error,
         rawError: emailResult?.rawError,
         statusCode: emailResult?.statusCode,
@@ -194,8 +200,14 @@ export async function POST(request: Request) {
           error: "Your account was created, but we could not deliver the verification code to your email. Please check your email or click Resend Code.",
           emailDeliveryFailed: true,
           email: cleanEmail,
+          reason,
+          details: {
+            code: providerCode || "UNKNOWN",
+            message: providerError,
+            response: emailResult?.rawError?.response,
+          },
           providerError: emailResult?.error,
-          providerCode: emailResult?.rawError?.code,
+          providerCode,
         },
         { status: 502 }
       );
@@ -215,10 +227,24 @@ export async function POST(request: Request) {
       email: cleanEmail,
       message: `Account created! We've sent a 6-digit verification code to ${cleanEmail}. Please enter the code to complete verification.`,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Registration error:", error);
+    const isSupabase =
+      error?.code?.startsWith?.("P") ||
+      error?.message?.includes?.("supabase") ||
+      error?.message?.includes?.("database") ||
+      error?.name?.includes?.("Prisma");
+
     return NextResponse.json(
-      { success: false, error: "Failed to create account. Please try again." },
+      {
+        success: false,
+        error: "Failed to create account. Please try again.",
+        reason: isSupabase ? "SUPABASE_ERROR" : "UNKNOWN",
+        details: {
+          code: error?.code,
+          message: error?.message || String(error),
+        },
+      },
       { status: 500 }
     );
   }

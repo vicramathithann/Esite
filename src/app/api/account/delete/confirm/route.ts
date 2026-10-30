@@ -8,6 +8,8 @@ import { isOrderCancelled, isOrderDelivered } from "@/lib/orderStatus";
 import { sendAccountDeletionConfirmationEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const maxDuration = 30;
 
 const confirmBodySchema = z.object({
   otp: z

@@ -3,6 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { verifyOtp, createSessionToken, ADMIN_EMAIL } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/rateLimit";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function GET(request: Request) {
   try {
     const rateLimitError = enforceRateLimit(request, {

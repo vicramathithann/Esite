@@ -24,6 +24,7 @@ function RegisterForm() {
 
   // Email delivery failure & resend code state
   const [emailDeliveryFailed, setEmailDeliveryFailed] = useState(false);
+  const [deliveryReason, setDeliveryReason] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [resending, setResending] = useState(false);
   const [resendNotice, setResendNotice] = useState<string | null>(null);
@@ -71,8 +72,15 @@ function RegisterForm() {
         router.push(`/verify-email?email=${encodeURIComponent(formData.email.trim())}${redirectQuery}`);
       } else if (data.emailDeliveryFailed || res.status === 502) {
         setEmailDeliveryFailed(true);
+        setDeliveryReason(data.reason || null);
         setResendCooldown(60);
         setError(data.error || "Your account was created, but we could not deliver the verification code to your email. Click Resend Code below.");
+        if (data.reason || data.details) {
+          console.error("[Email Delivery Diagnostic]", {
+            reason: data.reason,
+            details: data.details,
+          });
+        }
       } else {
         setError(data.error || "Registration failed. Please check your details.");
       }
@@ -103,7 +111,14 @@ function RegisterForm() {
         setResendNotice(data.message || `A new 6-digit verification code was dispatched to ${formData.email}.`);
         setResendCooldown(data.cooldown || 60);
       } else {
+        setDeliveryReason(data.reason || null);
         setError(data.error || "Could not resend verification code. Please try again.");
+        if (data.reason || data.details) {
+          console.error("[Resend Email Diagnostic]", {
+            reason: data.reason,
+            details: data.details,
+          });
+        }
         if (data.cooldown) {
           setResendCooldown(data.cooldown);
         }
@@ -147,6 +162,11 @@ function RegisterForm() {
             <div className="flex items-start gap-2 text-amber-700 dark:text-amber-400 font-semibold">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
               <span>Verification email could not be delivered</span>
+              {deliveryReason && (
+                <span className="ml-auto px-1.5 py-0.5 font-mono text-[10px] bg-amber-500/20 text-amber-800 dark:text-amber-300 rounded">
+                  {deliveryReason}
+                </span>
+              )}
             </div>
             <p className="text-muted leading-relaxed text-[11px]">
               Your account was created for <strong className="text-foreground">{formData.email}</strong>, but our mail gateway could not reach your inbox. Check your spam folder or retry below.

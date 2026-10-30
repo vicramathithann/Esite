@@ -8,6 +8,8 @@ import { isOrderCancelled, isOrderDelivered } from "@/lib/orderStatus";
 import { sendAccountDeletionOtpEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const maxDuration = 30;
 
 const requestBodySchema = z.object({
   email: z.string().email("Invalid email format").trim().toLowerCase(),

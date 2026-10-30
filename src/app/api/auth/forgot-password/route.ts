@@ -7,6 +7,10 @@ import { enforceRateLimit } from "@/lib/rateLimit";
 import { logSecurityEvent, getClientIp } from "@/lib/securityLogger";
 import { getAppUrl } from "@/lib/appUrl";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function POST(request: Request) {
   try {
     const rateLimitError = enforceRateLimit(request, {
