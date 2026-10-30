@@ -1,14 +1,23 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { hashPassword, generateSecureOtp, hashOtp, isValidEmail } from "@/lib/auth";
-import { sendUserVerificationEmail, mapEmailFailureReason } from "@/lib/email";
-import { enforceRateLimit } from "@/lib/rateLimit";
-import { logSecurityEvent, getClientIp } from "@/lib/securityLogger";
 import crypto from "crypto";
+import { z } from "zod";
+import { prisma } from "@/lib/prisma";
+import { supabaseAdmin } from "@/lib/supabase/admin";
+import { sendOtpEmail } from "@/lib/mailer";
+import { hashPassword } from "@/lib/auth";
+import { enforceRateLimit } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-export const maxDuration = 30; // Extend serverless function execution budget to 30s for SMTP handshake
+export const maxDuration = 30;
+
+const registerSchema = z.object({
+  name: z.string().min(1, "Name is required").trim(),
+  email: z.string().email("Invalid email format").trim().toLowerCase(),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  phone: z.string().optional(),
+  confirmPassword: z.string().optional(),
+});
 
 export async function POST(request: Request) {
   try {
@@ -20,17 +29,14 @@ export async function POST(request: Request) {
     if (rateLimitError) return rateLimitError;
 
     const body = await request.json();
-    const { name, email, phone, password, confirmPassword } = body;
-
-    // 1. Validate required fields
-    if (!name || !email || !password) {
-      return NextResponse.json(
-        { success: false, error: "Please provide your name, email, and password." },
-        { status: 400 }
-      );
+    const parseResult = registerSchema.safeParse(body);
+    if (!parseResult.success) {
+      const errorMsg = parseResult.error.issues[0]?.message || "Invalid registration data";
+      return NextResponse.json({ success: false, error: errorMsg }, { status: 400 });
     }
 
-    // 2. Validate confirm password if supplied
+    const { name, email: cleanEmail, password, confirmPassword, phone } = parseResult.data;
+
     if (confirmPassword !== undefined && password !== confirmPassword) {
       return NextResponse.json(
         { success: false, error: "Passwords do not match. Please verify your confirm password." },
@@ -38,64 +44,31 @@ export async function POST(request: Request) {
       );
     }
 
-    if (password.length < 6) {
-      return NextResponse.json(
-        { success: false, error: "Password must be at least 6 characters long." },
-        { status: 400 }
-      );
-    }
-
-    // 3. Strict Email Format Validation
-    const cleanEmail = email.toLowerCase().trim();
-    if (!isValidEmail(cleanEmail)) {
-      return NextResponse.json(
-        { success: false, error: "Invalid email format. Please provide a valid email address." },
-        { status: 400 }
-      );
-    }
-
-    // 4. Check whether the email already exists
+    // 1. Check whether user already exists
     const existingUser = await prisma.user.findUnique({
       where: { email: cleanEmail },
     });
 
-    if (existingUser && existingUser.emailVerified) {
+    if (existingUser && (existingUser.emailVerified || (existingUser as any).email_verified)) {
       return NextResponse.json(
-        { success: false, error: "An account with this email already exists." },
+        { success: false, error: "An active account with this email already exists." },
         { status: 409 }
       );
     }
 
-    // Friendly phone handling: preserve existing phone if blank on retry, or generate fallback
-    const rawPhone = phone && phone.trim();
-    const cleanPhone = rawPhone || existingUser?.phone || `+91 ${Math.floor(6000000000 + Math.random() * 3999999999)}`;
-
-    // Validate phone uniqueness across other accounts
-    if (rawPhone) {
-      const phoneOwner = await prisma.user.findUnique({
-        where: { phone: rawPhone },
-        select: { id: true },
-      });
-      if (phoneOwner && (!existingUser || phoneOwner.id !== existingUser.id)) {
-        return NextResponse.json(
-          { success: false, error: "An account with this phone number already exists." },
-          { status: 409 }
-        );
-      }
-    }
-
-    // 5. Generate cryptographically secure OTP (6 digits) & expiring token
-    const otp = generateSecureOtp();
-    const otpHash = hashOtp(otp);
-    const otpExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
-    const verificationToken = crypto.randomBytes(32).toString("hex");
-    const tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    const cleanPhone = phone?.trim() || existingUser?.phone || `+91 ${Math.floor(6000000000 + Math.random() * 3999999999)}`;
     const hashedPassword = hashPassword(password);
+    const verificationToken = crypto.randomBytes(32).toString("hex");
+    const tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    // 2. Generate secure 6-digit numeric OTP and SHA-256 hash
+    const code = crypto.randomInt(100000, 1000000).toString();
+    const codeHash = crypto.createHash("sha256").update(code).digest("hex");
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 
     let user;
 
-    if (existingUser && !existingUser.emailVerified) {
-      // Unverified account: Update credentials, reset OTP attempts and issue new code
+    if (existingUser && !(existingUser.emailVerified || (existingUser as any).email_verified)) {
       user = await prisma.user.update({
         where: { id: existingUser.id },
         data: {
@@ -105,8 +78,8 @@ export async function POST(request: Request) {
           emailVerified: false,
           verificationToken,
           tokenExpires,
-          otpHash,
-          otpExpires,
+          otpHash: codeHash,
+          otpExpires: expiresAt,
           otpAttempts: 0,
           lastOtpSentAt: new Date(),
         },
@@ -117,22 +90,9 @@ export async function POST(request: Request) {
           phone: true,
           role: true,
           emailVerified: true,
-          createdAt: true,
         },
       });
     } else {
-      // New account: Check unique phone collision
-      const existingPhone = await prisma.user.findUnique({
-        where: { phone: cleanPhone },
-      });
-      if (existingPhone) {
-        return NextResponse.json(
-          { success: false, error: "An account with this phone number already exists." },
-          { status: 409 }
-        );
-      }
-
-      // Create new account with emailVerified = false
       user = await prisma.user.create({
         data: {
           name: name.trim(),
@@ -143,107 +103,95 @@ export async function POST(request: Request) {
           emailVerified: false,
           verificationToken,
           tokenExpires,
-          otpHash,
-          otpExpires,
+          otpHash: codeHash,
+          otpExpires: expiresAt,
           otpAttempts: 0,
           lastOtpSentAt: new Date(),
         },
         select: {
           id: true,
           name: true,
-          email: true,
+          email: cleanEmail,
           phone: true,
           role: true,
           emailVerified: true,
-          createdAt: true,
         },
       });
     }
 
-    // 7. Send the verification email through Gmail SMTP
-    let emailResult = null;
+    // 3. Store SHA-256 hash in dedicated email_otps table
     try {
-      emailResult = await sendUserVerificationEmail(
-        { id: user.id, name: user.name, email: user.email },
-        verificationToken,
-        otp
-      );
-    } catch (emailErr: any) {
-      console.error("[REGISTER EMAIL DISPATCH EXCEPTION] Exact Nodemailer error object:", {
-        message: emailErr?.message,
-        code: emailErr?.code,
-        response: emailErr?.response,
-        responseCode: emailErr?.responseCode,
-        command: emailErr?.command,
-        stack: emailErr?.stack,
-        fullError: emailErr,
+      // Invalidate any old unused codes for this email
+      await supabaseAdmin
+        .from("email_otps")
+        .update({ used: true })
+        .eq("email", cleanEmail)
+        .eq("used", false);
+
+      const { error: otpDbError } = await supabaseAdmin.from("email_otps").insert({
+        email: cleanEmail,
+        code_hash: codeHash,
+        expires_at: expiresAt.toISOString(),
+        attempts: 0,
+        used: false,
+      });
+
+      if (otpDbError) {
+        console.warn("[REGISTER] Notice: email_otps insert had warning:", otpDbError.message);
+      }
+    } catch (otpErr) {
+      console.warn("[REGISTER] Non-fatal: email_otps table write encountered error:", otpErr);
+    }
+
+    // 4. Send email OTP via Nodemailer
+    let emailSent = false;
+    let failureReason: "MISSING_ENV" | "EAUTH" | "ETIMEDOUT" | "SEND_FAILED" | undefined;
+
+    try {
+      await sendOtpEmail(cleanEmail, code);
+      emailSent = true;
+    } catch (mailErr: any) {
+      emailSent = false;
+      failureReason = mailErr?.reason || "SEND_FAILED";
+      console.error(`[REGISTER EMAIL FAILED] Reason: ${failureReason}`, {
+        message: mailErr?.message,
+        code: mailErr?.code,
+        response: mailErr?.response,
+        responseCode: mailErr?.responseCode,
       });
     }
 
-    if (!emailResult || !emailResult.success) {
-      const providerCode = emailResult?.rawError?.code || (emailResult?.statusCode ? String(emailResult.statusCode) : undefined);
-      const providerError = emailResult?.error || emailResult?.message || "Email dispatch failed";
-      const reason = mapEmailFailureReason(providerCode, providerError);
-
-      console.error(`[REGISTER EMAIL FAILED] Reason: ${reason} | Nodemailer dispatch failed for ${cleanEmail}:`, {
-        reason,
-        error: emailResult?.error,
-        rawError: emailResult?.rawError,
-        statusCode: emailResult?.statusCode,
-        status: emailResult?.status,
-        message: emailResult?.message,
-      });
-
+    // If email dispatch failed, still return created account with { emailSent: false, reason }
+    if (!emailSent) {
       return NextResponse.json(
         {
-          success: false,
-          error: "Your account was created, but we could not deliver the verification code to your email. Please check your email or click Resend Code.",
-          emailDeliveryFailed: true,
+          success: true,
           email: cleanEmail,
-          reason,
-          details: {
-            code: providerCode || "UNKNOWN",
-            message: providerError,
-            response: emailResult?.rawError?.response,
-          },
-          providerError: emailResult?.error,
-          providerCode,
+          user,
+          emailSent: false,
+          emailDeliveryFailed: true,
+          reason: failureReason,
+          message:
+            "Your account was created, but we could not deliver the verification code to your email. Please check your email or click Resend Code.",
         },
-        { status: 502 }
+        { status: 200 }
       );
     }
 
-    logSecurityEvent("AUTH_REGISTER_SUCCESS", "INFO", {
-      ip: getClientIp(request),
-      route: "/api/auth/register",
-      method: "POST",
-      userId: user.id,
-      email: cleanEmail,
-    });
-
-    // Never return the OTP or token in the public JSON response
     return NextResponse.json({
       success: true,
       email: cleanEmail,
-      message: `Account created! We've sent a 6-digit verification code to ${cleanEmail}. Please enter the code to complete verification.`,
+      user,
+      emailSent: true,
+      message: `Account created! We've sent a 6-digit verification code to ${cleanEmail}.`,
     });
   } catch (error: any) {
     console.error("Registration error:", error);
-    const isSupabase =
-      error?.code?.startsWith?.("P") ||
-      error?.message?.includes?.("supabase") ||
-      error?.message?.includes?.("database") ||
-      error?.name?.includes?.("Prisma");
-
     return NextResponse.json(
       {
         success: false,
         error: "Failed to create account. Please try again.",
-        reason: isSupabase ? "SUPABASE_ERROR" : "UNKNOWN",
-        details: {
-          code: error?.code,
-          message: error?.message || String(error),
-        },
+        details: error?.message || String(error),
       },
       { status: 500 }
     );

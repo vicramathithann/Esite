@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifyOtp, createSessionToken, ADMIN_EMAIL } from "@/lib/auth";
+import { createSessionToken, ADMIN_EMAIL } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/rateLimit";
+import { POST as verifyOtpHandler } from "@/app/api/auth/verify-otp/route";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -54,6 +55,7 @@ export async function GET(request: Request) {
       where: { id: user.id },
       data: {
         emailVerified: true,
+        email_verified: true,
         verificationToken: null,
         tokenExpires: null,
         otpHash: null,
@@ -117,170 +119,19 @@ export async function POST(request: Request) {
     if (rateLimitError) return rateLimitError;
 
     const body = await request.json();
-    const { email, otp, token } = body;
+    const { email, otp, code, token } = body;
 
-    // A. 6-Digit OTP Verification Flow
-    if (otp !== undefined) {
-      const cleanEmail = (email || "").trim().toLowerCase();
-      const cleanOtp = String(otp).trim();
-
-      if (!cleanEmail) {
-        return NextResponse.json(
-          { success: false, error: "Email address is required." },
-          { status: 400 }
-        );
-      }
-
-      if (!cleanOtp || cleanOtp.length !== 6 || !/^\d{6}$/.test(cleanOtp)) {
-        return NextResponse.json(
-          { success: false, error: "Please enter a valid 6-digit verification code." },
-          { status: 400 }
-        );
-      }
-
-      const user = await prisma.user.findUnique({
-        where: { email: cleanEmail },
+    // A. 6-Digit OTP Verification Flow -> Delegates directly to verify-otp
+    if (otp !== undefined || code !== undefined) {
+      const verifyReq = new Request(request.url, {
+        method: "POST",
+        headers: request.headers,
+        body: JSON.stringify({ email, code: code || otp }),
       });
-
-      if (!user) {
-        return NextResponse.json(
-          { success: false, error: "No account found with this email address." },
-          { status: 404 }
-        );
-      }
-
-      const hasActiveOtp = user.otpHash && user.otpExpires && user.otpExpires >= new Date();
-
-      if (user.emailVerified && !hasActiveOtp) {
-        const isAuthorizedAdmin =
-          user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase() ||
-          (user.role || "").toUpperCase() === "ADMIN";
-
-        const sanitizedUser = {
-          ...user,
-          role: isAuthorizedAdmin ? ("ADMIN" as const) : ("USER" as const),
-        };
-
-        const sessionToken = createSessionToken(sanitizedUser);
-        const response = NextResponse.json({
-          success: true,
-          alreadyVerified: true,
-          user: sanitizedUser,
-          redirectUrl: isAuthorizedAdmin ? "/admin" : "/",
-          message: "Your email is already verified. You are now logged in.",
-        });
-
-        response.cookies.set("vn_session", sessionToken, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "lax",
-          path: "/",
-          maxAge: 30 * 24 * 60 * 60,
-        });
-
-        return response;
-      }
-
-      // Check max failed verification attempts
-      if (user.otpAttempts >= 5) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Too many failed attempts. For your security, please request a new verification code.",
-            code: "TOO_MANY_ATTEMPTS",
-          },
-          { status: 429 }
-        );
-      }
-
-      // Check OTP expiration (5 minutes)
-      if (!user.otpHash || !user.otpExpires || user.otpExpires < new Date()) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Verification code has expired. Please request a new code.",
-            expired: true,
-          },
-          { status: 410 }
-        );
-      }
-
-      // Secure cryptographic OTP check against PBKDF2 hash
-      const isValid = verifyOtp(cleanOtp, user.otpHash);
-
-      if (!isValid) {
-        const newAttempts = user.otpAttempts + 1;
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { otpAttempts: newAttempts },
-        });
-
-        const remaining = Math.max(0, 5 - newAttempts);
-        return NextResponse.json(
-          {
-            success: false,
-            error:
-              remaining > 0
-                ? `Invalid verification code. ${remaining} attempt${remaining === 1 ? "" : "s"} remaining.`
-                : "Too many failed attempts. Please request a new verification code.",
-            remainingAttempts: remaining,
-          },
-          { status: 400 }
-        );
-      }
-
-      // Correct OTP: Mark email verified and establish authenticated session
-      const updatedUser = await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          emailVerified: true,
-          otpHash: null,
-          otpExpires: null,
-          otpAttempts: 0,
-          verificationToken: null,
-          tokenExpires: null,
-        },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          phone: true,
-          role: true,
-          emailVerified: true,
-        },
-      });
-
-      const isAuthorizedAdmin =
-        updatedUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase() ||
-        (updatedUser.role || "").toUpperCase() === "ADMIN";
-
-      const sanitizedUser = {
-        ...updatedUser,
-        role: isAuthorizedAdmin ? ("ADMIN" as const) : ("USER" as const),
-      };
-
-      const sessionToken = createSessionToken(sanitizedUser);
-      const response = NextResponse.json({
-        success: true,
-        user: sanitizedUser,
-        redirectUrl: isAuthorizedAdmin ? "/admin" : "/",
-        message: isAuthorizedAdmin
-          ? "Administrator verified successfully! Directing to Admin Portal..."
-          : "Email verified successfully! You are now logged in.",
-      });
-
-      response.cookies.set("vn_session", sessionToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        path: "/",
-        maxAge: 30 * 24 * 60 * 60,
-      });
-
-      return response;
+      return verifyOtpHandler(verifyReq);
     }
 
-    // B. Token Verification Flow (e.g. from verification link POST)
+    // B. Token Verification Flow (from verification link POST)
     const cleanToken = token?.trim();
     if (!cleanToken) {
       return NextResponse.json(
@@ -316,6 +167,7 @@ export async function POST(request: Request) {
       where: { id: user.id },
       data: {
         emailVerified: true,
+        email_verified: true,
         verificationToken: null,
         tokenExpires: null,
         otpHash: null,

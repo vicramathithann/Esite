@@ -44,7 +44,7 @@ function VerifyEmailContent() {
     }
   }, [tokenParam]);
 
-  // Handle Token Verification
+  // Handle Token Verification (via link)
   const handleVerifyToken = async (tokenToVerify: string) => {
     if (!tokenToVerify.trim()) return;
     setLoading(true);
@@ -60,7 +60,6 @@ function VerifyEmailContent() {
         setMessage(data.message || "Your email has been verified successfully!");
         login(data.user);
 
-        // Auto redirect after successful verification
         setTimeout(() => {
           const target = redirectParam ? safeRedirect : (data.redirectUrl || "/");
           router.push(target);
@@ -95,10 +94,10 @@ function VerifyEmailContent() {
     setRemainingAttempts(null);
 
     try {
-      const res = await fetch("/api/auth/verify-email", {
+      const res = await fetch("/api/auth/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: cleanEmail, otp: cleanOtp }),
+        body: JSON.stringify({ email: cleanEmail, code: cleanOtp }),
       });
 
       const data = await res.json();
@@ -106,16 +105,14 @@ function VerifyEmailContent() {
       if (data.success && data.user) {
         setStatus("success");
         setMessage(data.message || "Email verified successfully! You are now logged in.");
-        // Establish authenticated session in frontend context
         login(data.user);
 
-        // Auto-redirect to intended destination without forcing user to re-enter password
         setTimeout(() => {
           const target = redirectParam ? safeRedirect : (data.redirectUrl || "/");
           router.push(target);
         }, 1200);
       } else {
-        if (res.status === 410) {
+        if (res.status === 410 || data.expired) {
           setStatus("expired");
         } else {
           setStatus("error");
@@ -146,7 +143,7 @@ function VerifyEmailContent() {
 
     setResending(true);
     try {
-      const res = await fetch("/api/auth/resend-verification", {
+      const res = await fetch("/api/auth/resend-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: cleanEmail }),
@@ -157,7 +154,7 @@ function VerifyEmailContent() {
       if (data.success) {
         setStatus("idle");
         setMessage("A fresh 6-digit verification code has been sent to your email (valid for 5 minutes).");
-        setCooldown(60);
+        setCooldown(data.cooldown || 60);
         setRemainingAttempts(null);
       } else {
         setStatus("error");

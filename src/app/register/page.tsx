@@ -6,6 +6,21 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, AlertCircle, RefreshCw, CheckCircle2 } from "lucide-react";
 import { isValidInternalRedirect } from "@/lib/auth";
 
+function getFriendlyReasonMessage(reason: string | null): string {
+  switch (reason) {
+    case "MISSING_ENV":
+      return "The email service is missing required environment variables in Vercel (GMAIL_USER or GMAIL_APP_PASSWORD). Please configure them in Vercel Project Settings.";
+    case "EAUTH":
+      return "Google Mail authentication failed (invalid email or app password). Please verify your 16-character Google App Password in Vercel.";
+    case "ETIMEDOUT":
+      return "Connection to Google mail service timed out. Please click Resend Code to try again.";
+    case "SEND_FAILED":
+      return "Email gateway could not deliver the message. Please click Resend Code to try again.";
+    default:
+      return "Our mail gateway could not reach your inbox. Check your spam folder or retry below.";
+  }
+}
+
 function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -68,21 +83,24 @@ function RegisterForm() {
 
       const data = await res.json();
       if (data.success) {
-        const redirectQuery = redirectParam ? `&redirect=${encodeURIComponent(safeRedirect)}` : "";
-        router.push(`/verify-email?email=${encodeURIComponent(formData.email.trim())}${redirectQuery}`);
-      } else if (data.emailDeliveryFailed || res.status === 502) {
-        setEmailDeliveryFailed(true);
-        setDeliveryReason(data.reason || null);
-        setResendCooldown(60);
-        setError(data.error || "Your account was created, but we could not deliver the verification code to your email. Click Resend Code below.");
-        if (data.reason || data.details) {
-          console.error("[Email Delivery Diagnostic]", {
-            reason: data.reason,
-            details: data.details,
-          });
+        if (data.emailSent === false || data.emailDeliveryFailed) {
+          setEmailDeliveryFailed(true);
+          setDeliveryReason(data.reason || null);
+          setResendCooldown(60);
+          setError(data.message || "Your account was created, but we could not deliver the verification code to your email. Click Resend Code below.");
+        } else {
+          const redirectQuery = redirectParam ? `&redirect=${encodeURIComponent(safeRedirect)}` : "";
+          router.push(`/verify-email?email=${encodeURIComponent(formData.email.trim())}${redirectQuery}`);
         }
       } else {
-        setError(data.error || "Registration failed. Please check your details.");
+        if (data.emailDeliveryFailed || res.status === 502) {
+          setEmailDeliveryFailed(true);
+          setDeliveryReason(data.reason || null);
+          setResendCooldown(60);
+          setError(data.error || "Your account was created, but we could not deliver the verification code to your email. Click Resend Code below.");
+        } else {
+          setError(data.error || "Registration failed. Please check your details.");
+        }
       }
     } catch (err) {
       console.error(err);
@@ -100,25 +118,19 @@ function RegisterForm() {
       setError(null);
       setResendNotice(null);
 
-      const res = await fetch("/api/auth/resend-verification", {
+      const res = await fetch("/api/auth/resend-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: formData.email.trim() }),
       });
 
       const data = await res.json();
-      if (data.success) {
+      if (data.success && data.emailSent !== false) {
         setResendNotice(data.message || `A new 6-digit verification code was dispatched to ${formData.email}.`);
         setResendCooldown(data.cooldown || 60);
       } else {
         setDeliveryReason(data.reason || null);
         setError(data.error || "Could not resend verification code. Please try again.");
-        if (data.reason || data.details) {
-          console.error("[Resend Email Diagnostic]", {
-            reason: data.reason,
-            details: data.details,
-          });
-        }
         if (data.cooldown) {
           setResendCooldown(data.cooldown);
         }
@@ -169,7 +181,7 @@ function RegisterForm() {
               )}
             </div>
             <p className="text-muted leading-relaxed text-[11px]">
-              Your account was created for <strong className="text-foreground">{formData.email}</strong>, but our mail gateway could not reach your inbox. Check your spam folder or retry below.
+              {getFriendlyReasonMessage(deliveryReason)}
             </p>
 
             {resendNotice && (
@@ -220,7 +232,7 @@ function RegisterForm() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="font-semibold text-foreground">Email</label>
+            <label className="font-semibold text-foreground">Email address</label>
             <input
               type="email"
               required
@@ -232,12 +244,12 @@ function RegisterForm() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="font-semibold text-foreground">Mobile number (optional)</label>
+            <label className="font-semibold text-foreground">Phone number (optional)</label>
             <input
               type="tel"
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              placeholder="10-digit mobile number"
+              placeholder="+91 98765 43210"
               className="w-full bg-tile border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20 transition-all placeholder:text-muted"
             />
           </div>
@@ -253,7 +265,6 @@ function RegisterForm() {
               placeholder="At least 6 characters"
               className="w-full bg-tile border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20 transition-all placeholder:text-muted"
             />
-            <span className="text-[10px] text-muted block">Passwords must be at least 6 characters.</span>
           </div>
 
           <div className="space-y-1.5">
@@ -264,7 +275,7 @@ function RegisterForm() {
               minLength={6}
               value={formData.confirmPassword}
               onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-              placeholder="Re-enter your password"
+              placeholder="Re-type your password"
               className="w-full bg-tile border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20 transition-all placeholder:text-muted"
             />
           </div>
@@ -272,24 +283,18 @@ function RegisterForm() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] py-3 text-xs font-semibold rounded-xl mt-3 flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+            className="w-full py-3.5 px-4 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] font-semibold rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs mt-2 disabled:opacity-50 text-xs"
           >
-            {loading ? "Creating Account..." : "Continue to Email Verification"}
-            {!loading && <ArrowRight className="w-3.5 h-3.5" />}
+            <span>{loading ? "Creating account..." : "Continue to Verification"}</span>
+            <ArrowRight className="w-4 h-4" />
           </button>
         </form>
 
-        <p className="text-[11px] text-muted mt-4 leading-relaxed">
-          By creating an account, you agree to VN Mobiles Conditions of Use and Privacy Notice.
-        </p>
-
-        <div className="mt-5 pt-4 border-t border-border text-xs">
-          <p className="text-muted">
-            Already have an account?{" "}
-            <Link href={loginHref} className="text-[#8C6226] dark:text-[#E5CBA2] hover:underline font-semibold">
-              Sign in →
-            </Link>
-          </p>
+        <div className="mt-6 pt-5 border-t border-border text-center text-xs text-muted">
+          Already have an account?{" "}
+          <Link href={loginHref} className="text-[#8C6226] dark:text-[#E5CBA2] font-semibold hover:underline">
+            Sign In
+          </Link>
         </div>
       </div>
     </div>
