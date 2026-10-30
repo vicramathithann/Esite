@@ -3,7 +3,7 @@ import crypto from "crypto";
 import { z } from "zod";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { prisma } from "@/lib/prisma";
-import { sendOtpEmail } from "@/lib/mailer";
+import { sendOtpEmail, EmailFailureReason } from "@/lib/mailer";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -108,16 +108,47 @@ export async function POST(request: Request) {
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 
     // 6. Store hash in email_otps
-    const { error: insertErr } = await supabaseAdmin.from("email_otps").insert({
+    const otpPayload = {
       email: cleanEmail,
       code_hash: codeHash,
       expires_at: expiresAt.toISOString(),
       attempts: 0,
       used: false,
-    });
+    };
+
+    const { error: insertErr } = await supabaseAdmin.from("email_otps").insert(otpPayload);
 
     if (insertErr) {
-      console.warn("[RESEND-OTP] Warning: Failed to insert into email_otps table:", insertErr.message);
+      console.error(
+        JSON.stringify({
+          event: "RESEND_OTP_STORE_ERROR",
+          table: "email_otps",
+          columns_inserted: {
+            email: cleanEmail,
+            code_hash: "[SHA256_HASH_REDACTED]",
+            expires_at: otpPayload.expires_at,
+            attempts: otpPayload.attempts,
+            used: otpPayload.used,
+          },
+          supabase_error: {
+            message: insertErr.message,
+            details: insertErr.details || null,
+            hint: insertErr.hint || null,
+            code: insertErr.code || null,
+          },
+        })
+      );
+
+      return NextResponse.json(
+        {
+          success: false,
+          emailSent: false,
+          reason: "OTP_STORE_FAILED",
+          error: "Failed to record new verification code in database. Please run the SQL migration in Supabase SQL editor.",
+          cooldown: 60,
+        },
+        { status: 500 }
+      );
     }
 
     // Update User table timestamp
@@ -133,10 +164,9 @@ export async function POST(request: Request) {
 
     // 7. Send the email
     try {
-      await sendOtpEmail(cleanEmail, code);
+      await sendOtpEmail(cleanEmail, code, request);
     } catch (mailErr: any) {
-      const reason = mailErr?.reason || "SEND_FAILED";
-      console.error(`[RESEND-OTP FAILED] Reason: ${reason}`, mailErr);
+      const reason: EmailFailureReason = mailErr?.reason || "SEND_FAILED";
       return NextResponse.json(
         {
           success: false,
@@ -163,4 +193,3 @@ export async function POST(request: Request) {
     );
   }
 }
-

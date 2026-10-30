@@ -3,7 +3,7 @@ import crypto from "crypto";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { sendOtpEmail } from "@/lib/mailer";
+import { sendOtpEmail, EmailFailureReason } from "@/lib/mailer";
 import { hashPassword } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/rateLimit";
 
@@ -120,6 +120,16 @@ export async function POST(request: Request) {
     }
 
     // 3. Store SHA-256 hash in dedicated email_otps table
+    const otpPayload = {
+      email: cleanEmail,
+      code_hash: codeHash,
+      expires_at: expiresAt.toISOString(),
+      attempts: 0,
+      used: false,
+    };
+
+    let otpStoreError: { message: string; details?: string; hint?: string; code?: string } | null = null;
+
     try {
       // Invalidate any old unused codes for this email
       await supabaseAdmin
@@ -128,40 +138,76 @@ export async function POST(request: Request) {
         .eq("email", cleanEmail)
         .eq("used", false);
 
-      const { error: otpDbError } = await supabaseAdmin.from("email_otps").insert({
-        email: cleanEmail,
-        code_hash: codeHash,
-        expires_at: expiresAt.toISOString(),
-        attempts: 0,
-        used: false,
-      });
+      const { error: otpDbError } = await supabaseAdmin.from("email_otps").insert(otpPayload);
 
       if (otpDbError) {
-        console.warn("[REGISTER] Notice: email_otps insert had warning:", otpDbError.message);
+        otpStoreError = {
+          message: otpDbError.message,
+          details: otpDbError.details,
+          hint: otpDbError.hint,
+          code: otpDbError.code,
+        };
       }
-    } catch (otpErr) {
-      console.warn("[REGISTER] Non-fatal: email_otps table write encountered error:", otpErr);
+    } catch (err: any) {
+      otpStoreError = {
+        message: err?.message || String(err),
+        code: err?.code,
+      };
+    }
+
+    // If email_otps insert fails: print exact columns and FULL Supabase error, do NOT send email!
+    if (otpStoreError) {
+      console.error(
+        JSON.stringify({
+          event: "EMAIL_OTPS_INSERT_FAILED",
+          table: "email_otps",
+          columns_inserted: {
+            email: cleanEmail,
+            code_hash: "[SHA256_HASH_REDACTED]",
+            expires_at: otpPayload.expires_at,
+            attempts: otpPayload.attempts,
+            used: otpPayload.used,
+          },
+          supabase_error: {
+            message: otpStoreError.message,
+            details: otpStoreError.details || null,
+            hint: otpStoreError.hint || null,
+            code: otpStoreError.code || null,
+          },
+        })
+      );
+
+      return NextResponse.json(
+        {
+          success: true,
+          email: cleanEmail,
+          user,
+          emailSent: false,
+          emailDeliveryFailed: true,
+          reason: "OTP_STORE_FAILED",
+          error: "Your account was created, but we could not store the verification code in the database. Please run the SQL migration or click Resend Code.",
+          details: {
+            message: otpStoreError.message,
+            code: otpStoreError.code,
+          },
+        },
+        { status: 200 }
+      );
     }
 
     // 4. Send email OTP via Nodemailer
     let emailSent = false;
-    let failureReason: "MISSING_ENV" | "EAUTH" | "ETIMEDOUT" | "SEND_FAILED" | undefined;
+    let failureReason: EmailFailureReason = "SEND_FAILED";
 
     try {
-      await sendOtpEmail(cleanEmail, code);
+      await sendOtpEmail(cleanEmail, code, request);
       emailSent = true;
     } catch (mailErr: any) {
       emailSent = false;
       failureReason = mailErr?.reason || "SEND_FAILED";
-      console.error(`[REGISTER EMAIL FAILED] Reason: ${failureReason}`, {
-        message: mailErr?.message,
-        code: mailErr?.code,
-        response: mailErr?.response,
-        responseCode: mailErr?.responseCode,
-      });
     }
 
-    // If email dispatch failed, still return created account with { emailSent: false, reason }
+    // If email dispatch failed, return created account with { emailSent: false, reason }
     if (!emailSent) {
       return NextResponse.json(
         {
@@ -171,8 +217,8 @@ export async function POST(request: Request) {
           emailSent: false,
           emailDeliveryFailed: true,
           reason: failureReason,
-          message:
-            "Your account was created, but we could not deliver the verification code to your email. Please check your email or click Resend Code.",
+          error: "Your account was created, but we could not deliver the verification code to your email. Click Resend Code below.",
+          message: "Your account was created, but we could not deliver the verification code to your email. Click Resend Code below.",
         },
         { status: 200 }
       );

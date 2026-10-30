@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { checkEnvStatus, getMissingServerEnvVars, env } from "@/lib/env";
+import { checkEnvStatus, getMissingServerEnvVars, env, getBaseUrl } from "@/lib/env";
 import { createMailerTransport, sendOtpEmail } from "@/lib/mailer";
 
 export const dynamic = "force-dynamic";
@@ -11,9 +11,9 @@ export const maxDuration = 30;
  *
  * Usage:
  * - GET /api/debug-email?key=vn_debug_2026
- *   (or ?key=<your-DEBUG_KEY-env-value>)
+ *   (or your custom process.env.DEBUG_KEY)
  *
- * Optional test send:
+ * Optional live test send:
  * - GET /api/debug-email?key=vn_debug_2026&to=your-email@example.com
  */
 export async function GET(request: Request) {
@@ -25,15 +25,16 @@ export async function GET(request: Request) {
     return NextResponse.json(
       {
         success: false,
-        error: "Unauthorized: Missing or invalid secret key parameter. Use ?key=" + expectedKey,
+        error: `Unauthorized: Missing or invalid secret key parameter. Usage: /api/debug-email?key=${expectedKey}`,
       },
       { status: 401 }
     );
   }
 
   const envCheck = checkEnvStatus();
-  const missing = getMissingServerEnvVars();
+  const missingRequired = getMissingServerEnvVars();
   const testRecipient = searchParams.get("to")?.trim();
+  const resolvedBaseUrl = getBaseUrl(request);
 
   let smtpStatus: {
     verified: boolean;
@@ -42,6 +43,7 @@ export async function GET(request: Request) {
     code?: string;
     response?: string;
     responseCode?: number;
+    command?: string;
   };
 
   try {
@@ -59,6 +61,7 @@ export async function GET(request: Request) {
       code: err?.code,
       response: err?.response,
       responseCode: err?.responseCode,
+      command: err?.command,
     };
   }
 
@@ -74,7 +77,7 @@ export async function GET(request: Request) {
     testSendResult.attempted = true;
     testSendResult.recipient = testRecipient;
     try {
-      const sendInfo = await sendOtpEmail(testRecipient, "123456");
+      const sendInfo = await sendOtpEmail(testRecipient, "123456", request);
       testSendResult.success = true;
       testSendResult.messageId = sendInfo.messageId;
     } catch (sendErr: any) {
@@ -83,15 +86,25 @@ export async function GET(request: Request) {
     }
   }
 
-  const isHealthy = missing.length === 0 && smtpStatus.verified && (!testSendResult.attempted || testSendResult.success);
+  const isHealthy = missingRequired.length === 0 && smtpStatus.verified && (!testSendResult.attempted || testSendResult.success);
 
   return NextResponse.json(
     {
       success: isHealthy,
       temporaryDiagnosticRoute: true,
       notice: "Delete this route once verified in production.",
-      env: envCheck,
-      missingServerEnvVars: missing,
+      resolvedBaseUrl,
+      requiredEnvVars: {
+        GMAIL_USER: envCheck.GMAIL_USER,
+        GMAIL_APP_PASSWORD: envCheck.GMAIL_APP_PASSWORD,
+        NEXT_PUBLIC_SUPABASE_URL: envCheck.NEXT_PUBLIC_SUPABASE_URL,
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: envCheck.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+        SUPABASE_SERVICE_ROLE_KEY: envCheck.SUPABASE_SERVICE_ROLE_KEY,
+      },
+      optionalEnvVars: {
+        NEXT_PUBLIC_APP_URL: envCheck.NEXT_PUBLIC_APP_URL,
+      },
+      missingRequiredEnvVars: missingRequired,
       smtp: smtpStatus,
       testSend: testSendResult,
     },

@@ -8,14 +8,17 @@ import { isValidInternalRedirect } from "@/lib/auth";
 
 function getFriendlyReasonMessage(reason: string | null): string {
   switch (reason) {
+    case "OTP_STORE_FAILED":
+      return "Database configuration needed: The email_otps table is missing or pending schema reload in Supabase. Please run the SQL migration in your Supabase SQL Editor.";
     case "MISSING_ENV":
-      return "The email service is missing required environment variables in Vercel (GMAIL_USER or GMAIL_APP_PASSWORD). Please configure them in Vercel Project Settings.";
+      return "Email credentials missing: Please verify GMAIL_USER and GMAIL_APP_PASSWORD are set in your Vercel Project Settings.";
     case "EAUTH":
-      return "Google Mail authentication failed (invalid email or app password). Please verify your 16-character Google App Password in Vercel.";
+      return "Gmail authentication failed (invalid email or app password). Please verify your 16-character Google App Password in Vercel.";
+    case "SMTP_CONNECTION":
     case "ETIMEDOUT":
-      return "Connection to Google mail service timed out. Please click Resend Code to try again.";
+      return "Connection to Google mail servers timed out. Please click Resend Code to try again.";
     case "SEND_FAILED":
-      return "Email gateway could not deliver the message. Please click Resend Code to try again.";
+      return "Email delivery failed. Please click Resend Code or enter code manually.";
     default:
       return "Our mail gateway could not reach your inbox. Check your spam folder or retry below.";
   }

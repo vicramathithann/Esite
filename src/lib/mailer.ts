@@ -1,8 +1,13 @@
 import nodemailer from "nodemailer";
 import type { Transporter } from "nodemailer";
-import { env, getMissingServerEnvVars } from "@/lib/env";
+import { env, getMissingServerEnvVars, getBaseUrl } from "@/lib/env";
 
-export type EmailFailureReason = "MISSING_ENV" | "EAUTH" | "ETIMEDOUT" | "SEND_FAILED";
+export type EmailFailureReason =
+  | "MISSING_ENV"
+  | "OTP_STORE_FAILED"
+  | "EAUTH"
+  | "SMTP_CONNECTION"
+  | "SEND_FAILED";
 
 export class MailerError extends Error {
   reason: EmailFailureReason;
@@ -29,6 +34,7 @@ export class MailerError extends Error {
 /**
  * Creates Nodemailer transporter on demand inside the function execution context.
  * Never creates the transport at module import time.
+ * Sanitizes credentials thoroughly: trims username, strips spaces and wrapping quotes from app password.
  */
 export function createMailerTransport(): Transporter {
   const missing = getMissingServerEnvVars();
@@ -71,6 +77,7 @@ function classifyMailerError(err: unknown): MailerError {
 
   const upperCode = (code || "").toUpperCase();
   const upperMsg = rawMessage.toUpperCase();
+  const upperResponse = (response || "").toUpperCase();
 
   let reason: EmailFailureReason = "SEND_FAILED";
 
@@ -86,8 +93,11 @@ function classifyMailerError(err: unknown): MailerError {
     upperMsg.includes("EAUTH") ||
     upperMsg.includes("535") ||
     upperMsg.includes("534") ||
+    upperResponse.includes("535") ||
+    upperResponse.includes("534") ||
     upperMsg.includes("AUTHENTICATION") ||
-    upperMsg.includes("USERNAME AND PASSWORD NOT ACCEPTED")
+    upperMsg.includes("USERNAME AND PASSWORD NOT ACCEPTED") ||
+    upperResponse.includes("USERNAME AND PASSWORD NOT ACCEPTED")
   ) {
     reason = "EAUTH";
   } else if (
@@ -96,10 +106,12 @@ function classifyMailerError(err: unknown): MailerError {
     upperCode === "ECONNECTION" ||
     upperCode === "ECONNREFUSED" ||
     upperCode === "ECONNRESET" ||
+    upperCode === "EDNS" ||
     upperMsg.includes("TIMEOUT") ||
-    upperMsg.includes("TIMEDOUT")
+    upperMsg.includes("TIMEDOUT") ||
+    upperMsg.includes("CONNECTION")
   ) {
-    reason = "ETIMEDOUT";
+    reason = "SMTP_CONNECTION";
   }
 
   return new MailerError(rawMessage, reason, { code, response, responseCode, command });
@@ -107,9 +119,9 @@ function classifyMailerError(err: unknown): MailerError {
 
 /**
  * Sends a 6-digit verification OTP email to the user.
- * Strictly awaits delivery and throws a typed MailerError on failure.
+ * Strictly awaits delivery and logs a single JSON line on failure (never leaking secrets or the code).
  */
-export async function sendOtpEmail(to: string, code: string): Promise<{ messageId: string }> {
+export async function sendOtpEmail(to: string, code: string, req?: Request): Promise<{ messageId: string }> {
   const cleanTo = to.trim().toLowerCase();
   const cleanCode = code.trim();
 
@@ -118,16 +130,23 @@ export async function sendOtpEmail(to: string, code: string): Promise<{ messageI
     transporter = createMailerTransport();
   } catch (initErr) {
     const error = classifyMailerError(initErr);
-    console.error("[MAILER INIT FAILED]", {
-      to: cleanTo,
-      reason: error.reason,
-      message: error.message,
-    });
+    console.error(
+      JSON.stringify({
+        event: "MAILER_INIT_ERROR",
+        recipient: cleanTo,
+        reason: error.reason,
+        message: error.message,
+        code: error.code || null,
+        command: error.command || null,
+        response: error.response || null,
+        responseCode: error.responseCode || null,
+      })
+    );
     throw error;
   }
 
   const senderAddress = env.GMAIL_USER;
-  const siteUrl = env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
+  const siteUrl = getBaseUrl(req);
 
   const plainText = [
     "VN Mobiles - Verification Code",
@@ -213,21 +232,24 @@ export async function sendOtpEmail(to: string, code: string): Promise<{ messageI
     return { messageId: info.messageId };
   } catch (err: unknown) {
     const error = classifyMailerError(err);
-    console.error("[MAILER ERROR] Failed to send OTP email:", {
-      to: cleanTo,
-      message: error.message,
-      code: error.code,
-      response: error.response,
-      responseCode: error.responseCode,
-      command: error.command,
-      reason: error.reason,
-    });
+    console.error(
+      JSON.stringify({
+        event: "MAILER_SEND_ERROR",
+        recipient: cleanTo,
+        reason: error.reason,
+        message: error.message,
+        code: error.code || null,
+        command: error.command || null,
+        response: error.response || null,
+        responseCode: error.responseCode || null,
+      })
+    );
     throw error;
   }
 }
 
 /**
- * Validates the SMTP connection with Gmail servers.
+ * Validates the live SMTP connection with Gmail servers without sending an email.
  */
 export async function verifyMailerConnection(): Promise<{ success: boolean; message: string }> {
   const transporter = createMailerTransport();
@@ -236,4 +258,3 @@ export async function verifyMailerConnection(): Promise<{ success: boolean; mess
 }
 
 export default sendOtpEmail;
-
