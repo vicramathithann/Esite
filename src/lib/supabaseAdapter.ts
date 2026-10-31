@@ -504,7 +504,15 @@ export class SupabaseModelDelegate {
     }
 
     const records = (data || []).map((r) => deserializeRow(r, this.tableName));
-    return this.attachRelations(records, options?.include);
+    const effectiveInclude = {
+      ...(options?.include || {}),
+      ...(options?.select?.orders ? { orders: options.select.orders } : {}),
+      ...(options?.select?.items ? { items: options.select.items } : {}),
+    };
+    return this.attachRelations(
+      records,
+      Object.keys(effectiveInclude).length > 0 ? effectiveInclude : undefined
+    );
   }
 
   async findUnique(options: { where: Record<string, any>; include?: Record<string, any>; select?: Record<string, any> }): Promise<any | null> {
@@ -526,7 +534,15 @@ export class SupabaseModelDelegate {
 
     if (!data || data.length === 0) return null;
     const records = [deserializeRow(data[0], this.tableName)];
-    const withRelations = await this.attachRelations(records, options?.include);
+    const effectiveInclude = {
+      ...(options?.include || {}),
+      ...(options?.select?.orders ? { orders: options.select.orders } : {}),
+      ...(options?.select?.items ? { items: options.select.items } : {}),
+    };
+    const withRelations = await this.attachRelations(
+      records,
+      Object.keys(effectiveInclude).length > 0 ? effectiveInclude : undefined
+    );
     return withRelations[0] || null;
   }
 
@@ -760,6 +776,8 @@ export interface SupabaseDatabaseClient {
   accountDeletionAudit: SupabaseModelDelegate;
   adminPasswordResetToken: SupabaseModelDelegate;
   adminSecurityAudit: SupabaseModelDelegate;
+  userPasswordResetToken: SupabaseModelDelegate;
+  userAuditLog: SupabaseModelDelegate;
   $transaction: (arg: any) => Promise<any>;
 }
 
@@ -787,6 +805,8 @@ export function createSupabasePrismaClient(): SupabaseDatabaseClient {
     accountDeletionAudit: new SupabaseModelDelegate("AccountDeletionAudit", "accountDeletionAudit", false),
     adminPasswordResetToken: new SupabaseModelDelegate("AdminPasswordResetToken", "adminPasswordResetToken", false),
     adminSecurityAudit: new SupabaseModelDelegate("AdminSecurityAudit", "adminSecurityAudit", false),
+    userPasswordResetToken: new SupabaseModelDelegate("UserPasswordResetToken", "userPasswordResetToken", false),
+    userAuditLog: new SupabaseModelDelegate("UserAuditLog", "userAuditLog", false),
 
     async $transaction(arg: any) {
       if (typeof arg === "function") {

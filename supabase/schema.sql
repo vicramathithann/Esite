@@ -1594,3 +1594,62 @@ CREATE POLICY "Service role full access on AdminSecurityAudit"
   USING (true) 
   WITH CHECK (true);
 
+
+
+-- ==============================================================================
+-- 12. User Directory & Security Management (UserPasswordResetToken, UserAuditLog)
+-- ==============================================================================
+
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "mustChangePassword" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'ACTIVE';
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "lastResetEmailSentAt" TIMESTAMPTZ;
+
+CREATE TABLE IF NOT EXISTS "UserPasswordResetToken" (
+  "id" TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+  "userId" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE,
+  "tokenHash" TEXT NOT NULL,
+  "expiresAt" TIMESTAMPTZ NOT NULL,
+  "usedAt" TIMESTAMPTZ,
+  "ipAddress" TEXT,
+  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS "idx_user_pw_reset_user_id" ON "UserPasswordResetToken"("userId");
+CREATE INDEX IF NOT EXISTS "idx_user_pw_reset_token_hash" ON "UserPasswordResetToken"("tokenHash");
+CREATE INDEX IF NOT EXISTS "idx_user_pw_reset_expires_at" ON "UserPasswordResetToken"("expiresAt");
+
+ALTER TABLE "UserPasswordResetToken" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Service role full access on UserPasswordResetToken" ON "UserPasswordResetToken";
+CREATE POLICY "Service role full access on UserPasswordResetToken" 
+  ON "UserPasswordResetToken" 
+  FOR ALL 
+  TO service_role 
+  USING (true) 
+  WITH CHECK (true);
+
+CREATE TABLE IF NOT EXISTS "UserAuditLog" (
+  "id" TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+  "adminEmail" TEXT NOT NULL,
+  "targetUserId" TEXT,
+  "targetUserEmail" TEXT,
+  "action" TEXT NOT NULL,
+  "details" JSONB DEFAULT '{}'::jsonb,
+  "ipAddress" TEXT,
+  "userAgent" TEXT,
+  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS "idx_user_audit_log_target_user" ON "UserAuditLog"("targetUserId");
+CREATE INDEX IF NOT EXISTS "idx_user_audit_log_admin_email" ON "UserAuditLog"("adminEmail");
+CREATE INDEX IF NOT EXISTS "idx_user_audit_log_created_at" ON "UserAuditLog"("createdAt");
+
+ALTER TABLE "UserAuditLog" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Service role full access on UserAuditLog" ON "UserAuditLog";
+CREATE POLICY "Service role full access on UserAuditLog" 
+  ON "UserAuditLog" 
+  FOR ALL 
+  TO service_role 
+  USING (true) 
+  WITH CHECK (true);
+
+NOTIFY pgrst, 'reload schema';

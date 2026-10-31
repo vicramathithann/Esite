@@ -144,7 +144,9 @@ export async function POST(request: Request) {
         role: effectiveRole,
         emailVerified: user.emailVerified,
         createdAt: user.createdAt,
+        mustChangePassword: Boolean((user as any).mustChangePassword),
       },
+      mustChangePassword: Boolean((user as any).mustChangePassword),
       redirectUrl: isActuallyAdmin ? "/admin" : "/user",
       message: isActuallyAdmin
         ? "Administrator access granted! Redirecting to Admin Dashboard..."

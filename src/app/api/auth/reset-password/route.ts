@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, verifyOtp, createSessionToken, ADMIN_EMAIL } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/rateLimit";
@@ -20,8 +21,14 @@ export async function GET(request: Request) {
       );
     }
 
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
     const user = await prisma.user.findFirst({
-      where: { resetToken: token },
+      where: {
+        OR: [
+          { resetToken: token },
+          { resetToken: tokenHash },
+        ],
+      },
       select: {
         id: true,
         email: true,
@@ -115,8 +122,14 @@ export async function POST(request: Request) {
     // Method A: Direct link token validation
     const cleanToken = (token || "").trim();
     if (cleanToken) {
+      const tokenHash = crypto.createHash("sha256").update(cleanToken).digest("hex");
       const user = await prisma.user.findFirst({
-        where: { resetToken: cleanToken },
+        where: {
+          OR: [
+            { resetToken: cleanToken },
+            { resetToken: tokenHash },
+          ],
+        },
       });
 
       if (!user) {
@@ -273,6 +286,7 @@ export async function POST(request: Request) {
         resetOtpHash: null,
         resetOtpExpires: null,
         resetOtpAttempts: 0,
+        mustChangePassword: false,
       },
       select: {
         id: true,
