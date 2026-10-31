@@ -28,7 +28,10 @@ export default function AdminProductsPage() {
       if (search) params.set("search", search);
       if (categoryFilter !== "all") params.set("category", categoryFilter);
 
-      const res = await fetch(`/api/products?${params.toString()}`);
+      const res = await fetch(`/api/products?${params.toString()}`, {
+        credentials: "include",
+        cache: "no-store",
+      });
       const data = await res.json();
       if (data.success) {
         setProducts(data.products || []);
@@ -49,7 +52,10 @@ export default function AdminProductsPage() {
 
     try {
       setDeletingId(id);
-      const res = await fetch(`/api/products/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/products/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
       const data = await res.json();
       if (data.success) {
         setProducts((prev) => prev.filter((p) => p.id !== id));

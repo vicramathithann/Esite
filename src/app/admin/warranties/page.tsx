@@ -45,7 +45,10 @@ export default function AdminWarrantiesPage() {
       params.set("admin", "true");
       if (search) params.set("search", search);
 
-      const res = await fetch(`/api/warranties?${params.toString()}`);
+      const res = await fetch(`/api/warranties?${params.toString()}`, {
+        credentials: "include",
+        cache: "no-store",
+      });
       const data = await res.json();
       if (data.success) {
         setWarranties(data.warranties || []);
@@ -66,6 +69,7 @@ export default function AdminWarrantiesPage() {
       setActionLoading(warrantyId);
       const res = await fetch("/api/warranties", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ warrantyId, action: "RESEND_EMAIL" }),
       });
@@ -90,6 +94,7 @@ export default function AdminWarrantiesPage() {
       setDeleteLoading(true);
       const res = await fetch(`/api/admin/warranties/${deleteModalWarranty.id}`, {
         method: "DELETE",
+        credentials: "include",
       });
       const data = await res.json();
       if (data.success) {

@@ -47,7 +47,10 @@ export default function AdminInvitePage() {
   const loadInvites = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/admin/invites");
+      const res = await fetch("/api/admin/invites", {
+        credentials: "include",
+        cache: "no-store",
+      });
       const data = await res.json();
       if (data.success) {
         setInvites(data.invites || []);
@@ -80,6 +83,7 @@ export default function AdminInvitePage() {
     try {
       const res = await fetch("/api/admin/invites", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: cleanEmail }),
       });
@@ -111,6 +115,7 @@ export default function AdminInvitePage() {
     try {
       const res = await fetch(`/api/admin/invites?id=${encodeURIComponent(id)}`, {
         method: "DELETE",
+        credentials: "include",
       });
       const data = await res.json();
       if (data.success) {

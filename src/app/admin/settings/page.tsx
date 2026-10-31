@@ -36,7 +36,10 @@ export default function AdminSettingsPage() {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch("/api/admin/settings");
+      const res = await fetch("/api/admin/settings", {
+        credentials: "include",
+        cache: "no-store",
+      });
       const data = await res.json();
       if (data.success && data.settings) {
         setSettings((prev) => ({ ...prev, ...data.settings }));
@@ -71,6 +74,7 @@ export default function AdminSettingsPage() {
 
       const res = await fetch("/api/admin/settings", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ settings }),
       });

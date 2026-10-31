@@ -107,6 +107,10 @@ export default function AdminNav() {
 
   const handleSignOut = async () => {
     try {
+      await fetch("/api/admin/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
       await logout();
     } catch (e) {
       console.error("Sign out error:", e);

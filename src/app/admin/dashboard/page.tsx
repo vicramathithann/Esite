@@ -27,7 +27,10 @@ export default function AdminDashboardView() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/admin/dashboard");
+      const res = await fetch("/api/admin/dashboard", {
+        credentials: "include",
+        cache: "no-store",
+      });
       const data = await res.json();
       if (data.success) {
         setMetrics(data.metrics);

@@ -31,7 +31,10 @@ export default function AdminInventoryPage() {
       if (statusFilter !== "all") params.set("status", statusFilter);
       if (categoryFilter !== "all") params.set("category", categoryFilter);
 
-      const res = await fetch(`/api/admin/inventory?${params.toString()}`);
+      const res = await fetch(`/api/admin/inventory?${params.toString()}`, {
+        credentials: "include",
+        cache: "no-store",
+      });
       const data = await res.json();
       if (data.success) {
         setItems(data.inventory || []);
@@ -68,6 +71,7 @@ export default function AdminInventoryPage() {
       setUpdatingId(id);
       const res = await fetch("/api/admin/inventory", {
         method: "PATCH",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, stock: newStock }),
       });

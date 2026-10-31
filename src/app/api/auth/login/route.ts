@@ -1,6 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifyPassword, createSessionToken, ensureAdminUser, ADMIN_EMAIL } from "@/lib/auth";
+import {
+  verifyPassword,
+  createSessionToken,
+  ensureAdminUser,
+  ADMIN_EMAIL,
+  ADMIN_COOKIE_NAME,
+  CUSTOMER_COOKIE_NAME,
+  LEGACY_COOKIE_NAME,
+  getSessionCookieOptions,
+} from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/rateLimit";
 import { logSecurityEvent, getClientIp } from "@/lib/securityLogger";
 
@@ -143,21 +152,18 @@ export async function POST(request: Request) {
     });
 
 
-    response.cookies.set("vn_session", sessionToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 30 * 24 * 60 * 60,
-    });
+    const cookieOpts = getSessionCookieOptions(request);
 
-    response.cookies.set("novamobile_session", sessionToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 30 * 24 * 60 * 60,
-    });
+    if (isActuallyAdmin) {
+      // Set dedicated Admin Session Cookie
+      response.cookies.set(ADMIN_COOKIE_NAME, sessionToken, cookieOpts);
+      // Also set customer session so admin can view storefront seamlessly
+      response.cookies.set(CUSTOMER_COOKIE_NAME, sessionToken, cookieOpts);
+    } else {
+      // Strict Customer Session: Never overwrites or touches vn_admin_session
+      response.cookies.set(CUSTOMER_COOKIE_NAME, sessionToken, cookieOpts);
+      response.cookies.set(LEGACY_COOKIE_NAME, sessionToken, cookieOpts);
+    }
 
     return response;
   } catch (error) {

@@ -24,7 +24,10 @@ export default function AdminEditProductPage() {
       try {
         setLoading(true);
         setStatusMessage(null);
-        const res = await fetch(`/api/products/${productId}`);
+        const res = await fetch(`/api/products/${productId}`, {
+          credentials: "include",
+          cache: "no-store",
+        });
         const data = await res.json();
         if (data.success && data.product) {
           setFormData(data.product);
@@ -79,6 +82,7 @@ export default function AdminEditProductPage() {
     try {
       const res = await fetch(`/api/products/${productId}`, {
         method: "PATCH",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });

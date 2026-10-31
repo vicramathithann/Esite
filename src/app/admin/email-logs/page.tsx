@@ -52,7 +52,10 @@ export default function AdminEmailLogsPage() {
       if (statusFilter !== "all") params.set("status", statusFilter);
       if (search) params.set("search", search);
 
-      const res = await fetch(`/api/admin/email-logs?${params.toString()}`);
+      const res = await fetch(`/api/admin/email-logs?${params.toString()}`, {
+        credentials: "include",
+        cache: "no-store",
+      });
       const data = await res.json();
       if (data.success) {
         setLogs(data.logs || []);
@@ -74,6 +77,7 @@ export default function AdminEmailLogsPage() {
       setRetryingId(logId);
       const res = await fetch("/api/admin/email-logs", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ notificationId: logId }),
       });
@@ -115,6 +119,7 @@ export default function AdminEmailLogsPage() {
       setDeleteActionLoading(true);
       const res = await fetch(`/api/admin/email-logs/${deleteSingleLog.id}`, {
         method: "DELETE",
+        credentials: "include",
       });
       const data = await res.json();
       if (data.success) {
@@ -139,6 +144,7 @@ export default function AdminEmailLogsPage() {
       setDeleteActionLoading(true);
       const res = await fetch("/api/admin/email-logs/bulk-delete", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids: selectedIds }),
       });
@@ -164,6 +170,7 @@ export default function AdminEmailLogsPage() {
       setDeleteActionLoading(true);
       const res = await fetch("/api/admin/email-logs", {
         method: "DELETE",
+        credentials: "include",
       });
       const data = await res.json();
       if (data.success) {

@@ -1,6 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifyOtp, createSessionToken, ADMIN_EMAIL } from "@/lib/auth";
+import {
+  verifyOtp,
+  createSessionToken,
+  ADMIN_EMAIL,
+  ADMIN_COOKIE_NAME,
+  CUSTOMER_COOKIE_NAME,
+  LEGACY_COOKIE_NAME,
+  getSessionCookieOptions,
+} from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/rateLimit";
 import { logSecurityEvent, getClientIp } from "@/lib/securityLogger";
 
@@ -152,13 +160,14 @@ export async function POST(request: Request) {
         : `Welcome back, ${updatedUser.name}! Sign-in successful.`,
     });
 
-    response.cookies.set("vn_session", sessionToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 30 * 24 * 60 * 60,
-    });
+    const cookieOpts = getSessionCookieOptions(request);
+    if (isMainAdmin) {
+      response.cookies.set(ADMIN_COOKIE_NAME, sessionToken, cookieOpts);
+      response.cookies.set(CUSTOMER_COOKIE_NAME, sessionToken, cookieOpts);
+    } else {
+      response.cookies.set(CUSTOMER_COOKIE_NAME, sessionToken, cookieOpts);
+      response.cookies.set(LEGACY_COOKIE_NAME, sessionToken, cookieOpts);
+    }
 
     return response;
   } catch (error) {

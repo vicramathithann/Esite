@@ -71,6 +71,7 @@ export default function AdminNewProductPage() {
     try {
       const res = await fetch("/api/products", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });

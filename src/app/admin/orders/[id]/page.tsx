@@ -57,7 +57,10 @@ export default function AdminSingleOrderPage() {
     if (!orderId) return;
     try {
       setLoading(true);
-      const res = await fetch(`/api/orders/${orderId}`);
+      const res = await fetch(`/api/orders/${orderId}`, {
+        credentials: "include",
+        cache: "no-store",
+      });
       const data = await res.json();
       if (data.success && data.order) {
         setOrder(data.order);
@@ -86,6 +89,7 @@ export default function AdminSingleOrderPage() {
     try {
       const res = await fetch(`/api/orders/${order.id}`, {
         method: "PATCH",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           orderStatus: formStatus,
@@ -115,6 +119,7 @@ export default function AdminSingleOrderPage() {
     try {
       const res = await fetch(`/api/orders/${order.id}`, {
         method: "PATCH",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "RESEND_EMAIL" }),
       });
@@ -138,6 +143,7 @@ export default function AdminSingleOrderPage() {
     try {
       const res = await fetch(`/api/orders/${order.id}/resend-warranty`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
       });
       const data = await res.json();

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
-import { usePathname, notFound } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import AdminNav from "@/components/AdminNav";
 import AdminSupportChatbot from "@/components/AdminSupportChatbot";
@@ -17,17 +17,21 @@ function isAuthorizedAdmin(user: any): boolean {
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { currentUser, login } = useApp();
+  const { login } = useApp();
 
   // Dedicated token-based recovery route only
   const isAuthPage = pathname === "/admin/reset-password";
 
-  // Check if we already have proof that this user is the authorized admin
+  // Check server-verified authorization state
   const [authState, setAuthState] = useState<"CHECKING" | "AUTHORIZED" | "UNAUTHORIZED">("CHECKING");
 
   const verifySession = useCallback(async () => {
     try {
-      const res = await fetch("/api/auth/me", { cache: "no-store" });
+      const res = await fetch("/api/auth/me", {
+        cache: "no-store",
+        credentials: "include",
+      });
+
       if (res.ok) {
         const data = await res.json();
         if (data.success && isAuthorizedAdmin(data.user)) {
@@ -40,66 +44,49 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       console.error("[ADMIN_AUTH_CHECK_ERROR]", e);
     }
 
-    // Fallback: If context or localStorage confirms authorized admin, allow access
+    // Server check failed or user is not authorized admin: purge stale client credentials
     if (typeof window !== "undefined") {
       try {
-        const saved = localStorage.getItem("novamobile_user");
-        if (saved && isAuthorizedAdmin(JSON.parse(saved))) {
-          setAuthState("AUTHORIZED");
-          return;
-        }
+        localStorage.removeItem("novamobile_user");
       } catch {}
     }
 
-    // Otherwise strictly unauthorized (normal user or unauthenticated)
     setAuthState("UNAUTHORIZED");
-  }, [login]);
+    const redirectUrl = `/login?redirect=${encodeURIComponent(pathname || "/admin")}`;
+    if (typeof window !== "undefined") {
+      window.location.href = redirectUrl;
+    }
+  }, [login, pathname]);
 
   useEffect(() => {
     if (isAuthPage) return;
-
-    if (isAuthorizedAdmin(currentUser)) {
-      setAuthState("AUTHORIZED");
-      return;
-    }
-
-    if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem("novamobile_user");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (isAuthorizedAdmin(parsed)) {
-            setAuthState("AUTHORIZED");
-            login(parsed);
-            return;
-          }
-          if (parsed.email && !isAuthorizedAdmin(parsed)) {
-            setAuthState("UNAUTHORIZED");
-            return;
-          }
-        }
-      } catch {}
-    }
-
     verifySession();
-  }, [currentUser, isAuthPage, verifySession, login]);
+  }, [isAuthPage, verifySession]);
 
   if (isAuthPage) {
     return <>{children}</>;
   }
 
-  // 1. Loading State while verifying
+  // 1. Loading / Verification State
   if (authState === "CHECKING") {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
         <div className="w-8 h-8 border-2 border-[#C9A66B] border-t-transparent rounded-full animate-spin"></div>
+        <p className="mt-3 text-xs text-muted font-medium">Verifying administrator credentials...</p>
       </div>
     );
   }
 
-  // 2. Strict Authorization Gate: Return 404 for normal users or unauthenticated visitors
+  // 2. Unauthorized State (Redirecting to Sign-In)
   if (authState === "UNAUTHORIZED") {
-    return notFound();
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+        <div className="w-8 h-8 border-2 border-rose-500 border-t-transparent rounded-full animate-spin"></div>
+        <p className="mt-3 text-xs text-muted font-medium">
+          Administrator session required. Directing to sign-in...
+        </p>
+      </div>
+    );
   }
 
   // 3. Authorized Admin

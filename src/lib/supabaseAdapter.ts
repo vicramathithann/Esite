@@ -455,9 +455,18 @@ export class SupabaseModelDelegate {
       if (include.orders) {
         const userIds = records.map((r) => r.id).filter(Boolean);
         if (userIds.length > 0) {
+          let selectCols = "*";
+          if (typeof include.orders === "object" && include.orders.select) {
+            const keys = Object.keys(include.orders.select).filter((k) => include.orders.select[k]);
+            if (keys.length > 0) {
+              if (!keys.includes("id")) keys.push("id");
+              if (!keys.includes("userId")) keys.push("userId");
+              selectCols = keys.join(",");
+            }
+          }
           const { data: orders, error: ordErr } = await supabaseAdmin
             .from("Order")
-            .select("id, userId")
+            .select(selectCols)
             .in("userId", userIds);
           if (ordErr) logSupabaseError("Order", "attachRelations(userOrders)", ordErr);
 

@@ -3,7 +3,15 @@ import crypto from "crypto";
 import { z } from "zod";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { prisma } from "@/lib/prisma";
-import { createSessionToken, verifyOtp as verifyLegacyOtp } from "@/lib/auth";
+import {
+  createSessionToken,
+  verifyOtp as verifyLegacyOtp,
+  ADMIN_COOKIE_NAME,
+  CUSTOMER_COOKIE_NAME,
+  LEGACY_COOKIE_NAME,
+  ADMIN_EMAIL,
+  getSessionCookieOptions,
+} from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -198,25 +206,31 @@ export async function POST(request: Request) {
     }
 
     // 5. Establish authenticated session
-    const isAuthorizedAdmin = (updatedUser.role || "").toUpperCase() === "ADMIN";
+    const isAuthorizedAdmin =
+      (updatedUser.role || "").toUpperCase() === "ADMIN" &&
+      updatedUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
     const sessionToken = createSessionToken(updatedUser);
 
     const response = NextResponse.json({
       success: true,
-      user: updatedUser,
+      user: {
+        ...updatedUser,
+        role: isAuthorizedAdmin ? "ADMIN" : "USER",
+      },
       redirectUrl: isAuthorizedAdmin ? "/admin" : "/",
       message: isAuthorizedAdmin
         ? "Administrator verified successfully! Directing to Admin Portal..."
         : "Email verified successfully! You are now logged in.",
     });
 
-    response.cookies.set("vn_session", sessionToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 30 * 24 * 60 * 60, // 30 days
-    });
+    const cookieOpts = getSessionCookieOptions(request);
+    if (isAuthorizedAdmin) {
+      response.cookies.set(ADMIN_COOKIE_NAME, sessionToken, cookieOpts);
+      response.cookies.set(CUSTOMER_COOKIE_NAME, sessionToken, cookieOpts);
+    } else {
+      response.cookies.set(CUSTOMER_COOKIE_NAME, sessionToken, cookieOpts);
+      response.cookies.set(LEGACY_COOKIE_NAME, sessionToken, cookieOpts);
+    }
 
     return response;
   } catch (error: any) {

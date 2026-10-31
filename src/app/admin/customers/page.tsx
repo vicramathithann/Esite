@@ -68,7 +68,10 @@ export default function AdminCustomersPage() {
       const params = new URLSearchParams();
       if (search) params.set("search", search);
 
-      const res = await fetch(`/api/admin/customers?${params.toString()}`);
+      const res = await fetch(`/api/admin/customers?${params.toString()}`, {
+        credentials: "include",
+        cache: "no-store",
+      });
       const data = await res.json();
       if (data.success) {
         setCustomers(data.customers || []);
@@ -107,6 +110,7 @@ export default function AdminCustomersPage() {
       setPasswordActionLoading(true);
       const res = await fetch(`/api/admin/users/${passwordModalUser.id}/password`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "SET_TEMP_PASSWORD",
@@ -136,6 +140,7 @@ export default function AdminCustomersPage() {
       setPasswordActionLoading(true);
       const res = await fetch(`/api/admin/users/${passwordModalUser.id}/password`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "FORCE_RESET_EMAIL",
@@ -163,6 +168,7 @@ export default function AdminCustomersPage() {
       setDeleteActionLoading(true);
       const res = await fetch(`/api/admin/users/${deleteModalUser.id}`, {
         method: "DELETE",
+        credentials: "include",
       });
       const data = await res.json();
       if (data.success) {

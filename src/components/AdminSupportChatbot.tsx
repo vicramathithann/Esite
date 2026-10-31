@@ -117,6 +117,7 @@ export default function AdminSupportChatbot() {
 
       const res = await fetch("/api/admin/support/agent", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: payloadMessages

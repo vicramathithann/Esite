@@ -38,7 +38,10 @@ export default function AdminOrdersPage() {
       const params = new URLSearchParams();
       params.set("admin", "true");
 
-      const res = await fetch(`/api/orders?${params.toString()}`);
+      const res = await fetch(`/api/orders?${params.toString()}`, {
+        credentials: "include",
+        cache: "no-store",
+      });
       const data = await res.json();
       if (data.success) {
         setOrders(data.orders || []);
@@ -59,6 +62,7 @@ export default function AdminOrdersPage() {
       setResendingId(orderId);
       const res = await fetch(`/api/orders/${orderId}`, {
         method: "PATCH",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "RESEND_EMAIL" }),
       });
@@ -80,6 +84,7 @@ export default function AdminOrdersPage() {
     try {
       const res = await fetch(`/api/orders/${orderId}`, {
         method: "PATCH",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orderStatus: newStatus }),
       });

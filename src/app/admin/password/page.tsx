@@ -84,6 +84,7 @@ export default function AdminChangePasswordPage() {
       setLoading(true);
       const res = await fetch("/api/admin/change-password", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           currentPassword,
@@ -120,6 +121,7 @@ export default function AdminChangePasswordPage() {
 
       const res = await fetch("/api/admin/auth/forgot-password/send", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: ADMIN_EMAIL }),
       });
