@@ -758,6 +758,8 @@ export interface SupabaseDatabaseClient {
   mobile: SupabaseModelDelegate;
   accountDeletionRequest: SupabaseModelDelegate;
   accountDeletionAudit: SupabaseModelDelegate;
+  adminPasswordResetToken: SupabaseModelDelegate;
+  adminSecurityAudit: SupabaseModelDelegate;
   $transaction: (arg: any) => Promise<any>;
 }
 
@@ -783,6 +785,8 @@ export function createSupabasePrismaClient(): SupabaseDatabaseClient {
     mobile: new SupabaseModelDelegate("mobiles", "mobile", true),
     accountDeletionRequest: new SupabaseModelDelegate("AccountDeletionRequest", "accountDeletionRequest", false),
     accountDeletionAudit: new SupabaseModelDelegate("AccountDeletionAudit", "accountDeletionAudit", false),
+    adminPasswordResetToken: new SupabaseModelDelegate("AdminPasswordResetToken", "adminPasswordResetToken", false),
+    adminSecurityAudit: new SupabaseModelDelegate("AdminSecurityAudit", "adminSecurityAudit", false),
 
     async $transaction(arg: any) {
       if (typeof arg === "function") {

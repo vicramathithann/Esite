@@ -48,8 +48,8 @@ function getPublicEnv(key: string): string {
  * 4. http://localhost:3000
  */
 export function getBaseUrl(req?: Request): string {
-  // 1. Explicit NEXT_PUBLIC_APP_URL if set
-  const configured = cleanString(process.env.NEXT_PUBLIC_APP_URL).replace(/\/$/, "");
+  // 1. Explicit NEXT_PUBLIC_SITE_URL or NEXT_PUBLIC_APP_URL if set
+  const configured = cleanString(process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL).replace(/\/$/, "");
   if (configured) {
     return configured;
   }

@@ -93,8 +93,23 @@ function AdminResetPasswordContent() {
       return;
     }
 
-    if (newPassword.length < 8) {
-      setSubmitError("New administrator password must be at least 8 characters long.");
+    if (newPassword.length < 10) {
+      setSubmitError("Password must be at least 10 characters long.");
+      return;
+    }
+
+    if (!/[a-zA-Z]/.test(newPassword)) {
+      setSubmitError("Password must contain at least one letter.");
+      return;
+    }
+
+    if (!/[0-9]/.test(newPassword)) {
+      setSubmitError("Password must contain at least one number.");
+      return;
+    }
+
+    if (!/[^a-zA-Z0-9]/.test(newPassword)) {
+      setSubmitError("Password must contain at least one symbol or special character.");
       return;
     }
 
@@ -107,6 +122,7 @@ function AdminResetPasswordContent() {
       setLoading(true);
       const res = await fetch("/api/admin/auth/forgot-password/verify", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           token,
@@ -122,16 +138,16 @@ function AdminResetPasswordContent() {
         }
         setSuccess(
           data.message ||
-            "Administrator password updated successfully! Accessing Admin Portal..."
+            "Administrator password updated successfully! Redirecting to Admin Dashboard..."
         );
         setTimeout(() => {
-          window.location.href = "/admin";
-        }, 1200);
+          window.location.href = data.redirectUrl || "/admin/dashboard";
+        }, 1000);
       } else {
         setSubmitError(
-          data.error || "Failed to reset password. The recovery link may have expired or already been used."
+          data.error || "This password reset link is invalid or has expired. Please request a new link."
         );
-        if (data.status === "USED" || data.status === "EXPIRED") {
+        if (data.status === "USED" || data.status === "EXPIRED" || data.status === "INVALID") {
           setTokenStatus(data.status);
         }
       }
@@ -200,21 +216,21 @@ function AdminResetPasswordContent() {
           <div className="space-y-4">
             <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-2 text-xs">
               <div className="font-bold text-amber-300 flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 shrink-0 text-amber-400" />
+                <AlertCircle className="w-4 h-4 shrink-0 text-amber-400" />
                 <span>Password Reset Link Already Used</span>
               </div>
               <p className="text-slate-300 leading-relaxed">
-                This reset link has already been used to update your credentials. For security, each link is single-use and expires immediately after use.
+                This password reset link has already been used. For your security, reset links are single-use. Please request a new link.
               </p>
             </div>
 
             <div className="space-y-2 pt-1">
               <Link
-                href="/login"
+                href="/forgot-password"
                 className="w-full py-2.5 px-4 bg-[#C9A66B] hover:bg-[#B8914A] text-black font-bold text-xs rounded-xl transition flex items-center justify-center gap-2"
               >
-                <Lock className="w-4 h-4" />
-                <span>Go to Sign In</span>
+                <KeyRound className="w-4 h-4" />
+                <span>Request a New Link</span>
               </Link>
             </div>
           </div>
@@ -229,17 +245,17 @@ function AdminResetPasswordContent() {
                 <span>Password Reset Link Expired</span>
               </div>
               <p className="text-slate-300 leading-relaxed">
-                This reset link has expired. Links remain valid for 1 hour from dispatch.
+                This password reset link has expired (links are valid for 15 minutes). Please request a new link.
               </p>
             </div>
 
             <div className="space-y-2 pt-1">
               <Link
-                href="/"
+                href="/forgot-password"
                 className="w-full py-2.5 px-4 bg-[#C9A66B] hover:bg-[#B8914A] text-black font-bold text-xs rounded-xl transition flex items-center justify-center gap-2"
               >
-                <ArrowLeft className="w-4 h-4" />
-                <span>Return to Storefront</span>
+                <KeyRound className="w-4 h-4" />
+                <span>Request a New Link</span>
               </Link>
             </div>
           </div>
@@ -254,17 +270,17 @@ function AdminResetPasswordContent() {
                 <span>Invalid Recovery Link</span>
               </div>
               <p className="text-slate-300 leading-relaxed">
-                {tokenError || "This recovery link is invalid or has been superseded by a newer request."}
+                This password reset link is invalid or has expired. Please request a new link.
               </p>
             </div>
 
             <div className="space-y-2 pt-1">
               <Link
-                href="/"
+                href="/forgot-password"
                 className="w-full py-2.5 px-4 bg-[#C9A66B] hover:bg-[#B8914A] text-black font-bold text-xs rounded-xl transition flex items-center justify-center gap-2"
               >
-                <ArrowLeft className="w-4 h-4" />
-                <span>Return to Storefront</span>
+                <KeyRound className="w-4 h-4" />
+                <span>Request a New Link</span>
               </Link>
             </div>
           </div>
@@ -310,9 +326,9 @@ function AdminResetPasswordContent() {
                     type={showNewPassword ? "text" : "password"}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Minimum 8 characters"
+                    placeholder="Minimum 10 chars (letters, numbers & symbol)"
                     required
-                    minLength={8}
+                    minLength={10}
                     className="w-full px-3.5 py-2.5 bg-[#0b0f19] border border-slate-800 rounded-xl text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-[#C9A66B] transition-all pr-10"
                   />
                   <button
@@ -323,6 +339,9 @@ function AdminResetPasswordContent() {
                     {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Must be at least 10 characters with a mix of letters, numbers, and symbols.
+                </p>
               </div>
 
               {/* Confirm New Password */}
@@ -337,7 +356,7 @@ function AdminResetPasswordContent() {
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Re-enter your new administrator password"
                     required
-                    minLength={8}
+                    minLength={10}
                     className="w-full px-3.5 py-2.5 bg-[#0b0f19] border border-slate-800 rounded-xl text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-[#C9A66B] transition-all pr-10"
                   />
                   <button

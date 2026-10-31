@@ -4,17 +4,21 @@ import { prisma } from "@/lib/prisma";
 import { sendAdminPasswordResetEmail } from "@/lib/email";
 import { ADMIN_EMAIL, ensureAdminUser } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/rateLimit";
-import { logSecurityEvent } from "@/lib/securityLogger";
-import { getAppUrl } from "@/lib/appUrl";
+import { logSecurityEvent, getClientIp } from "@/lib/securityLogger";
+import { getBaseUrl } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const maxDuration = 30;
 
 export async function POST(request: Request) {
   try {
+    const clientIp = getClientIp(request);
+
     const rateLimitError = enforceRateLimit(request, {
       keyPrefix: "admin_forgot_password_send",
-      maxRequests: 5,
-      windowSeconds: 60,
+      maxRequests: 3,
+      windowSeconds: 3600,
     });
     if (rateLimitError) return rateLimitError;
 
@@ -52,17 +56,10 @@ export async function POST(request: Request) {
       where: { email: cleanEmail },
     });
 
-    if (!admin) {
+    if (!admin || (admin.role || "").toUpperCase() !== "ADMIN") {
       return NextResponse.json(
         { success: false, error: "Administrator account not found." },
         { status: 404 }
-      );
-    }
-
-    if ((admin.role || "").toUpperCase() !== "ADMIN") {
-      return NextResponse.json(
-        { success: false, error: "Admin password recovery is strictly restricted to administrator accounts." },
-        { status: 403 }
       );
     }
 
@@ -84,33 +81,59 @@ export async function POST(request: Request) {
       }
     }
 
+    // Invalidate any earlier unused reset tokens for this admin
+    await prisma.adminPasswordResetToken.updateMany({
+      where: {
+        userId: admin.id,
+        usedAt: null,
+      },
+      data: {
+        usedAt: new Date(),
+      },
+    });
+
     // Generate cryptographically secure random token (64 hex characters)
-    const resetToken = crypto.randomBytes(32).toString("hex");
-    const tokenExpiresMinutes = 60; // 60 minutes (1 hour)
-    const resetTokenExpires = new Date(Date.now() + tokenExpiresMinutes * 60 * 1000);
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+    await prisma.adminPasswordResetToken.create({
+      data: {
+        userId: admin.id,
+        tokenHash,
+        expiresAt,
+        ipAddress: clientIp,
+      },
+    });
+
+    await prisma.adminSecurityAudit.create({
+      data: {
+        userId: admin.id,
+        action: "PASSWORD_RESET_REQUESTED",
+        ipAddress: clientIp,
+        userAgent: request.headers.get("user-agent") || null,
+      },
+    });
 
     await prisma.user.update({
       where: { id: admin.id },
       data: {
-        resetToken,
-        resetTokenExpires,
-        resetOtpExpires: null,
-        resetOtpAttempts: 0,
         lastResetOtpSentAt: new Date(),
       },
     });
 
-    const appUrl = getAppUrl(request);
-    const resetLink = `${appUrl}/admin/reset-password?token=${encodeURIComponent(resetToken)}&email=${encodeURIComponent(cleanEmail)}`;
+    const baseUrl = getBaseUrl(request);
+    const resetLink = `${baseUrl}/admin/reset-password?token=${encodeURIComponent(rawToken)}`;
 
     // Dispatch secure email with reset link
     const emailResult = await sendAdminPasswordResetEmail(
       { id: admin.id, email: admin.email, name: admin.name },
       resetLink,
-      tokenExpiresMinutes
+      15
     );
 
     if (!emailResult.success) {
+      console.error("[ADMIN_RESET_EMAIL_ERROR] Email gateway failure:", emailResult.error);
       return NextResponse.json(
         {
           success: false,

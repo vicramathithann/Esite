@@ -1545,3 +1545,52 @@ BEGIN
   );
 END;
 $$;
+
+-- ==============================================================================
+-- 15. Admin Password Reset & Security Audit Tables
+-- ==============================================================================
+
+CREATE TABLE IF NOT EXISTS "AdminPasswordResetToken" (
+  "id" TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+  "userId" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE,
+  "tokenHash" TEXT NOT NULL,
+  "expiresAt" TIMESTAMPTZ NOT NULL,
+  "usedAt" TIMESTAMPTZ,
+  "ipAddress" TEXT,
+  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS "idx_admin_pw_reset_user_id" ON "AdminPasswordResetToken"("userId");
+CREATE INDEX IF NOT EXISTS "idx_admin_pw_reset_token_hash" ON "AdminPasswordResetToken"("tokenHash");
+CREATE INDEX IF NOT EXISTS "idx_admin_pw_reset_expires_at" ON "AdminPasswordResetToken"("expiresAt");
+
+ALTER TABLE "AdminPasswordResetToken" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Service role full access on AdminPasswordResetToken" ON "AdminPasswordResetToken";
+CREATE POLICY "Service role full access on AdminPasswordResetToken" 
+  ON "AdminPasswordResetToken" 
+  FOR ALL 
+  TO service_role 
+  USING (true) 
+  WITH CHECK (true);
+
+CREATE TABLE IF NOT EXISTS "AdminSecurityAudit" (
+  "id" TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+  "userId" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE,
+  "action" TEXT NOT NULL,
+  "ipAddress" TEXT,
+  "userAgent" TEXT,
+  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS "idx_admin_security_audit_user_id" ON "AdminSecurityAudit"("userId");
+CREATE INDEX IF NOT EXISTS "idx_admin_security_audit_created_at" ON "AdminSecurityAudit"("createdAt");
+
+ALTER TABLE "AdminSecurityAudit" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Service role full access on AdminSecurityAudit" ON "AdminSecurityAudit";
+CREATE POLICY "Service role full access on AdminSecurityAudit" 
+  ON "AdminSecurityAudit" 
+  FOR ALL 
+  TO service_role 
+  USING (true) 
+  WITH CHECK (true);
+

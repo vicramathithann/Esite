@@ -343,11 +343,20 @@ export async function getAuthenticatedUser(request?: Request): Promise<AuthUser 
       address: true,
       role: true,
       emailVerified: true,
+      tokenExpires: true,
       createdAt: true,
     },
   });
 
   if (!user) return null;
+
+  // Invalidate any session token issued before a password change / session reset
+  if (user.tokenExpires) {
+    const revokedBefore = new Date(user.tokenExpires).getTime();
+    if (tokenCheck.timestamp < revokedBefore) {
+      return null;
+    }
+  }
 
   const isAuthorizedAdmin =
     user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase() &&
@@ -409,6 +418,7 @@ export async function requireAdmin(request?: Request): Promise<AuthUser | NextRe
       address: true,
       role: true,
       emailVerified: true,
+      tokenExpires: true,
       createdAt: true,
     },
   });
@@ -419,6 +429,20 @@ export async function requireAdmin(request?: Request): Promise<AuthUser | NextRe
       { success: false, error: "Authentication required. Please sign in as an administrator." },
       { status: 401 }
     );
+  }
+
+  // Invalidate any session token issued before a password change / session reset
+  if (user.tokenExpires) {
+    const revokedBefore = new Date(user.tokenExpires).getTime();
+    if (tokenCheck.timestamp < revokedBefore) {
+      console.warn(
+        `[ADMIN_AUTH_FAILURE] Route: ${route} | Reason: SESSION_REVOKED_AFTER_PASSWORD_CHANGE (token issued: ${tokenCheck.timestamp}, revoked: ${revokedBefore})`
+      );
+      return NextResponse.json(
+        { success: false, error: "Session expired due to a recent password change. Please sign in again." },
+        { status: 401 }
+      );
+    }
   }
 
   // 4. Strict Database-backed Role & Identity Verification
@@ -485,7 +509,8 @@ export async function ensureAdminUser() {
     });
 
     if (!existing) {
-      const hashedPassword = hashPassword("#^UdEV3raUgpEPK5");
+      const randomInitialPassword = crypto.randomBytes(24).toString("base64");
+      const hashedPassword = hashPassword(randomInitialPassword);
       await prisma.user.create({
         data: {
           name: "VN Mobiles Administrator",

@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
+import crypto from "crypto";
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import {
   hashPassword,
   ADMIN_EMAIL,
@@ -9,76 +12,116 @@ import {
   getSessionCookieOptions,
 } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/rateLimit";
-import { logSecurityEvent } from "@/lib/securityLogger";
+import { logSecurityEvent, getClientIp } from "@/lib/securityLogger";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
+const GENERIC_TOKEN_ERROR = "This password reset link is invalid or has expired. Please request a new link.";
+
+const resetPasswordSchema = z
+  .object({
+    token: z.string().min(1, "Reset token is required"),
+    newPassword: z
+      .string()
+      .min(10, "Password must be at least 10 characters long")
+      .regex(/[a-zA-Z]/, "Password must contain at least one letter")
+      .regex(/[0-9]/, "Password must contain at least one number")
+      .regex(/[^a-zA-Z0-9]/, "Password must contain at least one symbol or special character"),
+    confirmPassword: z.string().min(1, "Please confirm your password"),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "New password and confirm password do not match",
+    path: ["confirmPassword"],
+  });
 
 /**
- * GET: Validates whether a reset token is valid, expired, or already used
- * without modifying or consuming the token.
+ * Constant-time hash verification helper to prevent timing attacks.
+ */
+function constantTimeHashMatch(token: string, storedHash: string): boolean {
+  if (!token || !storedHash) return false;
+  const computedHash = crypto.createHash("sha256").update(token.trim()).digest("hex");
+  if (computedHash.length !== storedHash.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(computedHash, "utf-8"), Buffer.from(storedHash, "utf-8"));
+}
+
+/**
+ * GET: Validates whether a reset token is valid and unexpired without consuming it.
+ * The link itself NEVER grants access or issues session cookies.
  */
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const token = (searchParams.get("token") || "").trim();
-
-    if (!token) {
-      return NextResponse.json({
-        valid: false,
-        status: "MISSING",
-        error: "Missing password reset link. Please use the link sent to your email.",
-      });
-    }
-
-    const admin = await prisma.user.findUnique({
-      where: { email: ADMIN_EMAIL.toLowerCase() },
+    const rateLimitError = enforceRateLimit(request, {
+      keyPrefix: "admin_token_inspect",
+      maxRequests: 30,
+      windowSeconds: 60,
     });
+    if (rateLimitError) return rateLimitError;
 
-    if (!admin || (admin.role || "").toUpperCase() !== "ADMIN") {
+    const { searchParams } = new URL(request.url);
+    const rawToken = (searchParams.get("token") || "").trim();
+
+    if (!rawToken) {
       return NextResponse.json({
         valid: false,
         status: "INVALID",
-        error: "Administrator account not found.",
+        error: GENERIC_TOKEN_ERROR,
       });
     }
 
-    // Check if token matches the currently active reset token
-    if (admin.resetToken && admin.resetToken === token) {
-      if (admin.resetTokenExpires && new Date() > new Date(admin.resetTokenExpires)) {
-        return NextResponse.json({
-          valid: false,
-          status: "EXPIRED",
-          error: "This password reset link has expired (links are valid for 1 hour). Please request a fresh link.",
-        });
-      }
+    const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
 
-      const remainingMinutes = admin.resetTokenExpires
-        ? Math.max(1, Math.round((new Date(admin.resetTokenExpires).getTime() - Date.now()) / (60 * 1000)))
-        : 60;
+    // Look up token in AdminPasswordResetToken table
+    const tokenRecord = await prisma.adminPasswordResetToken.findFirst({
+      where: { tokenHash },
+    });
 
+    if (!tokenRecord) {
       return NextResponse.json({
-        valid: true,
-        status: "VALID",
-        email: admin.email,
-        expiresInMinutes: remainingMinutes,
+        valid: false,
+        status: "INVALID",
+        error: GENERIC_TOKEN_ERROR,
       });
     }
 
-    // Check if token has already been consumed
-    const usedTokens = admin.resetOtpHash ? admin.resetOtpHash.split(",").map((t: string) => t.trim()) : [];
-    if (usedTokens.includes(token)) {
+    // Verify hash match in constant time
+    if (!constantTimeHashMatch(rawToken, tokenRecord.tokenHash)) {
+      return NextResponse.json({
+        valid: false,
+        status: "INVALID",
+        error: GENERIC_TOKEN_ERROR,
+      });
+    }
+
+    // Check if token was already used
+    if (tokenRecord.usedAt) {
       return NextResponse.json({
         valid: false,
         status: "USED",
-        error: "This password reset link has already been used. For your security, reset links can only be used once. Please request a new link if needed.",
+        error: "This password reset link has already been used. Please request a new link.",
       });
     }
 
-    // Otherwise, token is invalid or superseded
+    // Check if token is expired (15-minute validity window)
+    if (new Date() > new Date(tokenRecord.expiresAt)) {
+      return NextResponse.json({
+        valid: false,
+        status: "EXPIRED",
+        error: "This password reset link has expired. Please request a new link.",
+      });
+    }
+
+    const remainingMinutes = Math.max(
+      1,
+      Math.round((new Date(tokenRecord.expiresAt).getTime() - Date.now()) / (60 * 1000))
+    );
+
     return NextResponse.json({
-      valid: false,
-      status: "INVALID",
-      error: "This password reset link is invalid or has been superseded by a newer link. Please request a fresh link.",
+      valid: true,
+      status: "VALID",
+      email: ADMIN_EMAIL,
+      expiresInMinutes: remainingMinutes,
     });
   } catch (err) {
     console.error("Admin verify token GET error:", err);
@@ -90,134 +133,172 @@ export async function GET(request: Request) {
 }
 
 /**
- * POST: Verifies token, derives PBKDF2 hash, and updates administrator password.
+ * POST: Verifies token, validates password policy, updates password,
+ * revokes all prior admin sessions, and issues a fresh session for the current browser.
  */
 export async function POST(request: Request) {
   try {
+    const clientIp = getClientIp(request);
+
+    // Rate limit: 5 requests per 10 minutes per IP
     const rateLimitError = enforceRateLimit(request, {
-      keyPrefix: "admin_forgot_password_verify",
+      keyPrefix: "admin_forgot_password_submit",
       maxRequests: 5,
-      windowSeconds: 60,
+      windowSeconds: 600,
     });
     if (rateLimitError) return rateLimitError;
 
     const body = await request.json();
-    const rawToken = body.token;
-    const rawPassword = body.newPassword;
-    const rawConfirm = body.confirmPassword;
+    const parseResult = resetPasswordSchema.safeParse(body);
 
-    if (!rawToken || typeof rawToken !== "string" || !rawPassword) {
+    if (!parseResult.success) {
+      const firstIssue = parseResult.error.issues[0];
       return NextResponse.json(
-        { success: false, error: "Reset token and new password are required." },
+        { success: false, error: firstIssue?.message || "Invalid input." },
         { status: 400 }
       );
     }
 
-    const cleanToken = rawToken.trim();
-    const newPassword = String(rawPassword);
+    const { token: rawToken, newPassword } = parseResult.data;
+    const tokenHash = crypto.createHash("sha256").update(rawToken.trim()).digest("hex");
 
-    if (newPassword.length < 8) {
-      return NextResponse.json(
-        { success: false, error: "New password must be at least 8 characters long." },
-        { status: 400 }
-      );
-    }
-
-    if (rawConfirm && newPassword !== String(rawConfirm)) {
-      return NextResponse.json(
-        { success: false, error: "New password and confirm password do not match." },
-        { status: 400 }
-      );
-    }
-
-    const admin = await prisma.user.findUnique({
-      where: { email: ADMIN_EMAIL.toLowerCase() },
+    // Look up token in AdminPasswordResetToken table
+    const tokenRecord = await prisma.adminPasswordResetToken.findFirst({
+      where: { tokenHash },
     });
 
-    if (!admin || (admin.role || "").toUpperCase() !== "ADMIN") {
+    if (!tokenRecord) {
       return NextResponse.json(
-        { success: false, error: "Administrator account not found." },
-        { status: 404 }
+        { success: false, error: GENERIC_TOKEN_ERROR, status: "INVALID" },
+        { status: 400 }
       );
     }
 
-    // Check if token was already used
-    const usedTokens = admin.resetOtpHash ? admin.resetOtpHash.split(",").map((t: string) => t.trim()) : [];
-    if (usedTokens.includes(cleanToken)) {
+    // Compare hash in constant time
+    if (!constantTimeHashMatch(rawToken, tokenRecord.tokenHash)) {
+      return NextResponse.json(
+        { success: false, error: GENERIC_TOKEN_ERROR, status: "INVALID" },
+        { status: 400 }
+      );
+    }
+
+    // Reject already consumed tokens
+    if (tokenRecord.usedAt) {
       return NextResponse.json(
         {
           success: false,
-          error: "This password reset link has already been used. For your security, reset links can only be used once. Please request a new link.",
+          error: "This password reset link has already been used. Please request a new link.",
           status: "USED",
         },
         { status: 400 }
       );
     }
 
-    // Check if token matches active token
-    if (!admin.resetToken || admin.resetToken !== cleanToken) {
+    // Reject expired tokens
+    if (new Date() > new Date(tokenRecord.expiresAt)) {
       return NextResponse.json(
         {
           success: false,
-          error: "This password reset link is invalid or has been superseded by a newer link. Please request a fresh link.",
-          status: "INVALID",
-        },
-        { status: 400 }
-      );
-    }
-
-    // Check expiration (1 hour)
-    if (!admin.resetTokenExpires || new Date() > new Date(admin.resetTokenExpires)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "This password reset link has expired (links are valid for 1 hour). Please request a fresh link.",
+          error: "This password reset link has expired. Please request a new link.",
           status: "EXPIRED",
         },
         { status: 400 }
       );
     }
 
-    // Hash new password using 100,000 iterations PBKDF2
+    // Look up and verify administrator identity
+    const admin = await prisma.user.findUnique({
+      where: { id: tokenRecord.userId },
+    });
+
+    if (!admin || (admin.role || "").toUpperCase() !== "ADMIN" || admin.email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+      return NextResponse.json(
+        { success: false, error: GENERIC_TOKEN_ERROR, status: "INVALID" },
+        { status: 403 }
+      );
+    }
+
+    // 1. Single use: Mark this token as used
+    await prisma.adminPasswordResetToken.update({
+      where: { id: tokenRecord.id },
+      data: { usedAt: new Date() },
+    });
+
+    // 2. Invalidate any other pending reset tokens for this admin
+    await prisma.adminPasswordResetToken.updateMany({
+      where: {
+        userId: admin.id,
+        usedAt: null,
+      },
+      data: {
+        usedAt: new Date(),
+      },
+    });
+
+    // 3. Hash new password with existing PBKDF2/SHA-512 (100,000 iterations)
     const hashedPassword = hashPassword(newPassword);
+    const now = new Date();
 
-    // Track consumed token in usedTokens history and invalidate active token
-    const updatedUsedTokens = [...usedTokens, cleanToken].slice(-20).join(",");
-
+    // 4. Invalidate all prior sessions by updating tokenExpires to `now`
     await prisma.user.update({
       where: { id: admin.id },
       data: {
         password: hashedPassword,
+        tokenExpires: now, // Tokens issued before this timestamp are rejected by requireAdmin!
         resetToken: null,
         resetTokenExpires: null,
-        resetOtpHash: updatedUsedTokens,
+        resetOtpHash: null,
         resetOtpExpires: null,
-        resetOtpAttempts: 0,
       },
     });
 
-    logSecurityEvent("ADMIN_PASSWORD_CHANGED", "INFO", {
+    // 5. Sync to Supabase Auth if user exists in auth.users
+    try {
+      await supabaseAdmin.auth.admin.updateUserById(admin.id, {
+        password: newPassword,
+      });
+    } catch (authErr) {
+      console.warn("[ADMIN_PASSWORD_RESET] Supabase Auth update notice:", authErr);
+    }
+
+    // 6. Record completion in audit log table without storing passwords or tokens
+    try {
+      await prisma.adminSecurityAudit.create({
+        data: {
+          userId: admin.id,
+          action: "PASSWORD_RESET_COMPLETED",
+          ipAddress: clientIp,
+          userAgent: request.headers.get("user-agent") || null,
+        },
+      });
+    } catch (auditErr) {
+      console.error("[ADMIN_SECURITY_AUDIT_ERROR]", auditErr);
+    }
+
+    logSecurityEvent("ADMIN_PASSWORD_RESET_COMPLETED", "INFO", {
       userId: admin.id,
       email: admin.email,
+      ip: clientIp,
       route: "/api/admin/auth/forgot-password/verify",
-      details: { method: "RESET_LINK" },
     });
 
-    // Establish session immediately so Admin can access portal directly
-    const sessionToken = createSessionToken(admin);
+    // 7. Issue fresh, isolated session cookie exclusively for the current browser
+    const sanitizedAdmin = {
+      id: admin.id,
+      name: admin.name,
+      email: admin.email,
+      phone: admin.phone,
+      role: "ADMIN" as const,
+      emailVerified: true,
+      createdAt: admin.createdAt,
+    };
+
+    const sessionToken = createSessionToken(sanitizedAdmin);
     const response = NextResponse.json({
       success: true,
-      user: {
-        id: admin.id,
-        name: admin.name,
-        email: admin.email,
-        phone: admin.phone,
-        role: "ADMIN",
-        emailVerified: admin.emailVerified,
-        createdAt: admin.createdAt,
-      },
+      user: sanitizedAdmin,
       redirectUrl: "/admin",
-      message: "Administrator password updated successfully! Redirecting to Admin Portal...",
+      message: "Administrator password updated successfully! Directing to Admin Portal...",
     });
 
     const cookieOpts = getSessionCookieOptions(request);
