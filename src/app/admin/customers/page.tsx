@@ -243,8 +243,6 @@ export default function AdminCustomersPage() {
 
   // Filter & Search counts
   const totalCount = customers.length;
-  const adminCount = useMemo(() => customers.filter((c) => c.role === "ADMIN").length, [customers]);
-  const userCount = totalCount - adminCount;
 
   return (
     <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
@@ -418,7 +416,6 @@ export default function AdminCustomersPage() {
             </thead>
             <tbody className="divide-y divide-border">
               {loading ? (
-                // Skeleton Rows
                 Array.from({ length: 4 }).map((_, idx) => (
                   <tr key={idx} className="animate-pulse">
                     <td className="py-4 px-4">
@@ -451,7 +448,6 @@ export default function AdminCustomersPage() {
                   </tr>
                 ))
               ) : customers.length === 0 ? (
-                // Empty State
                 <tr>
                   <td colSpan={8} className="py-16 text-center">
                     <div className="flex flex-col items-center justify-center space-y-3">
@@ -481,13 +477,14 @@ export default function AdminCustomersPage() {
                   </td>
                 </tr>
               ) : (
-                customers.map((c) => {
+                customers.map((c, idx) => {
                   const isAdmin = c.role === "ADMIN";
-                  const isPrimaryAdmin = c.email.toLowerCase() === "rrroyce20@gmail.com";
+                  const isMainAdmin = c.email.toLowerCase() === "rrroyce20@gmail.com";
+                  const isPrimaryAdmin = isMainAdmin;
                   const initial = (c.name || "U").charAt(0).toUpperCase();
 
                   return (
-                    <tr key={c.id} className="hover:bg-tile/50 transition">
+                    <tr key={c.id || idx} className="hover:bg-tile/50 transition">
                       {/* Name & Avatar */}
                       <td className="py-3.5 px-4 font-semibold text-foreground">
                         <div className="flex items-center gap-3">
@@ -510,7 +507,7 @@ export default function AdminCustomersPage() {
                               )}
                             </div>
                             <div className="text-[10px] text-muted font-normal font-mono">
-                              ID: {c.id.slice(0, 8)}...
+                              ID: {c.id ? `${c.id.slice(0, 8)}...` : "-"}
                             </div>
                           </div>
                         </div>
