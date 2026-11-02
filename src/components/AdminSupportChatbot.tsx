@@ -24,19 +24,36 @@ interface AdminChatMessage {
   suggestions?: string[];
 }
 
+interface ButtonPosition {
+  x: number;
+  y: number;
+}
+
+const STORAGE_KEY = "vn_admin_ai_button_position";
+
+function clampPosition(pos: ButtonPosition, btnW: number, btnH: number): ButtonPosition {
+  if (typeof window === "undefined") return pos;
+  const margin = 16;
+  const maxX = Math.max(margin, window.innerWidth - btnW - margin);
+  const maxY = Math.max(margin, window.innerHeight - btnH - margin);
+  return {
+    x: Math.min(Math.max(margin, pos.x), maxX),
+    y: Math.min(Math.max(margin, pos.y), maxY),
+  };
+}
+
+function savePosition(pos: ButtonPosition) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(pos));
+  } catch (e) {
+    console.warn("[AdminSupportChatbot] Failed to save position to localStorage:", e);
+  }
+}
+
 export default function AdminSupportChatbot() {
   const pathname = usePathname();
   const { currentUser } = useApp();
-
-  // IMPORTANT: Render strictly inside authorized Admin Portal pages (never on public storefront or login)
-  if (!pathname?.startsWith("/admin") || pathname === "/admin/reset-password") {
-    return null;
-  }
-
-  // Security check: Only verified root ADMIN can access
-  if (!currentUser || currentUser.role !== "ADMIN" || (currentUser.email || "").toLowerCase() !== "rrroyce20@gmail.com") {
-    return null;
-  }
 
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<AdminChatMessage[]>([]);
@@ -44,8 +61,99 @@ export default function AdminSupportChatbot() {
   const [isTyping, setIsTyping] = useState(false);
   const [hasUnread, setHasUnread] = useState(true);
 
+  // Draggable Button States
+  const [position, setPosition] = useState<ButtonPosition | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const buttonRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{
+    startX: number;
+    startY: number;
+    originX: number;
+    originY: number;
+    hasMoved: boolean;
+  } | null>(null);
+  const wasDraggedRef = useRef(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Restore position from localStorage on mount
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const btnW = buttonRef.current?.offsetWidth || 136;
+    const btnH = buttonRef.current?.offsetHeight || 48;
+    const defaultPos: ButtonPosition = {
+      x: Math.max(16, window.innerWidth - btnW - 24),
+      y: Math.max(16, window.innerHeight - btnH - 24),
+    };
+
+    let savedPos: ButtonPosition | null = null;
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (
+          typeof parsed?.x === "number" &&
+          typeof parsed?.y === "number" &&
+          !isNaN(parsed.x) &&
+          !isNaN(parsed.y)
+        ) {
+          savedPos = parsed;
+        }
+      }
+    } catch (e) {
+      console.warn("[AdminSupportChatbot] Error reading position from localStorage:", e);
+    }
+
+    if (savedPos) {
+      const margin = 16;
+      const isOffscreen =
+        savedPos.x < margin ||
+        savedPos.y < margin ||
+        savedPos.x > window.innerWidth - btnW - margin ||
+        savedPos.y > window.innerHeight - btnH - margin;
+
+      if (isOffscreen) {
+        setPosition(defaultPos);
+        savePosition(defaultPos);
+      } else {
+        setPosition(clampPosition(savedPos, btnW, btnH));
+      }
+    } else {
+      setPosition(defaultPos);
+    }
+  }, []);
+
+  // Window resize handler: reset or clamp position if off-screen
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleResize = () => {
+      setPosition((prev) => {
+        if (!prev) return null;
+        const btnW = buttonRef.current?.offsetWidth || 136;
+        const btnH = buttonRef.current?.offsetHeight || 48;
+        const margin = 16;
+
+        const isOffscreen =
+          prev.x < margin ||
+          prev.y < margin ||
+          prev.x > window.innerWidth - btnW - margin ||
+          prev.y > window.innerHeight - btnH - margin;
+
+        if (isOffscreen) {
+          const clamped = clampPosition(prev, btnW, btnH);
+          savePosition(clamped);
+          return clamped;
+        }
+        return prev;
+      });
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // Initialize friendly executive greeting on load
   useEffect(() => {
@@ -92,6 +200,155 @@ export default function AdminSupportChatbot() {
       }, 150);
     }
   }, [isOpen]);
+
+  // Pointer drag handlers
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {}
+
+    const btnW = buttonRef.current?.offsetWidth || 136;
+    const btnH = buttonRef.current?.offsetHeight || 48;
+    const currentX = position?.x ?? Math.max(16, window.innerWidth - btnW - 24);
+    const currentY = position?.y ?? Math.max(16, window.innerHeight - btnH - 24);
+
+    wasDraggedRef.current = false;
+    dragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      originX: currentX,
+      originY: currentY,
+      hasMoved: false,
+    };
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current) return;
+    const dx = e.clientX - dragRef.current.startX;
+    const dy = e.clientY - dragRef.current.startY;
+
+    if (!dragRef.current.hasMoved && Math.hypot(dx, dy) > 5) {
+      dragRef.current.hasMoved = true;
+      wasDraggedRef.current = true;
+      setIsDragging(true);
+    }
+
+    if (dragRef.current.hasMoved) {
+      const btnW = buttonRef.current?.offsetWidth || 136;
+      const btnH = buttonRef.current?.offsetHeight || 48;
+      const nextPos = clampPosition(
+        {
+          x: dragRef.current.originX + dx,
+          y: dragRef.current.originY + dy,
+        },
+        btnW,
+        btnH
+      );
+      setPosition(nextPos);
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current) return;
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {}
+
+    const didMove = dragRef.current.hasMoved;
+    dragRef.current = null;
+
+    if (didMove) {
+      if (position) {
+        savePosition(position);
+      }
+      setTimeout(() => {
+        setIsDragging(false);
+      }, 60);
+    } else {
+      setIsDragging(false);
+    }
+  };
+
+  const handlePointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current) return;
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {}
+    dragRef.current = null;
+    setIsDragging(false);
+  };
+
+  const handleButtonClick = (e: React.MouseEvent) => {
+    if (wasDraggedRef.current || isDragging) {
+      e.preventDefault();
+      e.stopPropagation();
+      wasDraggedRef.current = false;
+      return;
+    }
+    setIsOpen(true);
+  };
+
+  // Computes chat panel style adjacent to the button's current position while staying strictly inside the viewport
+  const getPanelStyle = (): React.CSSProperties | undefined => {
+    if (typeof window === "undefined" || !position) return undefined;
+    if (window.innerWidth < 640) {
+      // Mobile screen: anchored with safe margins
+      return undefined;
+    }
+
+    const btnW = buttonRef.current?.offsetWidth || 136;
+    const btnH = buttonRef.current?.offsetHeight || 48;
+    const panelW = 430;
+    const panelH = Math.min(600, window.innerHeight - 32);
+    const margin = 16;
+
+    // Horizontal placement:
+    // If button is in the right half, align right edge of panel with right edge of button; else align left edges
+    let left: number;
+    if (position.x + btnW / 2 > window.innerWidth / 2) {
+      left = position.x + btnW - panelW;
+    } else {
+      left = position.x;
+    }
+
+    // Clamp horizontally inside viewport
+    left = Math.max(margin, Math.min(left, window.innerWidth - panelW - margin));
+
+    // Vertical placement:
+    // If button is in lower half of screen, place panel above button; otherwise place below
+    let top: number;
+    if (position.y + btnH / 2 > window.innerHeight / 2) {
+      top = position.y - panelH - 12;
+      if (top < margin) {
+        top = margin;
+      }
+    } else {
+      top = position.y + btnH + 12;
+      if (top + panelH > window.innerHeight - margin) {
+        top = window.innerHeight - panelH - margin;
+      }
+    }
+
+    return {
+      left: `${left}px`,
+      top: `${top}px`,
+      bottom: "auto",
+      right: "auto",
+      position: "fixed",
+    };
+  };
+
+  // IMPORTANT: Render strictly inside authorized Admin Portal pages (never on public storefront or login)
+  if (!pathname?.startsWith("/admin") || pathname === "/admin/reset-password") {
+    return null;
+  }
+
+  // Security check: Only verified root ADMIN can access
+  if (!currentUser || currentUser.role !== "ADMIN" || (currentUser.email || "").toLowerCase() !== "rrroyce20@gmail.com") {
+    return null;
+  }
 
   const handleSendMessage = async (textToSend?: string) => {
     const messageText = (textToSend || inputValue).trim();
@@ -204,16 +461,41 @@ export default function AdminSupportChatbot() {
 
   return (
     <>
-      {/* Floating Trigger Button for Admin (Crimson / Red Theme with elevated z-[9999]) */}
+      {/* Floating Draggable Trigger Button for Admin */}
       {!isOpen && (
-        <div className="fixed bottom-6 right-6 z-[9999] animate-button-entrance animate-float-gentle">
+        <div
+          ref={buttonRef}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerCancel}
+          style={
+            position
+              ? {
+                  left: `${position.x}px`,
+                  top: `${position.y}px`,
+                  bottom: "auto",
+                  right: "auto",
+                  touchAction: "none",
+                }
+              : { touchAction: "none" }
+          }
+          className={`fixed z-[9999] select-none ${
+            !position ? "bottom-6 right-6" : ""
+          } ${
+            isDragging
+              ? "cursor-grabbing"
+              : "cursor-grab animate-button-entrance animate-float-gentle"
+          }`}
+        >
           {/* Subtle Ambient Red Glow Aura */}
           <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-rose-600 via-red-500 to-rose-700 blur-xs opacity-40 animate-pulse pointer-events-none" />
 
           <button
-            onClick={() => setIsOpen(true)}
+            type="button"
+            onClick={handleButtonClick}
             aria-label="Open VN Mobiles Admin AI Assistant"
-            className="relative group flex items-center gap-2.5 px-4 py-3 rounded-full bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white shadow-[0_8px_25px_rgba(225,29,72,0.4)] hover:shadow-[0_14px_35px_rgba(225,29,72,0.65)] hover:scale-105 active:scale-95 hover:-translate-y-0.5 transition-all duration-300 ease-out cursor-pointer border border-white/25 focus:outline-none focus:ring-2 focus:ring-rose-500/50 overflow-hidden"
+            className="relative group flex items-center gap-2.5 px-4 py-3 rounded-full bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white shadow-[0_8px_25px_rgba(225,29,72,0.4)] hover:shadow-[0_14px_35px_rgba(225,29,72,0.65)] hover:scale-105 active:scale-95 hover:-translate-y-0.5 transition-all duration-300 ease-out cursor-inherit border border-white/25 focus:outline-none focus:ring-2 focus:ring-rose-500/50 overflow-hidden"
           >
             {/* Shimmer Light Reflection Sweep on Hover */}
             <span className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
@@ -251,7 +533,8 @@ export default function AdminSupportChatbot() {
           role="dialog"
           aria-modal="true"
           aria-label="VN Mobiles Admin AI Assistant"
-          className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[9999] w-[calc(100vw-2rem)] sm:w-[430px] h-[min(570px,calc(100dvh-5rem))] sm:h-[min(600px,calc(100dvh-6rem))] max-h-[calc(100dvh-2rem)] bg-card border border-rose-500/30 rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden text-foreground animate-in fade-in zoom-in-95 duration-200"
+          style={getPanelStyle()}
+          className="fixed bottom-4 right-4 sm:bottom-auto sm:right-auto z-[9999] w-[calc(100vw-2rem)] sm:w-[430px] h-[min(570px,calc(100dvh-5rem))] sm:h-[min(600px,calc(100dvh-6rem))] max-h-[calc(100dvh-2rem)] bg-card border border-rose-500/30 rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden text-foreground animate-in fade-in zoom-in-95 duration-200"
         >
           {/* Header with Red Accents, Live Operational Indicator & Close Button */}
           <div className="px-4 py-3.5 bg-gradient-to-r from-card via-rose-500/10 to-card border-b border-rose-500/20 flex items-center justify-between shrink-0">
@@ -351,78 +634,66 @@ export default function AdminSupportChatbot() {
                     {msg.timestamp}
                   </div>
                 </div>
-
-                {/* Follow-up Interactive Suggestion Chips */}
-                {msg.suggestions && msg.suggestions.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-2 max-w-[95%]">
-                    {msg.suggestions.map((sug, sIdx) => (
-                      <button
-                        key={sIdx}
-                        onClick={() => handleSendMessage(sug.replace(/^[^\w\s]+/, "").trim())}
-                        className="px-2.5 py-1 rounded-full text-[11px] bg-card hover:bg-rose-500/10 text-foreground hover:text-rose-600 dark:hover:text-rose-400 border border-border hover:border-rose-500/40 transition-all duration-150 cursor-pointer shadow-2xs text-left"
-                      >
-                        {sug}
-                      </button>
-                    ))}
-                  </div>
-                )}
               </div>
             ))}
 
             {/* Typing Indicator */}
             {isTyping && (
-              <div className="flex items-center gap-2 text-muted">
-                <div className="w-7 h-7 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-600 dark:text-rose-400">
-                  <BarChart3 className="w-3.5 h-3.5" />
-                </div>
-                <div className="bg-tile border border-border px-3.5 py-2 rounded-2xl rounded-tl-xs flex items-center gap-1.5 shadow-2xs">
-                  <span className="w-1.5 h-1.5 rounded-full bg-rose-600 animate-bounce" style={{ animationDelay: "0ms" }} />
-                  <span className="w-1.5 h-1.5 rounded-full bg-rose-600 animate-bounce" style={{ animationDelay: "150ms" }} />
-                  <span className="w-1.5 h-1.5 rounded-full bg-rose-600 animate-bounce" style={{ animationDelay: "300ms" }} />
-                </div>
+              <div className="flex items-center gap-1.5 p-3 rounded-2xl bg-tile/80 border border-border w-fit text-muted">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-bounce" />
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-bounce [animation-delay:0.2s]" />
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-bounce [animation-delay:0.4s]" />
+                <span className="text-[10px] ml-1 font-medium">Analyzing database...</span>
               </div>
             )}
 
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input & Send Area (Red Accent Button) */}
-          <div className="p-3 bg-card border-t border-border shrink-0">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSendMessage();
-              }}
-              className="flex items-center gap-2"
-            >
-              <input
-                ref={inputRef}
-                type="text"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                placeholder="Ask about revenue, invites, cancellation rate, stock..."
-                className="flex-1 bg-tile text-xs sm:text-[13px] text-foreground placeholder:text-muted rounded-full px-4 py-2.5 border border-border focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 outline-none transition-all"
-              />
-
-              <button
-                type="submit"
-                disabled={!inputValue.trim()}
-                className="p-2.5 rounded-full bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white disabled:opacity-40 disabled:cursor-not-allowed shadow-xs transition-all cursor-pointer shrink-0"
-                title="Send query to Admin AI"
-                aria-label="Send query to Admin AI"
-              >
-                <Send className="w-4 h-4" />
-              </button>
-            </form>
-
-            <div className="mt-1.5 px-2 flex items-center justify-between text-[10px] text-muted">
-              <span>Admin AI Assistant • Security Enforced</span>
-              <span className="hidden sm:inline">Press Enter to send</span>
+          {/* Prompt Suggestions */}
+          {messages.length > 0 && messages[messages.length - 1].suggestions && (
+            <div className="p-2.5 bg-tile/40 border-t border-border/60 flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0">
+              {messages[messages.length - 1].suggestions?.map((sug, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleSendMessage(sug)}
+                  className="px-2.5 py-1 bg-card hover:bg-tile border border-border hover:border-rose-500/40 rounded-full text-[11px] text-muted hover:text-foreground transition-all shrink-0 cursor-pointer shadow-2xs"
+                >
+                  {sug}
+                </button>
+              ))}
             </div>
-          </div>
+          )}
+
+          {/* Message Input Form */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSendMessage();
+            }}
+            className="p-3 bg-card border-t border-border flex items-center gap-2 shrink-0"
+          >
+            <input
+              ref={inputRef}
+              type="text"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              placeholder="Ask for revenue, orders, inventory or invites..."
+              className="flex-1 bg-tile border border-border rounded-xl px-3.5 py-2 text-xs text-foreground placeholder:text-muted focus:outline-none focus:border-rose-500"
+            />
+
+            <button
+              type="submit"
+              disabled={!inputValue.trim() || isTyping}
+              className="p-2 rounded-xl bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white disabled:opacity-40 transition-colors cursor-pointer shrink-0 shadow-xs"
+              title="Send query"
+              aria-label="Send query"
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          </form>
         </div>
       )}
     </>
   );
 }
-

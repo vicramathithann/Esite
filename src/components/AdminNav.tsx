@@ -14,7 +14,6 @@ import {
   MailCheck,
   ExternalLink,
   SlidersHorizontal,
-  KeyRound,
   LogOut,
   Menu,
   X,
@@ -62,7 +61,6 @@ export default function AdminNav() {
         { href: "/admin/settings", label: "Store Controls", icon: SlidersHorizontal },
         { href: "/admin/warranties", label: "Warranties", icon: ShieldCheck },
         { href: "/admin/email-logs", label: "Email Logs", icon: MailCheck },
-        { href: "/admin/password", label: "Change Password", icon: KeyRound },
       ],
     },
     {
@@ -98,9 +96,6 @@ export default function AdminNav() {
     }
     if (href === "/admin/email-logs") {
       return pathname === "/admin/email-logs" || pathname.startsWith("/admin/email-logs/");
-    }
-    if (href === "/admin/password") {
-      return pathname === "/admin/password" || pathname.startsWith("/admin/password/");
     }
     return pathname === href;
   };
