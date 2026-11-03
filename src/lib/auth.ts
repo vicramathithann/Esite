@@ -420,13 +420,55 @@ export async function requireAuth(request: Request): Promise<AuthUser | NextResp
   return user;
 }
 
+const DEFAULT_NOT_FOUND_HTML = `<!DOCTYPE html><html lang="en" class="h-full"><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><meta name="robots" content="noindex, nofollow, noarchive"/><title>404: This page could not be found</title></head><body class="min-h-full flex flex-col bg-background text-foreground"><main class="w-full flex-1 flex flex-col items-center justify-center py-16 px-4"><span style="font-size:6rem;font-weight:200;line-height:1;color:#C9A66B">404</span><h1 style="font-size:1.5rem;font-weight:600;margin-top:1rem;margin-bottom:0.5rem">Page Not Found</h1><p style="color:#6E6E73;margin-bottom:2rem">The page you are looking for doesn't exist or has been moved.</p><a href="/" style="display:inline-flex;align-items:center;padding:0.75rem 2rem;border-radius:9999px;background-color:#C9A66B;color:#FFFCFA;text-decoration:none;font-weight:500">Return Home</a></main></body></html>`;
+
+let cachedNotFoundHtml: string | null = null;
+
+export function getNotFoundHtml(): string {
+  if (cachedNotFoundHtml) return cachedNotFoundHtml;
+  if (typeof window === "undefined") {
+    try {
+      // Use runtime require so client bundler does not attempt to bundle Node.js 'fs'
+      const nodeRequire = eval("require");
+      const fs = nodeRequire("fs");
+      const path = nodeRequire("path");
+      const filePath = path.join(process.cwd(), ".next", "server", "app", "_not-found.html");
+      if (fs.existsSync(filePath)) {
+        const content = fs.readFileSync(filePath, "utf8");
+        if (content) {
+          cachedNotFoundHtml = content;
+          return content;
+        }
+      }
+    } catch {
+      // Ignore and fallback
+    }
+  }
+
+  return DEFAULT_NOT_FOUND_HTML;
+}
+
+export function createAdminNotFoundResponse(): NextResponse {
+  const html = getNotFoundHtml();
+  return new NextResponse(html, {
+    status: 404,
+    statusText: "Not Found",
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "X-Robots-Tag": "noindex, nofollow, noarchive",
+      "Cache-Control": "private, no-cache, no-store, max-age=0, must-revalidate",
+    },
+  });
+}
+
 /**
  * Shared administrator authorization helper used by all admin API routes and server actions.
  * - Checks the dedicated "vn_admin_session" cookie (and Authorization header).
  * - Verifies cryptographic token signature & expiration.
- * - Rejects customer tokens immediately with 403 Forbidden.
+ * - Rejects non-admin or unauthenticated requests with a standard 404 response
+ *   identical to a missing /api route, preventing information disclosure.
  * - Verifies user role strictly from the database on the server (never client data).
- * - Returns 401 for unauthenticated requests and 403 for non-admins, with generic messages.
+ * - Logs the real reason on the server console only.
  */
 export async function requireAdmin(request?: Request): Promise<AuthUser | NextResponse> {
   const route = request ? new URL(request.url).pathname : "server-action/api";
@@ -441,37 +483,25 @@ export async function requireAdmin(request?: Request): Promise<AuthUser | NextRe
       const custCheck = inspectSessionToken(customerToken);
       if (custCheck.valid) {
         console.warn(`[ADMIN_AUTH_FAILURE] Route: ${route} | Reason: CUSTOMER_SESSION_DENIED`);
-        return NextResponse.json(
-          { success: false, error: "Forbidden" },
-          { status: 403 }
-        );
+        return createAdminNotFoundResponse();
       }
     }
 
     console.warn(`[ADMIN_AUTH_FAILURE] Route: ${route} | Reason: NO_SESSION`);
-    return NextResponse.json(
-      { success: false, error: "Unauthorized" },
-      { status: 401 }
-    );
+    return createAdminNotFoundResponse();
   }
 
   // 2. Validate token format & cryptographic HMAC signature
   const tokenCheck = inspectSessionToken(token);
   if (!tokenCheck.valid) {
     console.warn(`[ADMIN_AUTH_FAILURE] Route: ${route} | Reason: ${tokenCheck.reason}`);
-    return NextResponse.json(
-      { success: false, error: "Unauthorized" },
-      { status: 401 }
-    );
+    return createAdminNotFoundResponse();
   }
 
   // 3. Customer token scope check: customer tokens can NEVER be accepted by requireAdmin
   if (tokenCheck.scope === "customer") {
     console.warn(`[ADMIN_AUTH_FAILURE] Route: ${route} | Reason: CUSTOMER_TOKEN_SCOPE_REJECTED`);
-    return NextResponse.json(
-      { success: false, error: "Forbidden" },
-      { status: 403 }
-    );
+    return createAdminNotFoundResponse();
   }
 
   // 4. Look up user in database via service-role Supabase client
@@ -492,10 +522,7 @@ export async function requireAdmin(request?: Request): Promise<AuthUser | NextRe
 
   if (!user) {
     console.warn(`[ADMIN_AUTH_FAILURE] Route: ${route} | Reason: USER_NOT_FOUND (userId: ${tokenCheck.userId})`);
-    return NextResponse.json(
-      { success: false, error: "Unauthorized" },
-      { status: 401 }
-    );
+    return createAdminNotFoundResponse();
   }
 
   // Invalidate any session token issued before a password change / session reset
@@ -505,10 +532,7 @@ export async function requireAdmin(request?: Request): Promise<AuthUser | NextRe
       console.warn(
         `[ADMIN_AUTH_FAILURE] Route: ${route} | Reason: SESSION_REVOKED_AFTER_PASSWORD_CHANGE (token issued: ${tokenCheck.timestamp}, revoked: ${revokedBefore})`
       );
-      return NextResponse.json(
-        { success: false, error: "Unauthorized" },
-        { status: 401 }
-      );
+      return createAdminNotFoundResponse();
     }
   }
 
@@ -523,10 +547,7 @@ export async function requireAdmin(request?: Request): Promise<AuthUser | NextRe
     console.warn(
       `[ADMIN_AUTH_FAILURE] Route: ${route} | Reason: ROLE_NOT_ADMIN (email: ${user.email}, role: ${user.role})`
     );
-    return NextResponse.json(
-      { success: false, error: "Forbidden" },
-      { status: 403 }
-    );
+    return createAdminNotFoundResponse();
   }
 
   return {
@@ -541,17 +562,14 @@ export async function requireAdmin(request?: Request): Promise<AuthUser | NextRe
  */
 export async function requireMainAdmin(request: Request): Promise<AuthUser | NextResponse> {
   const admin = await requireAdmin(request);
-  if (admin instanceof NextResponse) {
+  if (admin instanceof Response) {
     return admin;
   }
   if (admin.email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
     console.warn(
       `[ADMIN_AUTH_FAILURE] SuperAdmin restricted action attempted by non-primary admin: ${admin.email}`
     );
-    return NextResponse.json(
-      { success: false, error: "Forbidden" },
-      { status: 403 }
-    );
+    return createAdminNotFoundResponse();
   }
   return admin;
 }

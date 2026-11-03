@@ -53,14 +53,15 @@ export function proxy(request: NextRequest) {
   }
 
   // =========================================================================
-  // 2. All /api/admin API Routes
+  // 2. All /api/admin API Routes & Bare /api/admin Path
   // =========================================================================
-  if (pathname.startsWith("/api/admin")) {
+  if (pathname === "/api/admin" || pathname.startsWith("/api/admin/")) {
     // Exempt public admin authentication endpoints
     if (
       pathname === "/api/admin/auth/login-otp/send" ||
       pathname === "/api/admin/auth/login-otp/verify" ||
-      pathname === "/api/admin/auth/forgot-password/verify"
+      pathname === "/api/admin/auth/forgot-password/verify" ||
+      pathname === "/api/admin/auth/logout"
     ) {
       return NextResponse.next();
     }
@@ -74,45 +75,18 @@ export function proxy(request: NextRequest) {
       }
     }
 
-    // If no admin token provided, check if a customer session is calling
-    if (!adminToken) {
-      const customerToken = request.cookies.get(CUSTOMER_COOKIE_NAME)?.value;
-      if (customerToken) {
-        const custCheck = inspectSessionToken(customerToken);
-        if (custCheck.valid) {
-          // Logged in as customer calling admin API -> 403 Forbidden
-          return NextResponse.json(
-            { success: false, error: "Forbidden" },
-            { status: 403 }
-          );
-        }
-      }
-      // Completely logged out -> 401 Unauthorized
-      return NextResponse.json(
-        { success: false, error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
     const tokenCheck = inspectSessionToken(adminToken);
 
-    // Invalid format / expired / bad signature -> 401
-    if (!tokenCheck.valid) {
-      return NextResponse.json(
-        { success: false, error: "Unauthorized" },
-        { status: 401 }
-      );
+    // If no valid admin token, or token belongs to customer scope:
+    // Rewrite directly to standard 404 page. Never return 401 or 403 or reveal admin endpoint exists.
+    if (!tokenCheck.valid || tokenCheck.scope === "customer") {
+      const notFoundUrl = new URL("/_not-found", request.url);
+      const res = NextResponse.rewrite(notFoundUrl, { status: 404 });
+      res.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+      return res;
     }
 
-    // Customer token provided in admin cookie -> 403
-    if (tokenCheck.scope === "customer") {
-      return NextResponse.json(
-        { success: false, error: "Forbidden" },
-        { status: 403 }
-      );
-    }
-
-    // Cryptographically valid: forward to route handler for authoritative database check
+    // Cryptographically valid admin session: pass through to route handler for authoritative database check
     return NextResponse.next();
   }
 
@@ -120,6 +94,6 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin", "/admin/:path*", "/api/admin/:path*"],
+  matcher: ["/admin", "/admin/:path*", "/api/admin", "/api/admin/:path*"],
 };
 
