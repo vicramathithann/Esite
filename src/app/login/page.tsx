@@ -89,8 +89,8 @@ function LoginForm() {
     return () => clearInterval(interval);
   }, [otpCooldown]);
 
-  function getSafeRedirect(url?: string | null): string {
-    if (!url || typeof url !== "string") return "/";
+  function getSafeRedirect(url?: string | null, isAdmin?: boolean): string {
+    if (!url || typeof url !== "string") return isAdmin ? "/admin/dashboard" : "/";
     const trimmed = url.trim();
     if (
       trimmed.startsWith("/") &&
@@ -98,15 +98,36 @@ function LoginForm() {
       !trimmed.startsWith("/\\") &&
       !trimmed.includes("://")
     ) {
+      if (trimmed.startsWith("/admin")) {
+        return isAdmin ? trimmed : "/";
+      }
       return trimmed;
     }
-    return "/";
+    return isAdmin ? "/admin/dashboard" : "/";
   }
+
+  // Remove ?redirect=/admin hint for non-admins so admin path is never revealed
+  useEffect(() => {
+    if (typeof window !== "undefined" && redirectParam.startsWith("/admin")) {
+      const isRealAdmin =
+        currentUser?.role === "ADMIN" &&
+        (currentUser?.email || "").toLowerCase() === "rrroyce20@gmail.com";
+      if (!isRealAdmin) {
+        window.history.replaceState({}, "", "/login");
+      }
+    }
+  }, [redirectParam, currentUser]);
 
   // Clean URL parameters when popup dismissed or completed
   const cleanUrlParams = () => {
     if (typeof window !== "undefined") {
-      const cleanPath = redirectParam ? `/login?redirect=${encodeURIComponent(redirectParam)}` : "/login";
+      const isRealAdmin =
+        currentUser?.role === "ADMIN" &&
+        (currentUser?.email || "").toLowerCase() === "rrroyce20@gmail.com";
+      const cleanPath =
+        redirectParam && (!redirectParam.startsWith("/admin") || isRealAdmin)
+          ? `/login?redirect=${encodeURIComponent(redirectParam)}`
+          : "/login";
       window.history.replaceState({}, "", cleanPath);
     }
   };
@@ -462,14 +483,22 @@ function LoginForm() {
       if (data.success && data.user) {
         // Successful OTP login: establish session without altering password
         login(data.user);
+        const isAdmin =
+          data.user.role === "ADMIN" &&
+          (data.user.email || "").toLowerCase() === "rrroyce20@gmail.com";
+
         setSuccessInfo({
           name: data.user.name,
-          role: data.user.role,
-          message: `✓ Welcome, ${data.user.name}! Sign-in successful.`,
+          role: isAdmin ? "ADMIN" : "USER",
+          message: isAdmin
+            ? "👑 Administrator verified! Opening Admin Control Center..."
+            : `✓ Welcome, ${data.user.name}! Sign-in successful.`,
         });
 
         setTimeout(() => {
-          const targetUrl = redirectParam && redirectParam !== "/admin" ? redirectParam : "/user";
+          const targetUrl = isAdmin
+            ? (redirectParam && redirectParam.startsWith("/admin") ? redirectParam : "/admin/dashboard")
+            : (redirectParam && !redirectParam.startsWith("/admin") ? redirectParam : "/user");
           window.location.href = targetUrl;
         }, 500);
       } else {
@@ -699,11 +728,11 @@ function LoginForm() {
           <div className="mb-4 p-3.5 bg-accent/10 border border-accent/20 rounded-xl text-xs text-accent flex items-center justify-between">
             <div className="flex items-center gap-2">
               <User className="w-4 h-4 text-accent" />
-              <span>Signed in as <strong className="text-foreground">{currentUser.name}</strong> ({currentUser.role})</span>
+              <span>Signed in as <strong className="text-foreground">{currentUser.name}</strong></span>
             </div>
             <div className="flex items-center gap-2">
-              {currentUser.role === "ADMIN" ? (
-                <Link href="/admin" className="text-[11px] font-bold text-accent underline">
+              {currentUser.role === "ADMIN" && (currentUser.email || "").toLowerCase() === "rrroyce20@gmail.com" ? (
+                <Link href="/admin/dashboard" className="text-[11px] font-bold text-accent underline">
                   Admin Panel →
                 </Link>
               ) : (

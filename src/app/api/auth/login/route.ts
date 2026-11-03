@@ -133,7 +133,7 @@ export async function POST(request: Request) {
       role: effectiveRole,
     });
 
-    const sessionToken = createSessionToken(user);
+    const sessionToken = createSessionToken(user, isActuallyAdmin ? "admin" : "customer");
     const response = NextResponse.json({
       success: true,
       user: {
@@ -153,16 +153,14 @@ export async function POST(request: Request) {
         : `Welcome back, ${user.name}! Accessing your account...`,
     });
 
-
     const cookieOpts = getSessionCookieOptions(request);
 
     if (isActuallyAdmin) {
-      // Set dedicated Admin Session Cookie
+      // Strict Admin Session: ONLY sets dedicated vn_admin_session cookie
+      // Never touches or overwrites vn_session, keeping customer and admin sessions isolated
       response.cookies.set(ADMIN_COOKIE_NAME, sessionToken, cookieOpts);
-      // Also set customer session so admin can view storefront seamlessly
-      response.cookies.set(CUSTOMER_COOKIE_NAME, sessionToken, cookieOpts);
     } else {
-      // Strict Customer Session: Never overwrites or touches vn_admin_session
+      // Strict Customer Session: ONLY sets vn_session (and legacy), never touches vn_admin_session
       response.cookies.set(CUSTOMER_COOKIE_NAME, sessionToken, cookieOpts);
       response.cookies.set(LEGACY_COOKIE_NAME, sessionToken, cookieOpts);
     }

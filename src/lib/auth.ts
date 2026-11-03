@@ -150,59 +150,95 @@ export function isValidEmail(email: string): boolean {
 }
 
 /**
- * Creates a signed session token: `${userId}.${timestamp}.${signature}`
+ * Creates a signed session token with an explicit security scope:
+ * Format: `${scope}.${userId}.${timestamp}.${signature}`
  */
-export function createSessionToken(user: { id: string }): string {
+export function createSessionToken(
+  user: { id: string },
+  scope: "admin" | "customer" = "customer"
+): string {
   const timestamp = Date.now().toString();
-  const payload = `${user.id}:${timestamp}`;
+  const payload = `${scope}:${user.id}:${timestamp}`;
   const secret = getSessionSecret();
   const hmac = crypto.createHmac("sha256", secret).update(payload).digest("hex");
-  return `${user.id}.${timestamp}.${hmac}`;
+  return `${scope}.${user.id}.${timestamp}.${hmac}`;
 }
 
 export type TokenInspectResult =
-  | { valid: true; userId: string; timestamp: number }
+  | { valid: true; userId: string; timestamp: number; scope: "admin" | "customer" | "legacy" }
   | {
       valid: false;
-      reason: "MISSING_TOKEN" | "INVALID_FORMAT" | "EXPIRED_TOKEN" | "INVALID_SIGNATURE";
+      reason: "MISSING_TOKEN" | "INVALID_FORMAT" | "EXPIRED_TOKEN" | "INVALID_SIGNATURE" | "INVALID_SCOPE";
       details?: string;
     };
 
 /**
  * Detailed verification of a session token for precise server-side diagnostics.
- * Tests across candidate secrets to ensure seamless continuity across deployments.
+ * Supports both modern 4-part scoped tokens and legacy 3-part tokens.
  */
 export function inspectSessionToken(token: string | null | undefined): TokenInspectResult {
   if (!token || typeof token !== "string" || !token.trim()) {
     return { valid: false, reason: "MISSING_TOKEN" };
   }
   const parts = token.trim().split(".");
-  if (parts.length !== 3) {
-    return { valid: false, reason: "INVALID_FORMAT" };
-  }
-  const [userId, timestamp, hmac] = parts;
-  const ts = parseInt(timestamp, 10);
-  const age = Date.now() - ts;
-  // Max session age: 30 days
-  if (isNaN(ts) || age < 0 || age > 30 * 24 * 60 * 60 * 1000) {
-    return {
-      valid: false,
-      reason: "EXPIRED_TOKEN",
-      details: `Token expired or timestamp invalid (age: ${age}ms)`,
-    };
-  }
 
-  const expectedPayload = `${userId}:${timestamp}`;
-  const candidates = getCandidateSessionSecrets();
-
-  for (const secret of candidates) {
-    const expectedHmac = crypto.createHmac("sha256", secret).update(expectedPayload).digest("hex");
-    if (hmac.length === expectedHmac.length && crypto.timingSafeEqual(Buffer.from(hmac), Buffer.from(expectedHmac))) {
-      return { valid: true, userId, timestamp: ts };
+  // 1. Modern Scoped Token: scope.userId.timestamp.hmac
+  if (parts.length === 4) {
+    const [scope, userId, timestamp, hmac] = parts;
+    if (scope !== "admin" && scope !== "customer") {
+      return { valid: false, reason: "INVALID_FORMAT" };
     }
+    const ts = parseInt(timestamp, 10);
+    const age = Date.now() - ts;
+    // Max session age: 30 days
+    if (isNaN(ts) || age < 0 || age > 30 * 24 * 60 * 60 * 1000) {
+      return {
+        valid: false,
+        reason: "EXPIRED_TOKEN",
+        details: `Token expired or timestamp invalid (age: ${age}ms)`,
+      };
+    }
+
+    const expectedPayload = `${scope}:${userId}:${timestamp}`;
+    const candidates = getCandidateSessionSecrets();
+
+    for (const secret of candidates) {
+      const expectedHmac = crypto.createHmac("sha256", secret).update(expectedPayload).digest("hex");
+      if (hmac.length === expectedHmac.length && crypto.timingSafeEqual(Buffer.from(hmac), Buffer.from(expectedHmac))) {
+        return { valid: true, userId, timestamp: ts, scope: scope as "admin" | "customer" };
+      }
+    }
+
+    return { valid: false, reason: "INVALID_SIGNATURE" };
   }
 
-  return { valid: false, reason: "INVALID_SIGNATURE" };
+  // 2. Legacy Unscoped Token: userId.timestamp.hmac
+  if (parts.length === 3) {
+    const [userId, timestamp, hmac] = parts;
+    const ts = parseInt(timestamp, 10);
+    const age = Date.now() - ts;
+    if (isNaN(ts) || age < 0 || age > 30 * 24 * 60 * 60 * 1000) {
+      return {
+        valid: false,
+        reason: "EXPIRED_TOKEN",
+        details: `Token expired or timestamp invalid (age: ${age}ms)`,
+      };
+    }
+
+    const expectedPayload = `${userId}:${timestamp}`;
+    const candidates = getCandidateSessionSecrets();
+
+    for (const secret of candidates) {
+      const expectedHmac = crypto.createHmac("sha256", secret).update(expectedPayload).digest("hex");
+      if (hmac.length === expectedHmac.length && crypto.timingSafeEqual(Buffer.from(hmac), Buffer.from(expectedHmac))) {
+        return { valid: true, userId, timestamp: ts, scope: "legacy" };
+      }
+    }
+
+    return { valid: false, reason: "INVALID_SIGNATURE" };
+  }
+
+  return { valid: false, reason: "INVALID_FORMAT" };
 }
 
 /**
@@ -272,12 +308,14 @@ export async function extractSessionToken(
         return cookies[preferredCookieName];
       }
 
-      // If looking for admin session, fallback to other cookies in case admin logged in via standard route
+      // Strict session isolation: Admin requests NEVER fall back to customer cookie!
       if (preferredCookieName === ADMIN_COOKIE_NAME) {
-        if (cookies[CUSTOMER_COOKIE_NAME]) return cookies[CUSTOMER_COOKIE_NAME];
-        if (cookies[LEGACY_COOKIE_NAME]) return cookies[LEGACY_COOKIE_NAME];
-      } else {
-        if (cookies[LEGACY_COOKIE_NAME]) return cookies[LEGACY_COOKIE_NAME];
+        return null;
+      }
+
+      // Customer session fallback to legacy cookie if needed
+      if (cookies[LEGACY_COOKIE_NAME]) {
+        return cookies[LEGACY_COOKIE_NAME];
       }
     }
   }
@@ -289,15 +327,13 @@ export async function extractSessionToken(
     const primary = cookieStore.get(preferredCookieName)?.value;
     if (primary) return primary;
 
+    // Strict session isolation: Admin requests NEVER fall back to customer cookie!
     if (preferredCookieName === ADMIN_COOKIE_NAME) {
-      const fallback =
-        cookieStore.get(CUSTOMER_COOKIE_NAME)?.value ||
-        cookieStore.get(LEGACY_COOKIE_NAME)?.value;
-      if (fallback) return fallback;
-    } else {
-      const fallback = cookieStore.get(LEGACY_COOKIE_NAME)?.value;
-      if (fallback) return fallback;
+      return null;
     }
+
+    const fallback = cookieStore.get(LEGACY_COOKIE_NAME)?.value;
+    if (fallback) return fallback;
   } catch {
     // Outside next/headers execution context
   }
@@ -320,12 +356,13 @@ export type AuthUser = {
  * Resolves the authenticated user from the request's HTTP-only cookie and verifies against database.
  */
 export async function getAuthenticatedUser(request?: Request): Promise<AuthUser | null> {
-  // Check admin cookie first, then customer cookie
-  let token = await extractSessionToken(request, ADMIN_COOKIE_NAME);
+  // Check customer session cookie first
+  let token = await extractSessionToken(request, CUSTOMER_COOKIE_NAME);
   let tokenCheck = inspectSessionToken(token);
 
+  // If no customer session, check if there is an admin session (allows admin to browse storefront)
   if (!tokenCheck.valid) {
-    token = await extractSessionToken(request, CUSTOMER_COOKIE_NAME);
+    token = await extractSessionToken(request, ADMIN_COOKIE_NAME);
     tokenCheck = inspectSessionToken(token);
   }
 
@@ -387,27 +424,57 @@ export async function requireAuth(request: Request): Promise<AuthUser | NextResp
  * Shared administrator authorization helper used by all admin API routes and server actions.
  * - Checks the dedicated "vn_admin_session" cookie (and Authorization header).
  * - Verifies cryptographic token signature & expiration.
+ * - Rejects customer tokens immediately with 403 Forbidden.
  * - Verifies user role strictly from the database on the server (never client data).
- * - Logs the real reason for each auth failure on the server.
- * - Returns a generic error response to the client.
+ * - Returns 401 for unauthenticated requests and 403 for non-admins, with generic messages.
  */
 export async function requireAdmin(request?: Request): Promise<AuthUser | NextResponse> {
   const route = request ? new URL(request.url).pathname : "server-action/api";
 
-  // 1. Extract admin token
+  // 1. Extract admin token from dedicated vn_admin_session cookie or Bearer header
   const token = await extractSessionToken(request, ADMIN_COOKIE_NAME);
+
+  // If no admin token, check if user is calling with customer session cookie
+  if (!token) {
+    const customerToken = await extractSessionToken(request, CUSTOMER_COOKIE_NAME);
+    if (customerToken) {
+      const custCheck = inspectSessionToken(customerToken);
+      if (custCheck.valid) {
+        console.warn(`[ADMIN_AUTH_FAILURE] Route: ${route} | Reason: CUSTOMER_SESSION_DENIED`);
+        return NextResponse.json(
+          { success: false, error: "Forbidden" },
+          { status: 403 }
+        );
+      }
+    }
+
+    console.warn(`[ADMIN_AUTH_FAILURE] Route: ${route} | Reason: NO_SESSION`);
+    return NextResponse.json(
+      { success: false, error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
 
   // 2. Validate token format & cryptographic HMAC signature
   const tokenCheck = inspectSessionToken(token);
   if (!tokenCheck.valid) {
     console.warn(`[ADMIN_AUTH_FAILURE] Route: ${route} | Reason: ${tokenCheck.reason}`);
     return NextResponse.json(
-      { success: false, error: "Authentication required. Please sign in as an administrator." },
+      { success: false, error: "Unauthorized" },
       { status: 401 }
     );
   }
 
-  // 3. Look up user in database via service-role Supabase client
+  // 3. Customer token scope check: customer tokens can NEVER be accepted by requireAdmin
+  if (tokenCheck.scope === "customer") {
+    console.warn(`[ADMIN_AUTH_FAILURE] Route: ${route} | Reason: CUSTOMER_TOKEN_SCOPE_REJECTED`);
+    return NextResponse.json(
+      { success: false, error: "Forbidden" },
+      { status: 403 }
+    );
+  }
+
+  // 4. Look up user in database via service-role Supabase client
   const user = await prisma.user.findUnique({
     where: { id: tokenCheck.userId },
     select: {
@@ -426,7 +493,7 @@ export async function requireAdmin(request?: Request): Promise<AuthUser | NextRe
   if (!user) {
     console.warn(`[ADMIN_AUTH_FAILURE] Route: ${route} | Reason: USER_NOT_FOUND (userId: ${tokenCheck.userId})`);
     return NextResponse.json(
-      { success: false, error: "Authentication required. Please sign in as an administrator." },
+      { success: false, error: "Unauthorized" },
       { status: 401 }
     );
   }
@@ -439,13 +506,13 @@ export async function requireAdmin(request?: Request): Promise<AuthUser | NextRe
         `[ADMIN_AUTH_FAILURE] Route: ${route} | Reason: SESSION_REVOKED_AFTER_PASSWORD_CHANGE (token issued: ${tokenCheck.timestamp}, revoked: ${revokedBefore})`
       );
       return NextResponse.json(
-        { success: false, error: "Session expired due to a recent password change. Please sign in again." },
+        { success: false, error: "Unauthorized" },
         { status: 401 }
       );
     }
   }
 
-  // 4. Strict Database-backed Role & Identity Verification
+  // 5. Strict Database-backed Role & Identity Verification
   const roleUpper = (user.role || "").toUpperCase();
   const emailLower = (user.email || "").toLowerCase().trim();
   const isAuthorizedAdmin =
@@ -457,7 +524,7 @@ export async function requireAdmin(request?: Request): Promise<AuthUser | NextRe
       `[ADMIN_AUTH_FAILURE] Route: ${route} | Reason: ROLE_NOT_ADMIN (email: ${user.email}, role: ${user.role})`
     );
     return NextResponse.json(
-      { success: false, error: "Forbidden: Administrator privileges required." },
+      { success: false, error: "Forbidden" },
       { status: 403 }
     );
   }
@@ -482,7 +549,7 @@ export async function requireMainAdmin(request: Request): Promise<AuthUser | Nex
       `[ADMIN_AUTH_FAILURE] SuperAdmin restricted action attempted by non-primary admin: ${admin.email}`
     );
     return NextResponse.json(
-      { success: false, error: "Forbidden: Superadministrator privileges required. Only rrroyce20@gmail.com can perform this action." },
+      { success: false, error: "Forbidden" },
       { status: 403 }
     );
   }

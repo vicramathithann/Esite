@@ -1,95 +1,41 @@
-"use client";
-
-import React, { useEffect, useState, useCallback } from "react";
-import { usePathname } from "next/navigation";
-import { useApp } from "@/context/AppContext";
+import React from "react";
+import { notFound } from "next/navigation";
+import { headers } from "next/headers";
+import { requireAdmin } from "@/lib/auth";
 import AdminNav from "@/components/AdminNav";
 import AdminSupportChatbot from "@/components/AdminSupportChatbot";
 
-const ADMIN_EMAIL = "rrroyce20@gmail.com";
+export const dynamic = "force-dynamic";
 
-function isAuthorizedAdmin(user: any): boolean {
-  if (!user) return false;
-  const role = String(user.role || "").toUpperCase();
-  const email = String(user.email || "").toLowerCase().trim();
-  return role === "ADMIN" && email === ADMIN_EMAIL;
-}
+export const metadata = {
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+  },
+};
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const { login } = useApp();
+export default async function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const headerList = await headers();
+  const pathname = headerList.get("x-pathname") || "";
 
-  // Dedicated token-based recovery route only
-  const isAuthPage = pathname === "/admin/reset-password";
-
-  // Check server-verified authorization state
-  const [authState, setAuthState] = useState<"CHECKING" | "AUTHORIZED" | "UNAUTHORIZED">("CHECKING");
-
-  const verifySession = useCallback(async () => {
-    try {
-      const res = await fetch("/api/auth/me", {
-        cache: "no-store",
-        credentials: "include",
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success && isAuthorizedAdmin(data.user)) {
-          login(data.user);
-          setAuthState("AUTHORIZED");
-          return;
-        }
-      }
-    } catch (e) {
-      console.error("[ADMIN_AUTH_CHECK_ERROR]", e);
-    }
-
-    // Server check failed or user is not authorized admin: purge stale client credentials
-    if (typeof window !== "undefined") {
-      try {
-        localStorage.removeItem("novamobile_user");
-      } catch {}
-    }
-
-    setAuthState("UNAUTHORIZED");
-    const redirectUrl = `/login?redirect=${encodeURIComponent(pathname || "/admin")}`;
-    if (typeof window !== "undefined") {
-      window.location.href = redirectUrl;
-    }
-  }, [login, pathname]);
-
-  useEffect(() => {
-    if (isAuthPage) return;
-    verifySession();
-  }, [isAuthPage, verifySession]);
-
-  if (isAuthPage) {
+  // Dedicated token-based recovery page handles and verifies its own token
+  if (pathname === "/admin/reset-password") {
     return <>{children}</>;
   }
 
-  // 1. Loading / Verification State
-  if (authState === "CHECKING") {
-    return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-        <div className="w-8 h-8 border-2 border-[#C9A66B] border-t-transparent rounded-full animate-spin"></div>
-        <p className="mt-3 text-xs text-muted font-medium">Verifying administrator credentials...</p>
-      </div>
-    );
+  // Authoritative server-side database verification against PostgreSQL "User" table
+  const auth = await requireAdmin();
+  if (auth instanceof Response) {
+    // Show the app's real 404 page for anyone who is not a verified admin.
+    // Never redirect to /login and never reveal that an admin portal exists.
+    notFound();
   }
 
-  // 2. Unauthorized State (Redirecting to Sign-In)
-  if (authState === "UNAUTHORIZED") {
-    return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-        <div className="w-8 h-8 border-2 border-rose-500 border-t-transparent rounded-full animate-spin"></div>
-        <p className="mt-3 text-xs text-muted font-medium">
-          Administrator session required. Directing to sign-in...
-        </p>
-      </div>
-    );
-  }
-
-  // 3. Authorized Admin
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col lg:flex-row transition-colors duration-200">
       <AdminNav />

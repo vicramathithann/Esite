@@ -149,8 +149,8 @@ export async function POST(request: Request) {
       role: sanitizedRole,
     };
 
-    // Generate authenticated session token
-    const sessionToken = createSessionToken(sanitizedUser);
+    // Generate authenticated session token with explicit scope
+    const sessionToken = createSessionToken(sanitizedUser, isMainAdmin ? "admin" : "customer");
     const response = NextResponse.json({
       success: true,
       user: sanitizedUser,
@@ -162,9 +162,10 @@ export async function POST(request: Request) {
 
     const cookieOpts = getSessionCookieOptions(request);
     if (isMainAdmin) {
+      // Strict Admin Session: ONLY sets vn_admin_session
       response.cookies.set(ADMIN_COOKIE_NAME, sessionToken, cookieOpts);
-      response.cookies.set(CUSTOMER_COOKIE_NAME, sessionToken, cookieOpts);
     } else {
+      // Strict Customer Session: ONLY sets vn_session (and legacy)
       response.cookies.set(CUSTOMER_COOKIE_NAME, sessionToken, cookieOpts);
       response.cookies.set(LEGACY_COOKIE_NAME, sessionToken, cookieOpts);
     }

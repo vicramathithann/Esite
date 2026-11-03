@@ -293,7 +293,7 @@ export async function POST(request: Request) {
       createdAt: admin.createdAt,
     };
 
-    const sessionToken = createSessionToken(sanitizedAdmin);
+    const sessionToken = createSessionToken(sanitizedAdmin, "admin");
     const response = NextResponse.json({
       success: true,
       user: sanitizedAdmin,
@@ -303,7 +303,6 @@ export async function POST(request: Request) {
 
     const cookieOpts = getSessionCookieOptions(request);
     response.cookies.set(ADMIN_COOKIE_NAME, sessionToken, cookieOpts);
-    response.cookies.set(CUSTOMER_COOKIE_NAME, sessionToken, cookieOpts);
 
     return response;
   } catch (err) {
