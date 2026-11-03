@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect } from "react";
-import ErrorView from "@/components/ErrorView";
+import ErrorScreen from "@/components/ErrorScreen";
 
 export default function GlobalError({
   error,
@@ -11,21 +11,22 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("VN Mobiles Global Error:", error);
+    // Log the real internal error for server/client debugging
+    console.error("Global Application Error:", error);
   }, [error]);
 
   return (
     <html lang="en">
-      <body className="bg-[#F7F5F0] dark:bg-[#121316] min-h-screen m-0 p-0 antialiased selection:bg-[#C9A66B] selection:text-[#0b0f19]">
-        <ErrorView
+      <body className="min-h-screen bg-background text-foreground flex flex-col antialiased">
+        <ErrorScreen
           code="500"
-          title="SERVER ERROR"
-          primaryButtonText="Return Home"
-          primaryButtonHref="/"
-          secondaryButtonText="Try Again"
-          onSecondaryClick={() => {
-            if (typeof window !== "undefined") window.location.href = "/";
-            else reset();
+          isGlobal
+          onReset={() => {
+            if (typeof window !== "undefined") {
+              window.location.reload();
+            } else {
+              reset();
+            }
           }}
         />
       </body>

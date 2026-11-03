@@ -1,12 +1,5 @@
-import ErrorView from "@/components/ErrorView";
+import ErrorScreen from "@/components/ErrorScreen";
 
 export default function NotFound() {
-  return (
-    <ErrorView
-      code="404"
-      title="PAGE NOT FOUND"
-      primaryButtonText="Return Home"
-      primaryButtonHref="/"
-    />
-  );
+  return <ErrorScreen code="404" />;
 }

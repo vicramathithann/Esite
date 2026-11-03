@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect } from "react";
-import ErrorView from "@/components/ErrorView";
+import ErrorScreen from "@/components/ErrorScreen";
 
 export default function ErrorBoundary({
   error,
@@ -11,17 +11,9 @@ export default function ErrorBoundary({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("VN Mobiles Client Error Boundary:", error);
+    // Log the real internal error for server/client debugging
+    console.error("Client Error Boundary:", error);
   }, [error]);
 
-  return (
-    <ErrorView
-      code="500"
-      title="SERVER ERROR"
-      primaryButtonText="Return Home"
-      primaryButtonHref="/"
-      secondaryButtonText="Try Again"
-      onSecondaryClick={() => reset()}
-    />
-  );
+  return <ErrorScreen code="500" onReset={reset} />;
 }
