@@ -226,7 +226,7 @@ export default function WarrantiesClient({
               onClick={() => window.location.reload()}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-medium hover:bg-red-700 transition cursor-pointer"
             >
-              <RefreshCw className="w-3.5 h-3.5" /> Reload Page
+              <RefreshCw className="w-3.5 h-3.5" /> Retry
             </button>
           </div>
         )}
@@ -245,7 +245,7 @@ export default function WarrantiesClient({
               href="/"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#C9A66B] hover:bg-[#B8914A] text-white text-xs font-semibold transition shadow-sm"
             >
-              <Smartphone className="w-3.5 h-3.5" /> Explore Flagship Phones
+              <Smartphone className="w-3.5 h-3.5" /> Explore Phones
             </Link>
           </div>
         ) : (

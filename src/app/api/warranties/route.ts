@@ -38,12 +38,25 @@ export async function GET(request: Request) {
       }
     } else {
       // 2. Regular User: strictly isolated to their own warranties based on session identity
-      where = {
-        OR: [
-          { userId: authUser.id },
-          { customerEmail: { equals: authUser.email } },
-        ],
-      };
+      // Also match through their user orders in case a warranty only links via orderId
+      const userOrders = await prisma.order.findMany({
+        where: {
+          OR: [
+            { userId: authUser.id },
+            { customerEmail: { equals: authUser.email } },
+          ],
+        },
+        select: { id: true },
+      });
+      const userOrderIds = (userOrders || []).map((o: any) => o.id).filter(Boolean);
+      const orConditions: any[] = [
+        { userId: authUser.id },
+        { customerEmail: { equals: authUser.email } },
+      ];
+      if (userOrderIds.length > 0) {
+        orConditions.push({ orderId: { in: userOrderIds } });
+      }
+      where = { OR: orConditions };
     }
 
 
