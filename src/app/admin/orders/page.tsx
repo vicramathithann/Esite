@@ -60,18 +60,18 @@ export default function AdminOrdersPage() {
   const handleResendEmail = async (orderId: string, customerEmail: string) => {
     try {
       setResendingId(orderId);
-      const res = await fetch(`/api/orders/${orderId}`, {
-        method: "PATCH",
+      const res = await fetch("/api/admin/send-certificate", {
+        method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "RESEND_EMAIL" }),
+        body: JSON.stringify({ orderId }),
       });
       const data = await res.json();
       if (data.success) {
-        alert(`Order confirmation email resent to ${customerEmail}!`);
+        alert(`Warranty certificate email sent to ${customerEmail}!`);
         await loadOrders();
       } else {
-        alert(data.error || "Failed to resend confirmation email.");
+        alert(data.error || "Failed to send warranty certificate email.");
       }
     } catch {
       alert("Error contacting server.");
@@ -245,7 +245,7 @@ export default function AdminOrdersPage() {
                             title="Resend Order Confirmation Email"
                           >
                             <Mail className={`w-3 h-3 text-[#8C6226] dark:text-[#E5CBA2] ${resendingId === o.id ? "animate-spin" : ""}`} />
-                            Resend Email
+                            Send Certificate Email
                           </button>
                           <Link
                             href={`/admin/orders/${o.id}`}

@@ -247,6 +247,7 @@ export interface WarrantyEmailData {
 
 export interface SendWarrantyEmailOptions {
   forceResend?: boolean;
+  force?: boolean;
 }
 
 export interface WarrantyEmailResult {
@@ -287,8 +288,9 @@ export async function sendWarrantyEmail(
   const orderNumber = order.orderNumber || "ORD-N/A";
   const siteUrl = getBaseUrl(req);
 
-  // 1. Idempotency Check (prevent duplicates on page refreshes or automatic retries)
-  if (!options?.forceResend && order.id) {
+  // 1. Idempotency Check (prevent duplicates unless forced by admin)
+  const isForced = Boolean(options?.force || options?.forceResend);
+  if (!isForced && order.id) {
     if (order.warrantyEmailSentAt) {
       console.log(
         `[WARRANTY IDEMPOTENCY] Order #${orderNumber} warranty email was already sent at ${order.warrantyEmailSentAt}. Skipping duplicate.`
@@ -480,7 +482,8 @@ export async function sendWarrantyEmail(
       customerName,
       customerEmail: cleanRecipientEmail,
       orderNumber,
-      devices: resolvedItems.map((r) => ({
+      devices: resolvedItems.map((r, i) => ({
+        productId: sourceItems[i]?.productId,
         productName: r.productName,
         productBrand: r.productBrand || "VN Mobiles",
         variantInfo: r.variantInfo,
@@ -610,14 +613,23 @@ export async function sendWarrantyEmail(
       }
     }
 
-    // Update Order warrantyEmailSentAt
+    // Update Order warrantyEmailSentAt & certificateEmailSent
     if (order.id) {
       try {
         await prisma.order.update({
           where: { id: order.id },
-          data: { warrantyEmailSentAt: new Date() },
+          data: {
+            warrantyEmailSentAt: new Date(),
+            certificateEmailSent: true,
+          },
         });
       } catch (ordErr) {
+        try {
+          await prisma.order.update({
+            where: { id: order.id },
+            data: { warrantyEmailSentAt: new Date() },
+          });
+        } catch {}
         console.warn("[WARRANTY EMAIL AUDIT] Could not update order warrantyEmailSentAt:", ordErr);
       }
     }

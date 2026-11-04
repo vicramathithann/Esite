@@ -17,6 +17,7 @@ import {
   renderAdminInvitationEmail,
 } from "./email-templates";
 import { generateWarrantyCertificatePdf, formatKolkataDate } from "./warranty-pdf";
+import { sendWarrantyEmail } from "./mailer";
 
 /**
  * Gmail SMTP Email Gateway Integration (Backend Only)
@@ -820,6 +821,7 @@ export async function sendAdminPasswordResetEmail(
 
 /**
  * Sends Order Confirmation Email when a customer places an order.
+ * Follows the unified format with official warranty certificate PDF attached.
  */
 export async function sendOrderConfirmationEmail(order: {
   id: string;
@@ -828,7 +830,7 @@ export async function sendOrderConfirmationEmail(order: {
   customerName: string;
   customerEmail: string;
   totalAmount: number;
-  items: Array<{
+  items?: Array<{
     productName: string;
     quantity: number;
     price: number;
@@ -841,63 +843,14 @@ export async function sendOrderConfirmationEmail(order: {
   state?: string;
   pincode?: string;
 }): Promise<EmailSendResult> {
-  const siteUrl = getAppUrl();
-
-  let resolvedItems = order.items && order.items.length > 0 ? [...order.items] : [];
-  if (resolvedItems.length === 0 && order.id) {
-    try {
-      const dbItems = await prisma.orderItem.findMany({ where: { orderId: order.id } });
-      if (dbItems && dbItems.length > 0) {
-        resolvedItems = dbItems.map((dbI) => ({
-          productName: dbI.productName,
-          quantity: dbI.quantity || 1,
-          price: dbI.price || 0,
-          selectedStorage: dbI.selectedStorage || undefined,
-          selectedColor: dbI.selectedColor || undefined,
-          imeiNumber: dbI.imeiNumber || undefined,
-        }));
-      }
-    } catch (dbErr) {
-      console.warn("[ORDER CONFIRMATION EMAIL] Notice: could not load order items from DB:", dbErr);
-    }
-  }
-
-  const primaryItem = resolvedItems[0];
-  const primaryItemVariant = primaryItem
-    ? [primaryItem.selectedStorage, primaryItem.selectedColor].filter(Boolean).join(", ")
-    : "";
-  const primaryFullName = primaryItem
-    ? `${primaryItem.productName}${primaryItemVariant ? `, ${primaryItemVariant}` : ""}`
-    : `Order #${order.orderNumber}`;
-
-  const { subject, html, text: plainText } = renderOrderConfirmedEmail(
-    {
-      id: order.id,
-      orderNumber: order.orderNumber,
-      customerName: order.customerName,
-      customerEmail: order.customerEmail,
-      totalAmount: order.totalAmount,
-      items: resolvedItems,
-      address: order.address,
-      city: order.city,
-      state: order.state,
-      pincode: order.pincode,
-    },
-    siteUrl
-  );
-
-  return sendGmailEmail({
-    userId: order.userId,
-    recipientName: order.customerName,
-    recipientEmail: order.customerEmail,
-    subject,
-    emailType: "ORDER_CONFIRMATION",
-    orderId: order.id,
-    productName: primaryFullName,
-    contentSummary: plainText,
-    text: plainText,
-    html,
-  });
+  const result = await sendWarrantyEmail(order as any, (order.items as any) || [], [], undefined, { force: true });
+  return {
+    success: result.success,
+    status: result.success ? "SENT" : "FAILED",
+    message: result.message,
+    statusCode: result.statusCode,
+    error: result.error,
+  };
 }
 
 /**

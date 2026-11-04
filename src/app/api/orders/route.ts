@@ -24,9 +24,17 @@ export async function GET(request: Request) {
 
     let where: Record<string, unknown> = {};
 
-    // 1. Admin Request: Can view all orders across all users
+    // 1. Admin Request: Can view all orders across all users, or filter by specific user
     if ((authUser.role || "").toUpperCase() === "ADMIN" && (admin === "true" || role === "ADMIN")) {
-      where = {};
+      const targetUserId = searchParams.get("userId");
+      const targetEmail = searchParams.get("customerEmail");
+      if (targetUserId) {
+        where = { userId: targetUserId };
+      } else if (targetEmail) {
+        where = { customerEmail: { equals: targetEmail } };
+      } else {
+        where = {};
+      }
     } else {
       // 2. Strict Customer Isolation: User only sees their own orders
       where = {
@@ -310,51 +318,18 @@ export async function POST(request: Request) {
       },
     });
 
-    // 6. Dispatch Order Confirmation Email via Gmail SMTP
+    // 6. Automatic First Email: Dispatch ONE official order confirmation email with attached PDF certificate
     let emailResult = null;
     try {
-      emailResult = await sendOrderConfirmationEmail({
-        id: order.id,
-        orderNumber: order.orderNumber,
-        userId: validUserId,
-        customerName: customerName.trim(),
-        customerEmail: cleanCustomerEmail,
-        totalAmount: order.totalAmount,
-        items: (order.items || []).map((i: {
-          productName: string;
-          quantity: number;
-          price: number;
-          selectedStorage?: string | null;
-          selectedColor?: string | null;
-          imeiNumber?: string | null;
-        }) => ({
-          productName: i.productName,
-          quantity: i.quantity,
-          price: i.price,
-          selectedStorage: i.selectedStorage || undefined,
-          selectedColor: i.selectedColor || undefined,
-          imeiNumber: i.imeiNumber || undefined,
-        })),
-        address: order.address,
-        city: order.city,
-        state: order.state,
-        pincode: order.pincode,
-      });
-    } catch (mailErr) {
-      console.error("[EMAIL NOTIFICATION WARNING] Could not send confirmation email:", mailErr);
-    }
-
-    // 7. Dispatch Separate Warranty Email via Gmail SMTP (Strictly awaited, non-blocking)
-    let warrantyEmailResult = null;
-    try {
-      warrantyEmailResult = await sendWarrantyEmail(
+      emailResult = await sendWarrantyEmail(
         order,
         order.items || [],
         createdWarranties || [],
-        request
+        request,
+        { force: true }
       );
-    } catch (wMailErr) {
-      console.error("[WARRANTY EMAIL WARNING] Could not send warranty certificate email:", wMailErr);
+    } catch (mailErr) {
+      console.error("[AUTOMATIC EMAIL WARNING] Could not send order/warranty certificate email:", mailErr);
     }
 
     return NextResponse.json({
@@ -362,8 +337,7 @@ export async function POST(request: Request) {
       order,
       warranties: createdWarranties,
       emailStatus: emailResult?.status || "LOGGED",
-      warrantyEmailStatus: warrantyEmailResult?.status || "LOGGED",
-      message: `Order ${order.orderNumber} placed successfully! Confirmation and warranty emails dispatched to ${cleanCustomerEmail}.`,
+      message: `Order placed successfully! Confirmation email with warranty certificate dispatched to ${cleanCustomerEmail}.`,
     });
   } catch (error) {
     console.error("Failed to create order:", error);

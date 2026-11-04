@@ -146,6 +146,14 @@ export async function POST(request: Request) {
     }
 
     if (action === "RESEND_EMAIL") {
+      // Strictly Admin-only: Customers cannot trigger certificate emails themselves
+      if (!isAdmin) {
+        return NextResponse.json(
+          { success: false, error: "Forbidden: Only administrators can dispatch warranty certificate emails." },
+          { status: 403 }
+        );
+      }
+
       const isCancelled = warranty.warrantyStatus === "CANCELLED" || (warranty.order && isOrderCancelled(warranty.order.orderStatus));
       if (isCancelled) {
         return NextResponse.json(

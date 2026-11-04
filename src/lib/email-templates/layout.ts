@@ -27,6 +27,26 @@ export function formatDate(date: Date | string | number): string {
   }
 }
 
+export function formatOrderProductsDisplayName(
+  items?: Array<{ productName?: string; productId?: string }> | null,
+  fallback = "Smartphone"
+): string {
+  if (!items || items.length === 0) return fallback;
+  const rawFirst = (items[0]?.productName || "").trim();
+  const firstName =
+    rawFirst &&
+    !rawFirst.toLowerCase().includes("flagship smartphone") &&
+    !rawFirst.startsWith("Order #")
+      ? rawFirst
+      : fallback;
+
+  if (items.length <= 1) {
+    return firstName;
+  }
+  const remaining = items.length - 1;
+  return `${firstName} and ${remaining} more`;
+}
+
 export function getProductSummaryHeadline(
   items?: Array<{ productName?: string; selectedStorage?: string | null; selectedColor?: string | null }> | null,
   fallback = "order"
@@ -85,10 +105,6 @@ export function renderEmailLayout(options: LayoutOptions): string {
     ? `<div style="display:inline-block;padding:5px 12px;border-radius:9999px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;background-color:${badge.bg || "#F1F5F9"};color:${badge.color || "#0F172A"};border:1px solid ${badge.border || "#E2E8F0"};margin-bottom:12px;">${escapeHtml(badge.text)}</div>`
     : "";
 
-  const orderRefHeader = options.orderNumber
-    ? `<td align="right" style="color:#94A3B8;font-size:12px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;">Order #${escapeHtml(options.orderNumber)}</td>`
-    : "";
-
   const ctaHtml = options.cta
     ? `
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:28px 0 8px 0;">
@@ -143,7 +159,6 @@ export function renderEmailLayout(options: LayoutOptions): string {
                     <span style="display:inline-block;width:30px;height:30px;line-height:30px;text-align:center;background-color:#C9A66B;color:#FFFFFF;font-weight:800;font-size:13px;border-radius:50%;vertical-align:middle;margin-right:10px;">VN</span>
                     <span style="color:#FFFFFF;font-size:18px;font-weight:700;vertical-align:middle;letter-spacing:-0.2px;">VN Mobiles</span>
                   </td>
-                  ${orderRefHeader}
                 </tr>
               </table>
             </td>

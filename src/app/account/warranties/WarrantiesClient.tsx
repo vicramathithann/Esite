@@ -80,15 +80,9 @@ export default function WarrantiesClient({
 }: WarrantiesClientProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("ACTIVE");
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [resendingId, setResendingId] = useState<string | null>(null);
   const [selectedPrintWarranty, setSelectedPrintWarranty] = useState<EnrichedWarranty | null>(
     activeWarranties[0] || cancelledWarranties[0] || expiredWarranties[0] || null
   );
-  const [actionFeedback, setActionFeedback] = useState<{
-    id: string;
-    msg: string;
-    isError?: boolean;
-  } | null>(null);
 
   const copyToClipboard = (text: string, id: string) => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -104,40 +98,6 @@ export default function WarrantiesClient({
     setTimeout(() => {
       window.print();
     }, 60);
-  };
-
-  const handleResendEmail = async (warrantyId: string, _orderNumber: string) => {
-    try {
-      setResendingId(warrantyId);
-      setActionFeedback(null);
-      const res = await fetch("/api/warranties", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ warrantyId, action: "RESEND_EMAIL" }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setActionFeedback({
-          id: warrantyId,
-          msg: data.message || `Warranty certificate resent to ${userEmail}.`,
-        });
-      } else {
-        setActionFeedback({
-          id: warrantyId,
-          msg: data.error || "Failed to resend warranty email.",
-          isError: true,
-        });
-      }
-    } catch {
-      setActionFeedback({
-        id: warrantyId,
-        msg: "Network error sending email.",
-        isError: true,
-      });
-    } finally {
-      setResendingId(null);
-      setTimeout(() => setActionFeedback(null), 5000);
-    }
   };
 
   const currentList =
@@ -459,25 +419,7 @@ export default function WarrantiesClient({
                       />
                     )}
 
-                    {/* Action Feedback Toast */}
-                    {actionFeedback && actionFeedback.id === w.id && (
-                      <div
-                        className={`text-xs p-3 rounded-lg flex items-center gap-2 ${
-                          actionFeedback.isError
-                            ? "bg-red-500/10 text-red-600 border border-red-500/20"
-                            : "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
-                        }`}
-                      >
-                        {actionFeedback.isError ? (
-                          <AlertTriangle className="w-4 h-4 shrink-0" />
-                        ) : (
-                          <Check className="w-4 h-4 shrink-0" />
-                        )}
-                        <span>{actionFeedback.msg}</span>
-                      </div>
-                    )}
-
-                    {/* Card Actions Footer: Active or Cancelled print */}
+                    {/* Card Actions Footer: Print */}
                     <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
                       <p className="text-[11px] text-muted">
                         {isCancelled ? (
@@ -494,27 +436,6 @@ export default function WarrantiesClient({
                       </p>
 
                       <div className="flex items-center gap-2">
-                        {/* Email Certificate button: Active only */}
-                        {!isCancelled && !isExpired && (
-                          <button
-                            onClick={() => handleResendEmail(w.id, w.orderNumber)}
-                            disabled={resendingId === w.id}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-tile hover:bg-card text-foreground text-xs font-medium transition cursor-pointer disabled:opacity-50"
-                          >
-                            {resendingId === w.id ? (
-                              <>
-                                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                                <span>Sending...</span>
-                              </>
-                            ) : (
-                              <>
-                                <Mail className="w-3.5 h-3.5 text-[#C9A66B]" />
-                                <span>Email Certificate</span>
-                              </>
-                            )}
-                          </button>
-                        )}
-
                         {/* Print Certificate button */}
                         <button
                           onClick={() => handlePrint(w)}

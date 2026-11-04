@@ -105,6 +105,8 @@ CREATE TABLE IF NOT EXISTS "Order" (
   "shippedAt" TIMESTAMPTZ,
   "deliveredAt" TIMESTAMPTZ,
   "adminNotes" TEXT,
+  "warrantyEmailSentAt" TIMESTAMPTZ,
+  "certificateEmailSent" BOOLEAN NOT NULL DEFAULT false,
   "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

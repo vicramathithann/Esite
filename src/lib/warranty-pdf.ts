@@ -2,6 +2,7 @@ import { PDFDocument, rgb, StandardFonts, PDFFont, PDFPage } from "pdf-lib";
 import { WARRANTY_TERMS } from "@/lib/warranty-terms";
 
 export interface WarrantyPdfDeviceItem {
+  productId?: string;
   productName: string;
   productBrand?: string;
   variantInfo?: string;
@@ -378,7 +379,7 @@ export async function generateWarrantyCertificatePdf(
 
     currentY -= 8;
 
-    // 5. Details Table: Exactly 8 Rows
+    // 5. Details Table: Up to 9 Rows
     const tableRows = [
       {
         label: "Certificate ID",
@@ -390,6 +391,15 @@ export async function generateWarrantyCertificatePdf(
         value: device.imeiNumber,
         isMono: true,
       },
+      ...(device.productId
+        ? [
+            {
+              label: "Product ID",
+              value: device.productId,
+              isMono: true,
+            },
+          ]
+        : []),
       {
         label: "Coverage Period",
         value: device.coveragePeriod || "1 Year Brand Warranty",
@@ -420,7 +430,7 @@ export async function generateWarrantyCertificatePdf(
       },
     ];
 
-    const rowH = 14;
+    const rowH = tableRows.length > 8 ? 13 : 14;
     const col1W = 160;
     const col2W = innerW - col1W;
     const tableH = rowH * tableRows.length;

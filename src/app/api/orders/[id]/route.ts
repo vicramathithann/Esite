@@ -132,37 +132,8 @@ export async function PATCH(
       });
     }
 
-    // Action 2: Resend warranty certificate email (with 60-second cooldown)
-    if (body.action === "RESEND_WARRANTY" || body.resendWarranty) {
-      const recentWarrantyEmail = await prisma.emailNotification.findFirst({
-        where: {
-          orderId: existingOrder.id,
-          emailType: "WARRANTY",
-        },
-        orderBy: { createdAt: "desc" },
-      });
-
-      const lastSentAt =
-        recentWarrantyEmail?.sentAt ||
-        recentWarrantyEmail?.createdAt ||
-        (existingOrder as any).warrantyEmailSentAt;
-
-      if (lastSentAt) {
-        const elapsedMs = Date.now() - new Date(lastSentAt).getTime();
-        const COOLDOWN_MS = 60 * 1000;
-        if (elapsedMs < COOLDOWN_MS) {
-          const remainingSeconds = Math.ceil((COOLDOWN_MS - elapsedMs) / 1000);
-          return NextResponse.json(
-            {
-              success: false,
-              error: `Please wait ${remainingSeconds}s before resending the warranty certificate.`,
-              cooldownSeconds: remainingSeconds,
-            },
-            { status: 429 }
-          );
-        }
-      }
-
+    // Action 2: Send warranty certificate email (Admin only, unlimited sends)
+    if (body.action === "RESEND_WARRANTY" || body.resendWarranty || body.action === "SEND_CERTIFICATE") {
       let warranties = (existingOrder as any).warranties || [];
       if (warranties.length === 0) {
         warranties = await prisma.warranty.findMany({ where: { orderId: existingOrder.id } });

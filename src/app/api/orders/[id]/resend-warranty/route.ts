@@ -54,47 +54,13 @@ export async function POST(
       );
     }
 
-    // 3. Authorization Check: Admin or Order Owner
+    // 3. Authorization Check: Admin Only
     const isAdmin = (authUser.role || "").toUpperCase() === "ADMIN";
-    const isOwner =
-      order.userId === authUser.id ||
-      order.customerEmail.toLowerCase() === authUser.email.toLowerCase();
-
-    if (!isAdmin && !isOwner) {
+    if (!isAdmin) {
       return NextResponse.json(
-        { success: false, error: "Forbidden: You do not have permission to resend warranty for this order." },
+        { success: false, error: "Forbidden: Only administrators can dispatch warranty certificate emails." },
         { status: 403 }
       );
-    }
-
-    // 4. Enforce 60-second Cooldown
-    const recentWarrantyEmail = await prisma.emailNotification.findFirst({
-      where: {
-        orderId: order.id,
-        emailType: "WARRANTY",
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    const lastSentAt =
-      recentWarrantyEmail?.sentAt ||
-      recentWarrantyEmail?.createdAt ||
-      (order as any).warrantyEmailSentAt;
-
-    if (lastSentAt) {
-      const elapsedMs = Date.now() - new Date(lastSentAt).getTime();
-      const COOLDOWN_MS = 60 * 1000;
-      if (elapsedMs < COOLDOWN_MS) {
-        const remainingSeconds = Math.ceil((COOLDOWN_MS - elapsedMs) / 1000);
-        return NextResponse.json(
-          {
-            success: false,
-            error: `Please wait ${remainingSeconds} seconds before requesting another warranty email.`,
-            cooldownSeconds: remainingSeconds,
-          },
-          { status: 429 }
-        );
-      }
     }
 
     // 5. Fetch or generate warranties if none exist yet

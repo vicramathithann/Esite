@@ -138,24 +138,21 @@ export default function AdminSingleOrderPage() {
   };
 
   const handleResendWarranty = async () => {
-    if (!order || warrantyCooldown > 0) return;
+    if (!order) return;
     setResendingWarranty(true);
     try {
-      const res = await fetch(`/api/orders/${order.id}/resend-warranty`, {
+      const res = await fetch("/api/admin/send-certificate", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: order.id }),
       });
       const data = await res.json();
       if (data.success) {
-        alert(`Warranty details email resent to ${order.customerEmail}!`);
-        setWarrantyCooldown(60);
+        alert(data.message || `Warranty certificate email sent to ${order.customerEmail}!`);
         await loadOrder();
       } else {
-        if (data.cooldownSeconds) {
-          setWarrantyCooldown(data.cooldownSeconds);
-        }
-        alert(data.error || "Failed to resend warranty email.");
+        alert(data.error || "Failed to send warranty certificate email.");
       }
     } catch {
       alert("Error contacting server.");
@@ -194,11 +191,11 @@ export default function AdminSingleOrderPage() {
 
             <button
               onClick={handleResendWarranty}
-              disabled={resendingWarranty || warrantyCooldown > 0}
+              disabled={resendingWarranty}
               className="px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
             >
               <ShieldCheck className={`w-3.5 h-3.5 ${resendingWarranty ? "animate-spin" : ""}`} />
-              {warrantyCooldown > 0 ? `Resend Warranty (${warrantyCooldown}s)` : "Resend Warranty"}
+              Send Certificate Email
             </button>
           </div>
         </div>

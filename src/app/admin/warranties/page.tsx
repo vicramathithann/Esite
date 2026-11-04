@@ -67,18 +67,18 @@ export default function AdminWarrantiesPage() {
   const handleResend = async (warrantyId: string, customerEmail: string) => {
     try {
       setActionLoading(warrantyId);
-      const res = await fetch("/api/warranties", {
+      const res = await fetch("/api/admin/send-certificate", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ warrantyId, action: "RESEND_EMAIL" }),
+        body: JSON.stringify({ warrantyId }),
       });
       const data = await res.json();
       if (data.success) {
-        showToast(`Warranty certificate emailed to ${customerEmail}!`);
+        showToast(data.message || `Warranty certificate emailed to ${customerEmail}!`);
         await loadWarranties();
       } else {
-        showToast(data.error || "Failed to resend warranty email.", "error");
+        showToast(data.error || "Failed to send warranty certificate email.", "error");
       }
     } catch {
       showToast("Error contacting warranty service.", "error");
@@ -253,7 +253,7 @@ export default function AdminWarrantiesPage() {
                               ) : (
                                 <Mail className="w-3 h-3 text-[#8C6226] dark:text-[#E5CBA2]" />
                               )}
-                              Resend Email
+                              Send Certificate Email
                             </button>
                           )}
 
