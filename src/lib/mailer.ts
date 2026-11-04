@@ -263,6 +263,7 @@ function formatDate(val: string | Date | undefined): string {
   const d = val instanceof Date ? val : new Date(val);
   if (isNaN(d.getTime())) return "N/A";
   return d.toLocaleDateString("en-IN", {
+    timeZone: "Asia/Kolkata",
     day: "numeric",
     month: "short",
     year: "numeric",

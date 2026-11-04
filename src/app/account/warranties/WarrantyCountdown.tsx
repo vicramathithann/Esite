@@ -53,6 +53,7 @@ function formatDate(dateStr?: string | null): string {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return String(dateStr);
     return d.toLocaleDateString("en-IN", {
+      timeZone: "Asia/Kolkata",
       day: "numeric",
       month: "short",
       year: "numeric",
