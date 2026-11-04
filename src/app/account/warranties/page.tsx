@@ -12,35 +12,6 @@ export const metadata = {
 };
 
 /**
- * Computes official warranty classification based on expiry date and order state.
- * Never filters out valid rows because of status string mismatch.
- */
-function classifyWarranty(
-  expiryDateStr: string | Date,
-  rawStatus?: string | null,
-  orderStatus?: string | null
-): "ACTIVE" | "EXPIRING_SOON" | "EXPIRED" | "CANCELLED" {
-  const normOrdStatus = (orderStatus || "").toUpperCase();
-  const normWarStatus = (rawStatus || "").toUpperCase();
-  if (normOrdStatus === "CANCELLED" || normWarStatus === "CANCELLED") {
-    return "CANCELLED";
-  }
-
-  const now = Date.now();
-  const expiry = new Date(expiryDateStr).getTime();
-  if (isNaN(expiry) || expiry <= now) {
-    return "EXPIRED";
-  }
-
-  const daysUntilExpiry = Math.floor((expiry - now) / (1000 * 60 * 60 * 24));
-  if (daysUntilExpiry <= 30) {
-    return "EXPIRING_SOON";
-  }
-
-  return "ACTIVE";
-}
-
-/**
  * Strips duplicated brand prefix if present (e.g. "Sony Sony Xperia 1 VI" -> "Sony Xperia 1 VI")
  */
 function cleanProductName(name: string, brand?: string): string {
@@ -55,6 +26,8 @@ function cleanProductName(name: string, brand?: string): string {
 }
 
 export default async function UserWarrantiesPage() {
+  const startTime = performance.now();
+
   // 1. Authenticate user strictly from secure session cookie
   const authUser = await getAuthenticatedUser();
   if (!authUser) {
@@ -63,77 +36,68 @@ export default async function UserWarrantiesPage() {
 
   const cleanEmail = (authUser.email || "").trim().toLowerCase();
   let supabaseError: string | null = null;
-  const enrichedList: EnrichedWarranty[] = [];
+
+  const activeWarranties: EnrichedWarranty[] = [];
+  const expiredWarranties: EnrichedWarranty[] = [];
+  const cancelledWarranties: EnrichedWarranty[] = [];
 
   try {
-    // 2. Fetch all orders belonging to the authenticated user using service-role client
-    // Filtered by session user ID and email fallback
-    const { data: userOrders, error: orderErr } = await supabaseAdmin
-      .from("Order")
-      .select("id, orderNumber, orderStatus, totalAmount, customerName, customerEmail, createdAt")
-      .or(`userId.eq.${authUser.id},customerEmail.ilike.${cleanEmail}`)
-      .order("createdAt", { ascending: false });
+    // 2. Fetch independent data sources in parallel via Promise.all (no N+1 query waterfall)
+    const [ordersRes, directWarRes, emailNotifsRes, catalogRes] = await Promise.all([
+      supabaseAdmin
+        .from("Order")
+        .select("id, orderNumber, orderStatus, paymentStatus, totalAmount, customerName, customerEmail, createdAt")
+        .or(`userId.eq.${authUser.id},customerEmail.ilike.${cleanEmail}`)
+        .order("createdAt", { ascending: false }),
 
-    if (orderErr) {
-      console.error("[SUPABASE ORDERS QUERY ERROR]", {
-        message: orderErr.message,
-        code: orderErr.code,
-        hint: orderErr.hint,
-        details: orderErr.details,
-      });
-      supabaseError = `${orderErr.message} (Code: ${orderErr.code || "DB_ERR"})`;
+      supabaseAdmin
+        .from("Warranty")
+        .select("id, warrantyNumber, orderId, orderItemId, userId, customerName, customerEmail, productName, imeiNumber, purchaseDate, warrantyDuration, warrantyStartDate, warrantyExpiryDate, warrantyStatus")
+        .or(`userId.eq.${authUser.id},customerEmail.ilike.${cleanEmail}`)
+        .order("purchaseDate", { ascending: false }),
+
+      supabaseAdmin
+        .from("EmailNotification")
+        .select("orderId, productName, contentSummary, emailType, createdAt")
+        .or(`userId.eq.${authUser.id},recipientEmail.ilike.${cleanEmail}`)
+        .eq("emailType", "WARRANTY")
+        .order("createdAt", { ascending: false }),
+
+      supabaseAdmin
+        .from("MobileProduct")
+        .select("id, name, brand, imageUrl, basePrice"),
+    ]);
+
+    if (ordersRes.error) {
+      console.error("[SUPABASE ORDERS ERROR]", ordersRes.error);
+      supabaseError = `${ordersRes.error.message} (Code: ${ordersRes.error.code || "ORDERS_ERR"})`;
+    }
+    if (directWarRes.error) {
+      console.error("[SUPABASE WARRANTIES ERROR]", directWarRes.error);
+      supabaseError = `${directWarRes.error.message} (Code: ${directWarRes.error.code || "WAR_ERR"})`;
     }
 
-    const orders = userOrders || [];
+    const orders = ordersRes.data || [];
+    const directWarranties = directWarRes.data || [];
+    const emailNotifs = emailNotifsRes.data || [];
+    const catalog = catalogRes.data || [];
+
     const userOrderIds = orders.map((o) => o.id).filter(Boolean);
-    const orderMap = new Map<string, any>(orders.map((o) => [o.id, o]));
+    const orderMap = new Map(orders.map((o) => [o.id, o]));
+    const emailMap = new Map(emailNotifs.map((e) => [e.orderId, e]));
+    const catalogById = new Map(catalog.map((c) => [c.id, c]));
+    const catalogByPrice = new Map(catalog.map((c) => [c.basePrice, c]));
 
-    // 3. Load warranties using service-role client strictly filtered by session identity:
-    // Direct userId, direct customerEmail, OR orderId linked through user's orders
-    const orFilterParts = [
-      `userId.eq.${authUser.id}`,
-      `customerEmail.ilike.${cleanEmail}`,
-    ];
-    if (userOrderIds.length > 0) {
-      orFilterParts.push(`orderId.in.(${userOrderIds.join(",")})`);
-    }
-
-    const { data: rawWarranties, error: warError } = await supabaseAdmin
-      .from("Warranty")
-      .select("*")
-      .or(orFilterParts.join(","))
-      .order("purchaseDate", { ascending: false });
-
-    if (warError) {
-      console.error("[SUPABASE WARRANTIES QUERY ERROR]", {
-        message: warError.message,
-        code: warError.code,
-        hint: warError.hint,
-        details: warError.details,
-      });
-      supabaseError = `${warError.message} (Code: ${warError.code || "DB_ERR"})`;
-    }
-
-    console.log(
-      `[SUPABASE WARRANTIES SERVER] Fetched ${rawWarranties?.length || 0} warranty rows for user ${authUser.id} (${cleanEmail})`
-    );
-
-    let warranties: any[] = rawWarranties ? [...rawWarranties] : [];
-
-    // 4. Batch fetch OrderItems for user's orders
+    // 3. Batch-fetch OrderItem records for the user's orders (if any)
     let itemsMap = new Map<string, any>();
     if (userOrderIds.length > 0) {
       const { data: items, error: itemsErr } = await supabaseAdmin
         .from("OrderItem")
-        .select("*")
+        .select("id, orderId, productId, productName, productBrand, productImageUrl, selectedColor, selectedStorage, price, quantity, imeiNumber, warrantyMonths, warrantyStartDate, warrantyExpiryDate, warrantyStatus")
         .in("orderId", userOrderIds);
 
       if (itemsErr) {
-        console.error("[SUPABASE ORDER ITEMS ERROR]", {
-          message: itemsErr.message,
-          code: itemsErr.code,
-          hint: itemsErr.hint,
-        });
+        console.error("[SUPABASE ORDER ITEMS ERROR]", itemsErr);
       } else if (items) {
         for (const item of items) {
           itemsMap.set(item.id, item);
@@ -141,21 +105,19 @@ export default async function UserWarrantiesPage() {
       }
     }
 
-    // 5. Fallback Synthesis: If any non-cancelled order is missing a Warranty row, synthesize it
-    // so customer warranties from confirmed orders & emails are never invisible
-    const existingWarOrderItemIds = new Set(warranties.map((w) => w.orderItemId).filter(Boolean));
-    const existingWarOrderIds = new Set(warranties.map((w) => w.orderId).filter(Boolean));
+    // 4. Consolidate warranties (authoritative records + fallback synthesized from orders)
+    const allWarranties: any[] = [...directWarranties];
+    const coveredOrderItemIds = new Set(directWarranties.map((w) => w.orderItemId).filter(Boolean));
+    const coveredOrderIds = new Set(directWarranties.map((w) => w.orderId).filter(Boolean));
 
     for (const ord of orders) {
-      // Find items belonging to this order
       const ordItems = Array.from(itemsMap.values()).filter((i) => i.orderId === ord.id);
 
       if (ordItems.length > 0) {
         for (let idx = 0; idx < ordItems.length; idx++) {
           const item = ordItems[idx];
-          if (!existingWarOrderItemIds.has(item.id)) {
-            const warNum = `WRT-${ord.orderNumber}-${idx + 1}`;
-            warranties.push({
+          if (!coveredOrderItemIds.has(item.id)) {
+            allWarranties.push({
               id: `synthesized-${item.id}`,
               orderId: ord.id,
               orderItemId: item.id,
@@ -164,7 +126,7 @@ export default async function UserWarrantiesPage() {
               customerEmail: ord.customerEmail || cleanEmail,
               productName: item.productName,
               imeiNumber: item.imeiNumber,
-              warrantyNumber: warNum,
+              warrantyNumber: `WRT-${ord.orderNumber}-${idx + 1}`,
               purchaseDate: ord.createdAt || new Date().toISOString(),
               warrantyStartDate: item.warrantyStartDate || ord.createdAt || new Date().toISOString(),
               warrantyExpiryDate:
@@ -173,163 +135,167 @@ export default async function UserWarrantiesPage() {
               warrantyDuration: `${Math.round((item.warrantyMonths || 12) / 12)} Year`,
               warrantyStatus: item.warrantyStatus || "ACTIVE",
             });
-            existingWarOrderItemIds.add(item.id);
-            existingWarOrderIds.add(ord.id);
+            coveredOrderItemIds.add(item.id);
+            coveredOrderIds.add(ord.id);
           }
         }
-      } else if (!existingWarOrderIds.has(ord.id)) {
-        // Order exists without OrderItem records: check if EmailNotification has warranty details
-        const { data: warrantyEmails } = await supabaseAdmin
-          .from("EmailNotification")
-          .select("*")
-          .eq("orderId", ord.id)
-          .eq("emailType", "WARRANTY")
-          .order("createdAt", { ascending: false })
-          .limit(1);
+      } else if (!coveredOrderIds.has(ord.id)) {
+        const email = emailMap.get(ord.id);
+        let certNum = `WRT-${ord.orderNumber}-1`;
+        let imei = `86${Math.floor(1000000000000 + Math.random() * 9000000000000)}`;
 
-        const emailNotif = warrantyEmails?.[0];
-        let imeiFromEmail = "";
-        let certFromEmail = "";
-        let validFrom = ord.createdAt;
-        let validTo = new Date(new Date(ord.createdAt).getTime() + 365 * 24 * 60 * 60 * 1000).toISOString();
-
-        if (emailNotif?.contentSummary) {
-          const imeiMatch = emailNotif.contentSummary.match(/IMEI:\s*(\d+)/i);
-          if (imeiMatch) imeiFromEmail = imeiMatch[1];
-          const certMatch = emailNotif.contentSummary.match(/Certificate:\s*([A-Za-z0-9-]+)/i);
-          if (certMatch) certFromEmail = certMatch[1];
+        if (email?.contentSummary) {
+          const cMatch = email.contentSummary.match(/Certificate:\s*([A-Za-z0-9-]+)/i);
+          if (cMatch) certNum = cMatch[1];
+          const iMatch = email.contentSummary.match(/IMEI:\s*(\d+)/i);
+          if (iMatch) imei = iMatch[1];
         }
 
-        warranties.push({
+        allWarranties.push({
           id: `synthesized-order-${ord.id}`,
           orderId: ord.id,
           orderItemId: `item-${ord.id}`,
           userId: authUser.id,
           customerName: ord.customerName || authUser.name,
           customerEmail: ord.customerEmail || cleanEmail,
-          productName: emailNotif?.productName || `Order #${ord.orderNumber} Device`,
-          imeiNumber: imeiFromEmail || `86${Math.floor(1000000000000 + Math.random() * 9000000000000)}`,
-          warrantyNumber: certFromEmail || `WRT-${ord.orderNumber}-1`,
+          productName: email?.productName || `Order #${ord.orderNumber} Device`,
+          imeiNumber: imei,
+          warrantyNumber: certNum,
           purchaseDate: ord.createdAt || new Date().toISOString(),
-          warrantyStartDate: validFrom,
-          warrantyExpiryDate: validTo,
+          warrantyStartDate: ord.createdAt || new Date().toISOString(),
+          warrantyExpiryDate: new Date(
+            new Date(ord.createdAt).getTime() + 365 * 24 * 60 * 60 * 1000
+          ).toISOString(),
           warrantyDuration: "1 Year",
-          warrantyStatus: ord.orderStatus === "CANCELLED" ? "CANCELLED" : "ACTIVE",
+          warrantyStatus: "ACTIVE",
         });
-        existingWarOrderIds.add(ord.id);
+        coveredOrderIds.add(ord.id);
       }
     }
 
-    if (warranties.length > 0) {
-      // 6. Batch fetch MobileProducts for images and authoritative names
-      const productIds = Array.from(
-        new Set(
-          Array.from(itemsMap.values())
-            .map((i) => i.productId)
-            .filter(Boolean)
-        )
+    // 5. Enrich and Classify each warranty
+    const now = Date.now();
+
+    for (let idx = 0; idx < allWarranties.length; idx++) {
+      const w = allWarranties[idx];
+      const matchedOrder = orderMap.get(w.orderId);
+      const matchedItem = itemsMap.get(w.orderItemId);
+      const matchedProduct = matchedItem?.productId
+        ? catalogById.get(matchedItem.productId)
+        : matchedOrder?.totalAmount
+        ? catalogByPrice.get(matchedOrder.totalAmount)
+        : null;
+
+      const rawName =
+        matchedProduct?.name ||
+        matchedItem?.productName ||
+        w.productName ||
+        "Flagship Smartphone";
+      const realBrand = matchedProduct?.brand || matchedItem?.productBrand || "VN Mobiles";
+      const realProductName = cleanProductName(rawName, realBrand);
+
+      const realImageUrl =
+        matchedProduct?.imageUrl ||
+        matchedItem?.productImageUrl ||
+        "/phones/sony-xperia-1-vi.jpg";
+
+      const variantParts = [matchedItem?.selectedStorage, matchedItem?.selectedColor].filter(
+        Boolean
       );
+      const variantInfo = variantParts.length > 0 ? variantParts.join(" • ") : "";
 
-      let productsMap = new Map<string, any>();
-      if (productIds.length > 0) {
-        const { data: products } = await supabaseAdmin
-          .from("MobileProduct")
-          .select("id, name, brand, imageUrl")
-          .in("id", productIds);
-        if (products) {
-          productsMap = new Map(products.map((p) => [p.id, p]));
+      const orderNum = matchedOrder?.orderNumber || (w.orderId ? `ORD${w.orderId.slice(0, 5)}` : "00000");
+      const wNumber = w.warrantyNumber || `WRT-${orderNum}-${idx + 1}`;
+
+      const startDateStr =
+        w.warrantyStartDate ||
+        matchedItem?.warrantyStartDate ||
+        w.purchaseDate ||
+        matchedOrder?.createdAt ||
+        new Date().toISOString();
+
+      const expiryDateStr =
+        w.warrantyExpiryDate ||
+        matchedItem?.warrantyExpiryDate ||
+        new Date(new Date(startDateStr).getTime() + 365 * 24 * 60 * 60 * 1000).toISOString();
+
+      // Check if cancelled or refunded
+      const ordStatus = (matchedOrder?.orderStatus || "").toUpperCase();
+      const payStatus = (matchedOrder?.paymentStatus || "").toUpperCase();
+      const warStatus = (w.warrantyStatus || "").toUpperCase();
+
+      const isCancelled =
+        ordStatus === "CANCELLED" ||
+        ordStatus.includes("CANCEL") ||
+        payStatus.includes("REFUND") ||
+        warStatus === "CANCELLED";
+
+      const expiryMs = new Date(expiryDateStr).getTime();
+      const isExpired = !isCancelled && (isNaN(expiryMs) || expiryMs <= now);
+
+      let classifiedStatus: "ACTIVE" | "EXPIRING_SOON" | "EXPIRED" | "CANCELLED" = "ACTIVE";
+      if (isCancelled) {
+        classifiedStatus = "CANCELLED";
+      } else if (isExpired) {
+        classifiedStatus = "EXPIRED";
+      } else {
+        const daysLeft = Math.floor((expiryMs - now) / (1000 * 60 * 60 * 24));
+        if (daysLeft <= 30) {
+          classifiedStatus = "EXPIRING_SOON";
+        } else {
+          classifiedStatus = "ACTIVE";
         }
       }
 
-      // Also index products by basePrice for fallback matching
-      const { data: catalogProducts } = await supabaseAdmin
-        .from("MobileProduct")
-        .select("id, name, brand, imageUrl, basePrice");
-      const priceProductMap = new Map<number, any>();
-      if (catalogProducts) {
-        for (const cp of catalogProducts) {
-          if (cp.basePrice) priceProductMap.set(cp.basePrice, cp);
-        }
-      }
+      const enriched: EnrichedWarranty = {
+        id: w.id,
+        warrantyNumber: wNumber,
+        orderId: w.orderId,
+        orderNumber: orderNum,
+        orderStatus: matchedOrder?.orderStatus || "CONFIRMED",
+        productId: matchedItem?.productId || matchedProduct?.id || null,
+        productName: realProductName,
+        productBrand: realBrand,
+        productImageUrl: realImageUrl,
+        variantInfo,
+        imeiNumber: w.imeiNumber || matchedItem?.imeiNumber || "N/A",
+        purchaseDate: w.purchaseDate || matchedOrder?.createdAt || new Date().toISOString(),
+        warrantyStartDate: startDateStr,
+        warrantyExpiryDate: expiryDateStr,
+        warrantyDuration: w.warrantyDuration || "1 Year",
+        warrantyStatus: classifiedStatus,
+        customerName: w.customerName || authUser.name,
+        customerEmail: w.customerEmail || cleanEmail,
+        reminded1DayAt: w.reminded1DayAt || w.reminder1DaySentAt || null,
+        reminded6MonthsAt: w.reminded6MonthsAt || w.reminder6MonthSentAt || null,
+      };
 
-      // 7. Enrich each warranty with verified details
-      for (let idx = 0; idx < warranties.length; idx++) {
-        const w = warranties[idx];
-        const matchedOrder = orderMap.get(w.orderId);
-        const matchedItem = itemsMap.get(w.orderItemId);
-        const matchedProduct = matchedItem?.productId
-          ? productsMap.get(matchedItem.productId)
-          : matchedOrder?.totalAmount
-          ? priceProductMap.get(matchedOrder.totalAmount)
-          : null;
-
-        const rawName =
-          matchedProduct?.name ||
-          matchedItem?.productName ||
-          w.productName ||
-          "Flagship Smartphone";
-        const realBrand =
-          matchedProduct?.brand ||
-          matchedItem?.productBrand ||
-          "VN Mobiles";
-        const realProductName = cleanProductName(rawName, realBrand);
-
-        const realImageUrl =
-          matchedProduct?.imageUrl ||
-          matchedItem?.productImageUrl ||
-          "/phones/sony-xperia-1-vi.jpg";
-
-        const variantParts = [matchedItem?.selectedStorage, matchedItem?.selectedColor].filter(
-          Boolean
-        );
-        const variantInfo = variantParts.length > 0 ? variantParts.join(" • ") : "";
-
-        const orderNum = matchedOrder?.orderNumber || (w.orderId ? `ORD${w.orderId.slice(0, 5)}` : "00000");
-        const wNumber = w.warrantyNumber || `WRT-${orderNum}-${idx + 1}`;
-
-        const startDateStr =
-          w.warrantyStartDate ||
-          matchedItem?.warrantyStartDate ||
-          w.purchaseDate ||
-          matchedOrder?.createdAt ||
-          new Date().toISOString();
-
-        const expiryDateStr =
-          w.warrantyExpiryDate ||
-          matchedItem?.warrantyExpiryDate ||
-          new Date(new Date(startDateStr).getTime() + 365 * 24 * 60 * 60 * 1000).toISOString();
-
-        // Classify status: Active, Expiring Soon, Expired, Cancelled
-        const classifiedStatus = classifyWarranty(
-          expiryDateStr,
-          w.warrantyStatus,
-          matchedOrder?.orderStatus
-        );
-
-        enrichedList.push({
-          id: w.id,
-          warrantyNumber: wNumber,
-          orderId: w.orderId,
-          orderNumber: orderNum,
-          orderStatus: matchedOrder?.orderStatus || "CONFIRMED",
-          productId: matchedItem?.productId || matchedProduct?.id || null,
-          productName: realProductName,
-          productBrand: realBrand,
-          productImageUrl: realImageUrl,
-          variantInfo,
-          imeiNumber: w.imeiNumber || matchedItem?.imeiNumber || "N/A",
-          purchaseDate: w.purchaseDate || matchedOrder?.createdAt || new Date().toISOString(),
-          warrantyStartDate: startDateStr,
-          warrantyExpiryDate: expiryDateStr,
-          warrantyDuration: w.warrantyDuration || "1 Year",
-          warrantyStatus: classifiedStatus,
-          customerName: w.customerName || authUser.name,
-          customerEmail: w.customerEmail || cleanEmail,
-          reminded1DayAt: w.reminded1DayAt || w.reminder1DaySentAt || null,
-          reminded6MonthsAt: w.reminded6MonthsAt || w.reminder6MonthSentAt || null,
-        });
+      if (classifiedStatus === "CANCELLED") {
+        cancelledWarranties.push(enriched);
+      } else if (classifiedStatus === "EXPIRED") {
+        expiredWarranties.push(enriched);
+      } else {
+        activeWarranties.push(enriched);
       }
     }
+
+    // 6. Sort:
+    // Active by nearest expiry first
+    activeWarranties.sort(
+      (a, b) => new Date(a.warrantyExpiryDate).getTime() - new Date(b.warrantyExpiryDate).getTime()
+    );
+    // Expired and Cancelled by most recent first
+    expiredWarranties.sort(
+      (a, b) => new Date(b.purchaseDate).getTime() - new Date(a.purchaseDate).getTime()
+    );
+    cancelledWarranties.sort(
+      (a, b) => new Date(b.purchaseDate).getTime() - new Date(a.purchaseDate).getTime()
+    );
+
+    const elapsedMs = Math.round(performance.now() - startTime);
+    console.log(
+      `[WARRANTIES PERF] Loaded ${allWarranties.length} warranties for user ${authUser.id} (${cleanEmail}) in ${elapsedMs}ms | Active: ${activeWarranties.length}, Expired: ${expiredWarranties.length}, Cancelled: ${cancelledWarranties.length}`
+    );
   } catch (err: any) {
     console.error("[WARRANTIES SERVER PAGE ERROR]", err);
     supabaseError = err?.message || "Failed to load warranty data.";
@@ -337,7 +303,9 @@ export default async function UserWarrantiesPage() {
 
   return (
     <WarrantiesClient
-      initialWarranties={enrichedList}
+      activeWarranties={activeWarranties}
+      expiredWarranties={expiredWarranties}
+      cancelledWarranties={cancelledWarranties}
       supabaseError={supabaseError}
       userName={authUser.name}
       userEmail={cleanEmail}

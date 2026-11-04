@@ -173,7 +173,7 @@ export default function Navbar() {
                   <Link href="/account" className="block px-4 py-2 hover:bg-tile text-foreground hover:text-accent transition-colors">
                     Account & Profile
                   </Link>
-                  <Link href="/account/warranties" className="block px-4 py-2 hover:bg-tile text-foreground hover:text-accent transition-colors">
+                  <Link href="/account/warranties" prefetch={true} className="block px-4 py-2 hover:bg-tile text-foreground hover:text-accent transition-colors">
                     Device Warranties
                   </Link>
                   <Link href="/account/wishlist" className="block px-4 py-2 hover:bg-tile text-foreground hover:text-accent transition-colors">
