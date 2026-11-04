@@ -184,7 +184,8 @@ export async function POST(request: Request) {
 
       const imei = `86${Math.floor(1000000000000 + Math.random() * 9000000000000)}`;
       const months = item.warrantyMonths || 12;
-      const expiry = new Date(now.getTime() + months * 30 * 24 * 60 * 60 * 1000);
+      const expiry = new Date(now);
+      expiry.setFullYear(expiry.getFullYear() + Math.max(1, Math.round(months / 12)));
 
       const colorStr = typeof item.selectedColor === "object" && item.selectedColor !== null
         ? item.selectedColor.name

@@ -77,9 +77,41 @@ export async function GET(request: Request) {
     testSendResult.attempted = true;
     testSendResult.recipient = testRecipient;
     try {
-      const sendInfo = await sendOtpEmail(testRecipient, "123456", request);
-      testSendResult.success = true;
-      testSendResult.messageId = sendInfo.messageId;
+      if (searchParams.get("type") === "warranty") {
+        const { sendWarrantyEmail } = await import("@/lib/mailer");
+        const res = await sendWarrantyEmail(
+          {
+            id: "test-order-debug",
+            orderNumber: "ORD58939",
+            customerName: "Zara",
+            customerEmail: testRecipient,
+            totalAmount: 144900,
+            createdAt: new Date("2026-11-04"),
+          },
+          [
+            {
+              productName: "Apple iPhone 16 Pro Max",
+              productBrand: "Apple",
+              selectedStorage: "128GB",
+              selectedColor: "Natural Titanium",
+              imeiNumber: "861234567890123",
+              warrantyMonths: 12,
+              warrantyStartDate: new Date("2026-11-04"),
+              warrantyExpiryDate: new Date("2027-11-04"),
+            },
+          ],
+          [],
+          request,
+          { forceResend: true }
+        );
+        testSendResult.success = res.success;
+        testSendResult.messageId = res.messageId;
+        testSendResult.error = res.error;
+      } else {
+        const sendInfo = await sendOtpEmail(testRecipient, "123456", request);
+        testSendResult.success = true;
+        testSendResult.messageId = sendInfo.messageId;
+      }
     } catch (sendErr: any) {
       testSendResult.success = false;
       testSendResult.error = sendErr?.message || String(sendErr);

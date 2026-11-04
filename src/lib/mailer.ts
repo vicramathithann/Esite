@@ -6,6 +6,7 @@ import {
   renderOtpEmail,
   renderWarrantyActivationEmail,
 } from "./email-templates";
+import { generateWarrantyCertificatePdf, formatKolkataDate } from "./warranty-pdf";
 
 export type EmailFailureReason =
   | "MISSING_ENV"
@@ -383,8 +384,22 @@ export async function sendWarrantyEmail(
     if (w.orderItemId) warrantyMap.set(w.orderItemId, w);
   });
 
+  if (warranties.length === 0 && order.id) {
+    try {
+      const dbWars = await prisma.warranty.findMany({ where: { orderId: order.id } });
+      if (dbWars && dbWars.length > 0) {
+        dbWars.forEach((w) => {
+          if (w.orderItemId) warrantyMap.set(w.orderItemId, w as any);
+        });
+      }
+    } catch (wLookupErr) {
+      console.warn("[WARRANTY EMAIL] Notice: could not load stored warranties:", wLookupErr);
+    }
+  }
+
   interface ResolvedWarrantyItem {
     productName: string;
+    productBrand?: string;
     variantInfo: string;
     warrantyNumber: string;
     imeiNumber: string;
@@ -392,11 +407,15 @@ export async function sendWarrantyEmail(
     startDateStr: string;
     expiryDateStr: string;
     status: string;
+    rawStartDate: Date | string;
+    rawExpiryDate: Date | string;
+    rawPurchaseDate: Date | string;
   }
 
   const resolvedItems: ResolvedWarrantyItem[] = [];
 
-  sourceItems.forEach((item, idx) => {
+  for (let idx = 0; idx < sourceItems.length; idx++) {
+    const item = sourceItems[idx];
     const matchedWarranty = (item.id && warrantyMap.get(item.id)) || warranties[idx];
     const warrantyNum =
       matchedWarranty?.warrantyNumber || `WRT-${orderNumber}-${idx + 1}`;
@@ -405,29 +424,85 @@ export async function sendWarrantyEmail(
 
     const months = item.warrantyMonths || 12;
     const durationStr =
-      matchedWarranty?.warrantyDuration || `${Math.round(months / 12)} Year Brand Warranty`;
+      matchedWarranty?.warrantyDuration || `${Math.max(1, Math.round(months / 12))} Year Brand Warranty`;
 
     const start = matchedWarranty?.warrantyStartDate || item.warrantyStartDate || now;
-    const expiry =
-      matchedWarranty?.warrantyExpiryDate ||
-      item.warrantyExpiryDate ||
-      new Date(now.getTime() + months * 30 * 24 * 60 * 60 * 1000);
+    let expiry = matchedWarranty?.warrantyExpiryDate || item.warrantyExpiryDate;
+    if (!expiry) {
+      const expDate = new Date(start);
+      expDate.setFullYear(expDate.getFullYear() + Math.max(1, Math.round(months / 12)));
+      expiry = expDate;
+    }
+
+    let prodName = item.productName || matchedWarranty?.productName || "";
+    let prodBrand = item.productBrand || "VN Mobiles";
+
+    // Load real product name from database if missing or generic fallback
+    if (
+      item.productId &&
+      (!prodName || prodName.includes("Device") || prodName.includes("Smartphone"))
+    ) {
+      try {
+        const dbProd = await prisma.mobileProduct.findUnique({
+          where: { id: item.productId },
+          select: { name: true, brand: true },
+        });
+        if (dbProd) {
+          prodName = dbProd.name;
+          if (dbProd.brand) prodBrand = dbProd.brand;
+        }
+      } catch {}
+    }
 
     const variantParts = [item.selectedStorage, item.selectedColor].filter(Boolean);
-    const variantInfo = variantParts.length > 0 ? variantParts.join(" • ") : "";
-    const fallbackName = orderNumber ? `Order #${orderNumber} Device` : "Protected Device";
+    const variantInfo = variantParts.length > 0 ? variantParts.join(", ") : "";
 
     resolvedItems.push({
-      productName: item.productName || matchedWarranty?.productName || fallbackName,
+      productName: prodName || `Order #${orderNumber} Device`,
+      productBrand: prodBrand,
       variantInfo,
       warrantyNumber: warrantyNum,
       imeiNumber: imei,
       coveragePeriod: durationStr,
-      startDateStr: formatDate(start),
-      expiryDateStr: formatDate(expiry),
+      startDateStr: formatKolkataDate(start),
+      expiryDateStr: formatKolkataDate(expiry),
       status: matchedWarranty?.warrantyStatus || "ACTIVE",
+      rawStartDate: start,
+      rawExpiryDate: expiry,
+      rawPurchaseDate: order.createdAt || start,
     });
-  });
+  }
+
+  // Generate official PDF certificate attachment (A4 portrait, 1 page per device)
+  let pdfAttachment: { filename: string; content: Buffer; contentType: string } | null = null;
+  try {
+    const pdfResult = await generateWarrantyCertificatePdf({
+      customerName,
+      customerEmail: cleanRecipientEmail,
+      orderNumber,
+      devices: resolvedItems.map((r) => ({
+        productName: r.productName,
+        productBrand: r.productBrand || "VN Mobiles",
+        variantInfo: r.variantInfo,
+        warrantyNumber: r.warrantyNumber,
+        imeiNumber: r.imeiNumber,
+        coveragePeriod: r.coveragePeriod,
+        warrantyStartDate: r.rawStartDate,
+        warrantyExpiryDate: r.rawExpiryDate,
+        purchaseDate: r.rawPurchaseDate,
+        orderNumber,
+        status: r.status,
+      })),
+    });
+    pdfAttachment = {
+      filename: pdfResult.filename,
+      content: pdfResult.pdfBuffer,
+      contentType: "application/pdf",
+    };
+    console.log(`[WARRANTY PDF] Successfully built ${pdfResult.filename} (${pdfResult.pdfBuffer.length} bytes)`);
+  } catch (pdfErr) {
+    console.error(`[WARRANTY PDF ERROR] Could not generate PDF for order #${orderNumber}:`, pdfErr);
+  }
 
   const { subject, html, text: plainText } = renderWarrantyActivationEmail(
     {
@@ -512,6 +587,7 @@ export async function sendWarrantyEmail(
       "X-Mailer": "VN Mobiles Warranty Service",
       "Auto-Submitted": "auto-generated",
     },
+    attachments: pdfAttachment ? [pdfAttachment] : [],
   };
 
   try {

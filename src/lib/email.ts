@@ -16,6 +16,7 @@ import {
   renderAccountDeletionConfirmedEmail,
   renderAdminInvitationEmail,
 } from "./email-templates";
+import { generateWarrantyCertificatePdf, formatKolkataDate } from "./warranty-pdf";
 
 /**
  * Gmail SMTP Email Gateway Integration (Backend Only)
@@ -44,6 +45,11 @@ export interface SendEmailOptions {
   contentSummary?: string;
   html?: string;
   text?: string;
+  attachments?: Array<{
+    filename: string;
+    content: Buffer | string;
+    contentType?: string;
+  }>;
 }
 
 export interface EmailSendResult {
@@ -369,11 +375,12 @@ export async function sendGmailEmail(options: SendEmailOptions): Promise<EmailSe
       text: options.text || options.contentSummary || options.subject,
       html: options.html,
       headers: deliverabilityHeaders,
+      attachments: options.attachments,
     };
 
     console.log(`[GMAIL SMTP] Dispatching ${options.emailType} to ${cleanRecipientEmail} via Gmail service`);
-    const info = await transporter.sendMail(mailOptions);
-    console.log(`[GMAIL SMTP SUCCESS] Message sent. MessageId: ${info.messageId}`);
+    const info = (await transporter.sendMail(mailOptions)) as any;
+    console.log(`[GMAIL SMTP SUCCESS] Message sent. MessageId: ${info?.messageId || "N/A"}`);
 
     if (notificationRecord) {
       await prisma.emailNotification.update({
@@ -975,7 +982,7 @@ export async function sendOrderStatusEmail(
 }
 
 /**
- * Sends Mobile Warranty Activation Email.
+ * Sends Mobile Warranty Activation Email with official PDF certificate attached.
  */
 export async function sendWarrantyActivationEmail(warranty: {
   id: string;
@@ -986,12 +993,76 @@ export async function sendWarrantyActivationEmail(warranty: {
   customerEmail: string;
   productName: string;
   imeiNumber: string;
-  purchaseDate: Date;
-  warrantyDuration: string;
-  warrantyStartDate: Date;
-  warrantyExpiryDate: Date;
+  purchaseDate: Date | string;
+  warrantyDuration?: string;
+  warrantyStartDate: Date | string;
+  warrantyExpiryDate: Date | string;
 }): Promise<EmailSendResult> {
   const siteUrl = getAppUrl();
+  let resolvedName = warranty.productName;
+  let resolvedBrand = "VN Mobiles";
+  let resolvedVariant = "";
+
+  try {
+    const dbWar = await prisma.warranty.findUnique({
+      where: { id: warranty.id },
+      include: {
+        orderItem: true,
+      },
+    });
+
+    if (dbWar) {
+      if (dbWar.productName) resolvedName = dbWar.productName;
+      if (dbWar.orderItem) {
+        if (dbWar.orderItem.productName) resolvedName = dbWar.orderItem.productName;
+        if (dbWar.orderItem.productBrand) resolvedBrand = dbWar.orderItem.productBrand;
+        resolvedVariant = [dbWar.orderItem.selectedStorage, dbWar.orderItem.selectedColor]
+          .filter(Boolean)
+          .join(", ");
+      }
+    }
+  } catch (dbErr) {
+    console.warn("[WARRANTY EMAIL] Notice: could not load warranty relations:", dbErr);
+  }
+
+  const startDateStr = formatKolkataDate(warranty.warrantyStartDate);
+  const expiryDateStr = formatKolkataDate(warranty.warrantyExpiryDate);
+  const durationStr = warranty.warrantyDuration || "1 Year Brand Warranty";
+  const warrantyNumber = `WRT-${warranty.orderNumber}-1`;
+
+  // Build PDF certificate attachment
+  let pdfAttachment: { filename: string; content: Buffer; contentType: string } | null = null;
+  try {
+    const pdfResult = await generateWarrantyCertificatePdf({
+      customerName: warranty.customerName,
+      customerEmail: warranty.customerEmail,
+      orderNumber: warranty.orderNumber,
+      devices: [
+        {
+          productName: resolvedName,
+          productBrand: resolvedBrand,
+          variantInfo: resolvedVariant,
+          warrantyNumber,
+          imeiNumber: warranty.imeiNumber,
+          coveragePeriod: durationStr,
+          warrantyStartDate: warranty.warrantyStartDate,
+          warrantyExpiryDate: warranty.warrantyExpiryDate,
+          purchaseDate: warranty.purchaseDate,
+          orderNumber: warranty.orderNumber,
+          status: "ACTIVE",
+        },
+      ],
+    });
+
+    pdfAttachment = {
+      filename: pdfResult.filename,
+      content: pdfResult.pdfBuffer,
+      contentType: "application/pdf",
+    };
+  } catch (pdfErr) {
+    console.error(`[WARRANTY PDF GENERATION ERROR] Warranty ${warranty.id}:`, pdfErr);
+  }
+
   const { subject, html, text: plainText } = renderWarrantyActivationEmail(
     {
       orderNumber: warranty.orderNumber,
@@ -999,20 +1070,13 @@ export async function sendWarrantyActivationEmail(warranty: {
       customerEmail: warranty.customerEmail,
       items: [
         {
-          productName: warranty.productName,
-          warrantyNumber: `WRT-${warranty.orderNumber}-1`,
+          productName: resolvedName,
+          variantInfo: resolvedVariant,
+          warrantyNumber,
           imeiNumber: warranty.imeiNumber,
-          coveragePeriod: warranty.warrantyDuration || "1-Year Brand Warranty",
-          startDateStr: warranty.warrantyStartDate.toLocaleDateString("en-IN", {
-            day: "numeric",
-            month: "short",
-            year: "numeric",
-          }),
-          expiryDateStr: warranty.warrantyExpiryDate.toLocaleDateString("en-IN", {
-            day: "numeric",
-            month: "short",
-            year: "numeric",
-          }),
+          coveragePeriod: durationStr,
+          startDateStr,
+          expiryDateStr,
           status: "ACTIVE",
         },
       ],
@@ -1027,10 +1091,11 @@ export async function sendWarrantyActivationEmail(warranty: {
     subject,
     emailType: "WARRANTY_NOTIFICATION",
     orderId: warranty.orderId,
-    productName: warranty.productName,
+    productName: resolvedName,
     contentSummary: plainText,
     text: plainText,
     html,
+    attachments: pdfAttachment ? [pdfAttachment] : undefined,
   });
 }
 
