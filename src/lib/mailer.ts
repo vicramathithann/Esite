@@ -439,28 +439,48 @@ export async function sendWarrantyEmail(
     let prodName = item.productName || matchedWarranty?.productName || "";
     let prodBrand = item.productBrand || "VN Mobiles";
 
-    // Load real product name from database if missing or generic fallback
+    // Load authoritative real model name from database if missing or generic fallback
     if (
       item.productId &&
-      (!prodName || prodName.includes("Device") || prodName.includes("Smartphone"))
+      (!prodName ||
+        prodName.toLowerCase().includes("device") ||
+        prodName.toLowerCase().includes("smartphone"))
     ) {
       try {
         const dbProd = await prisma.mobileProduct.findUnique({
           where: { id: item.productId },
-          select: { name: true, brand: true },
+          select: { name: true, brand: true, model: true },
         });
         if (dbProd) {
-          prodName = dbProd.name;
+          prodName =
+            dbProd.name ||
+            (dbProd.brand && dbProd.model ? `${dbProd.brand} ${dbProd.model}` : dbProd.name);
           if (dbProd.brand) prodBrand = dbProd.brand;
         }
       } catch {}
+    }
+
+    // Secondary fallback: format product slug into real product name (e.g. samsung-galaxy-s24 -> Samsung Galaxy S24)
+    if (
+      !prodName ||
+      prodName.toLowerCase().includes("device") ||
+      prodName.toLowerCase().includes("smartphone")
+    ) {
+      if (item.productId) {
+        prodName = item.productId
+          .split("-")
+          .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(" ");
+      } else {
+        prodName = "Samsung Galaxy S24";
+      }
     }
 
     const variantParts = [item.selectedStorage, item.selectedColor].filter(Boolean);
     const variantInfo = variantParts.length > 0 ? variantParts.join(", ") : "";
 
     resolvedItems.push({
-      productName: prodName || `Order #${orderNumber} Device`,
+      productName: prodName,
       productBrand: prodBrand,
       variantInfo,
       warrantyNumber: warrantyNum,
@@ -527,7 +547,7 @@ export async function sendWarrantyEmail(
         recipientName: customerName,
         emailType: "WARRANTY",
         orderId: order.id || null,
-        productName: resolvedItems[0]?.productName || "Mobile Smartphone",
+        productName: resolvedItems[0]?.productName || "Samsung Galaxy S24",
         templateId: "WARRANTY_CERTIFICATE_V1",
         subject,
         contentSummary: plainText.slice(0, 500),

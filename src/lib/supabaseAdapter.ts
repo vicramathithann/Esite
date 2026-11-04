@@ -639,16 +639,17 @@ export class SupabaseModelDelegate {
           orderId: createdRecord.id,
           productId: item.productId,
           productName: item.productName,
-          brand: item.brand || "",
-          variantInfo: item.variantInfo || "",
+          productBrand: item.productBrand || item.brand || "VN Mobiles",
+          productImageUrl: item.productImageUrl || item.imageUrl || "/images/placeholder.png",
+          selectedColor: item.selectedColor || (typeof item.variantInfo === "string" ? item.variantInfo.split(",")[1]?.trim() : "") || "Standard",
+          selectedStorage: item.selectedStorage || (typeof item.variantInfo === "string" ? item.variantInfo.split(",")[0]?.trim() : "") || "Standard",
           price: item.price,
           quantity: item.quantity || 1,
-          imageUrl: item.imageUrl || "",
           imeiNumber: item.imeiNumber || "",
           warrantyMonths: item.warrantyMonths || 12,
           warrantyStartDate: item.warrantyStartDate ? serializeValue(item.warrantyStartDate) : new Date().toISOString(),
           warrantyExpiryDate: item.warrantyExpiryDate ? serializeValue(item.warrantyExpiryDate) : new Date().toISOString(),
-          createdAt: new Date().toISOString(),
+          warrantyStatus: item.warrantyStatus || "ACTIVE",
         }));
         if (itemsToInsert.length > 0) {
           const { data: insertedItems, error: itemsErr } = await supabaseAdmin

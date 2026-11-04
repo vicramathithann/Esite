@@ -27,18 +27,39 @@ export function formatDate(date: Date | string | number): string {
   }
 }
 
+export function formatSlugToProductName(slug?: string): string {
+  if (!slug) return "";
+  return slug
+    .split("-")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
 export function formatOrderProductsDisplayName(
   items?: Array<{ productName?: string; productId?: string }> | null,
-  fallback = "Smartphone"
+  fallback = "Samsung Galaxy S24"
 ): string {
   if (!items || items.length === 0) return fallback;
   const rawFirst = (items[0]?.productName || "").trim();
-  const firstName =
-    rawFirst &&
-    !rawFirst.toLowerCase().includes("flagship smartphone") &&
-    !rawFirst.startsWith("Order #")
-      ? rawFirst
-      : fallback;
+  const rawId = (items[0]?.productId || "").trim();
+
+  let firstName = rawFirst;
+  const isGeneric =
+    !firstName ||
+    firstName.toLowerCase() === "smartphone" ||
+    firstName.toLowerCase() === "device" ||
+    firstName.toLowerCase().includes("flagship smartphone") ||
+    firstName.toLowerCase().includes("mobile smartphone") ||
+    firstName.toLowerCase().includes("protected device") ||
+    firstName.startsWith("Order #");
+
+  if (isGeneric) {
+    if (rawId) {
+      firstName = formatSlugToProductName(rawId);
+    } else {
+      firstName = fallback;
+    }
+  }
 
   if (items.length <= 1) {
     return firstName;

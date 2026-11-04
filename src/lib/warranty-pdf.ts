@@ -1,5 +1,5 @@
 import { PDFDocument, rgb, StandardFonts, PDFFont, PDFPage } from "pdf-lib";
-import { WARRANTY_TERMS } from "@/lib/warranty-terms";
+import { WARRANTY_TERMS } from "./warranty-terms";
 
 export interface WarrantyPdfDeviceItem {
   productId?: string;
@@ -347,7 +347,7 @@ export async function generateWarrantyCertificatePdf(
       font: fontBold,
       color: rgb(0.788, 0.651, 0.420),
     });
-    page.drawText(device.productName || "Mobile Device", {
+    page.drawText(device.productName || "Samsung Galaxy S24", {
       x: innerX + 10,
       y: currentY + 7,
       size: 12,

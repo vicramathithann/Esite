@@ -186,7 +186,24 @@ export async function POST(request: Request) {
       const unitPrice = validated?.unitPrice || 0;
       const qty = validated?.qty || 1;
 
-      const pName = prod ? prod.name : (item.productName || "Mobile Smartphone");
+      // Authoritative real product model name from database: product.name or `${product.brand} ${product.model}`
+      let realModelName = prod?.name || "";
+      if (!realModelName && prod?.brand && prod?.model) {
+        realModelName = `${prod.brand} ${prod.model}`;
+      }
+      if (!realModelName) {
+        realModelName = item.productName || item.name || "";
+      }
+      if (
+        !realModelName ||
+        realModelName.toLowerCase() === "smartphone" ||
+        realModelName.toLowerCase().includes("flagship smartphone") ||
+        realModelName.toLowerCase().includes("mobile smartphone")
+      ) {
+        realModelName = (prod?.brand && prod?.model) ? `${prod.brand} ${prod.model}` : (prod?.name || "Samsung Galaxy S24");
+      }
+
+      const pName = realModelName;
       const pBrand = prod ? prod.brand : (item.productBrand || "VN Mobiles");
       const pImage = prod ? prod.imageUrl : (item.productImageUrl || "/images/placeholder.png");
 
@@ -321,9 +338,11 @@ export async function POST(request: Request) {
     // 6. Automatic First Email: Dispatch ONE official order confirmation email with attached PDF certificate
     let emailResult = null;
     try {
+      const itemsForEmail =
+        order.items && order.items.length > 0 ? order.items : orderItemsCreateData;
       emailResult = await sendWarrantyEmail(
         order,
-        order.items || [],
+        itemsForEmail,
         createdWarranties || [],
         request,
         { force: true }
