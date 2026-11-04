@@ -83,6 +83,12 @@ export default function WarrantyCertificatePrint({
     ? "EXPIRED"
     : "ACTIVE";
 
+  const badgeStyles = isCancelled
+    ? { bg: "#FEE2E2", color: "#991B1B", border: "#DC2626" }
+    : isExpired
+    ? { bg: "#F3F4F6", color: "#4B5563", border: "#9CA3AF" }
+    : { bg: "#DCFCE7", color: "#166534", border: "#16A34A" };
+
   const customerName = warranty.customerName || "Valued Customer";
   const maskedEmail = maskEmail(warranty.customerEmail || userEmail);
   const nowGenerated = formatKolkataDateTime(new Date());
@@ -105,7 +111,7 @@ export default function WarrantyCertificatePrint({
           __html: `
             @page {
               size: A4 portrait;
-              margin: 14mm;
+              margin: 0;
             }
             @media screen {
               .print-only-certificate {
@@ -115,12 +121,12 @@ export default function WarrantyCertificatePrint({
             @media print {
               html, body {
                 background: #ffffff !important;
-                color: #000000 !important;
+                color: #111827 !important;
                 margin: 0 !important;
                 padding: 0 !important;
+                width: 210mm !important;
+                min-height: 297mm !important;
                 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
-                font-size: 11px !important;
-                line-height: 1.35 !important;
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
               }
@@ -131,12 +137,12 @@ export default function WarrantyCertificatePrint({
               .print-only-certificate {
                 display: block !important;
                 visibility: visible !important;
-                width: 100% !important;
-                max-width: 100% !important;
-                margin: 0 !important;
-                padding: 0 !important;
+                box-sizing: border-box !important;
+                width: 210mm !important;
+                padding: 14mm !important;
+                margin: 0 auto !important;
                 background: #ffffff !important;
-                color: #000000 !important;
+                color: #111827 !important;
                 page-break-inside: avoid !important;
                 break-inside: avoid !important;
               }
@@ -149,44 +155,48 @@ export default function WarrantyCertificatePrint({
         }}
       />
 
+      {/* A4 Single-Page Container with thin rounded outer border */}
       <div
         style={{
-          border: "2px solid #000000",
-          borderRadius: "6px",
-          padding: "16px 20px",
+          border: "1px solid #C9A66B",
+          borderRadius: "8px",
+          overflow: "hidden",
           backgroundColor: "#ffffff",
-          color: "#000000",
+          color: "#111827",
           fontFamily:
             '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
           fontSize: "11px",
           lineHeight: 1.35,
         }}
       >
-        {/* 1. Header: VN Mobiles logo, Official Warranty Certificate, status badge */}
+        {/* 1. Header bar: dark navy (#111827) background with a gold bottom line */}
         <div
           style={{
+            backgroundColor: "#111827",
+            borderBottom: "2px solid #C9A66B",
+            padding: "12px 18px",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            borderBottom: "2px solid #000000",
-            paddingBottom: "10px",
-            marginBottom: "12px",
           }}
         >
+          {/* Logo and Brand Title */}
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            {/* VN Circular Logo */}
             <div
               style={{
-                width: "34px",
-                height: "34px",
+                width: "36px",
+                height: "36px",
                 borderRadius: "50%",
-                backgroundColor: "#000000",
-                color: "#ffffff",
+                backgroundColor: "#C9A66B",
+                color: "#FFFFFF",
                 fontWeight: 800,
-                fontSize: "13px",
+                fontSize: "14px",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 letterSpacing: "-0.5px",
+                flexShrink: 0,
               }}
             >
               VN
@@ -194,32 +204,42 @@ export default function WarrantyCertificatePrint({
             <div>
               <div
                 style={{
-                  fontSize: "16px",
+                  fontSize: "17px",
                   fontWeight: 800,
+                  color: "#FFFFFF",
                   letterSpacing: "-0.2px",
                   lineHeight: 1.1,
                 }}
               >
                 VN Mobiles
               </div>
-              <div style={{ fontSize: "12px", fontWeight: 700, color: "#333333" }}>
+              <div
+                style={{
+                  fontSize: "11.5px",
+                  fontWeight: 600,
+                  color: "#E5E7EB",
+                  letterSpacing: "0.2px",
+                }}
+              >
                 Official Warranty Certificate
               </div>
             </div>
           </div>
 
+          {/* Status Badge */}
           <div style={{ textAlign: "right" }}>
             <span
               style={{
                 display: "inline-block",
-                border: "2px solid #000000",
-                padding: "3px 10px",
-                borderRadius: "4px",
+                backgroundColor: badgeStyles.bg,
+                color: badgeStyles.color,
+                border: `1.5px solid ${badgeStyles.border}`,
+                padding: "3px 12px",
+                borderRadius: "9999px",
                 fontWeight: 800,
                 fontSize: "11px",
                 letterSpacing: "0.5px",
                 textTransform: "uppercase",
-                backgroundColor: isCancelled ? "#f0f0f0" : "#ffffff",
               }}
             >
               {statusBadgeText}
@@ -227,244 +247,432 @@ export default function WarrantyCertificatePrint({
           </div>
         </div>
 
-        {/* Cancelled Banner if applicable */}
-        {isCancelled && (
+        {/* Inner Content Area */}
+        <div style={{ padding: "14px 18px" }}>
+          {/* Cancelled Banner if applicable */}
+          {isCancelled && (
+            <div
+              style={{
+                backgroundColor: "#FEF2F2",
+                border: "1.5px solid #DC2626",
+                color: "#991B1B",
+                padding: "8px 12px",
+                marginBottom: "12px",
+                borderRadius: "6px",
+                textAlign: "center",
+                fontWeight: 800,
+                fontSize: "11.5px",
+                letterSpacing: "0.5px",
+              }}
+            >
+              COVERAGE CANCELLED - ORDER CANCELLED
+            </div>
+          )}
+
+          {/* 2. Covered Device box */}
           <div
             style={{
-              border: "1.5px solid #000000",
-              backgroundColor: "#f5f5f5",
-              padding: "8px 12px",
+              backgroundColor: "#FAF6EC",
+              border: "1px solid #C9A66B",
+              borderRadius: "6px",
+              padding: "9px 14px",
               marginBottom: "12px",
-              borderRadius: "4px",
-              textAlign: "center",
-              fontWeight: 800,
-              fontSize: "12px",
-              letterSpacing: "0.5px",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
             }}
           >
-            COVERAGE CANCELLED - ORDER CANCELLED
-          </div>
-        )}
-
-        {/* 2. Device: real product name, brand, variant */}
-        <div
-          style={{
-            backgroundColor: "#fafafa",
-            border: "1px solid #000000",
-            borderRadius: "4px",
-            padding: "8px 12px",
-            marginBottom: "12px",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <div>
-            <div style={{ fontSize: "10px", textTransform: "uppercase", fontWeight: 700, color: "#555555" }}>
-              Covered Device
-            </div>
-            <div style={{ fontSize: "14px", fontWeight: 800 }}>
-              {warranty.productName}
-            </div>
-          </div>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: "11px", fontWeight: 600 }}>
-              Brand: {warranty.productBrand || "VN Mobiles"}
-            </div>
-            {warranty.variantInfo && (
-              <div style={{ fontSize: "10px", color: "#444444" }}>
-                Variant: {warranty.variantInfo}
+            <div>
+              <div
+                style={{
+                  fontSize: "10px",
+                  textTransform: "uppercase",
+                  fontWeight: 800,
+                  color: "#C9A66B",
+                  letterSpacing: "0.5px",
+                }}
+              >
+                COVERED DEVICE
               </div>
-            )}
+              <div
+                style={{
+                  fontSize: "15px",
+                  fontWeight: 800,
+                  color: "#111827",
+                  marginTop: "1px",
+                }}
+              >
+                {warranty.productName}
+              </div>
+            </div>
+
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: "11px", fontWeight: 700, color: "#111827" }}>
+                Brand: {warranty.productBrand || "VN Mobiles"}
+              </div>
+              {warranty.variantInfo && (
+                <div style={{ fontSize: "10.5px", color: "#4B5563", marginTop: "1px" }}>
+                  Variant: {warranty.variantInfo}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* 3. Details table: exactly the 8 specified rows */}
-        <div style={{ marginBottom: "12px" }}>
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              border: "1px solid #000000",
-              fontSize: "10.5px",
-            }}
-          >
-            <tbody>
-              <tr style={{ borderBottom: "1px solid #000000" }}>
-                <td style={{ padding: "4px 8px", width: "35%", fontWeight: 700, backgroundColor: "#f5f5f5" }}>
-                  Certificate ID
-                </td>
-                <td style={{ padding: "4px 8px", width: "65%", fontFamily: "monospace", fontWeight: 700 }}>
-                  {warranty.warrantyNumber}
-                </td>
-              </tr>
-              <tr style={{ borderBottom: "1px solid #000000" }}>
-                <td style={{ padding: "4px 8px", fontWeight: 700, backgroundColor: "#f5f5f5" }}>
-                  Device IMEI
-                </td>
-                <td style={{ padding: "4px 8px", fontFamily: "monospace", fontWeight: 700 }}>
-                  {warranty.imeiNumber}
-                </td>
-              </tr>
-              <tr style={{ borderBottom: "1px solid #000000" }}>
-                <td style={{ padding: "4px 8px", fontWeight: 700, backgroundColor: "#f5f5f5" }}>
-                  Coverage Period
-                </td>
-                <td style={{ padding: "4px 8px" }}>
-                  1 Year Brand Warranty
-                </td>
-              </tr>
-              <tr style={{ borderBottom: "1px solid #000000" }}>
-                <td style={{ padding: "4px 8px", fontWeight: 700, backgroundColor: "#f5f5f5" }}>
-                  Valid From
-                </td>
-                <td style={{ padding: "4px 8px" }}>
-                  {validFromFormatted}
-                </td>
-              </tr>
-              <tr style={{ borderBottom: "1px solid #000000" }}>
-                <td style={{ padding: "4px 8px", fontWeight: 700, backgroundColor: "#f5f5f5" }}>
-                  Valid Until
-                </td>
-                <td style={{ padding: "4px 8px", fontWeight: isCancelled ? 400 : 700 }}>
-                  {validUntilFormatted}
-                </td>
-              </tr>
-              <tr style={{ borderBottom: "1px solid #000000" }}>
-                <td style={{ padding: "4px 8px", fontWeight: 700, backgroundColor: "#f5f5f5" }}>
-                  Days Remaining
-                </td>
-                <td style={{ padding: "4px 8px" }}>
-                  {daysRemainingText}
-                </td>
-              </tr>
-              <tr style={{ borderBottom: "1px solid #000000" }}>
-                <td style={{ padding: "4px 8px", fontWeight: 700, backgroundColor: "#f5f5f5" }}>
-                  Order Reference
-                </td>
-                <td style={{ padding: "4px 8px", fontFamily: "monospace" }}>
-                  #{warranty.orderNumber}
-                </td>
-              </tr>
-              <tr>
-                <td style={{ padding: "4px 8px", fontWeight: 700, backgroundColor: "#f5f5f5" }}>
-                  Purchase Date
-                </td>
-                <td style={{ padding: "4px 8px" }}>
-                  {purchaseDateFormatted}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+          {/* 3. Details table: exactly the 8 specified rows */}
+          <div style={{ marginBottom: "12px" }}>
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                border: "1px solid #C9A66B",
+                fontSize: "10.5px",
+              }}
+            >
+              <tbody>
+                <tr style={{ borderBottom: "1px solid #E7D7B8" }}>
+                  <td
+                    style={{
+                      padding: "4px 10px",
+                      width: "35%",
+                      fontWeight: 700,
+                      backgroundColor: "#FAF6EC",
+                      color: "#5C451D",
+                      borderRight: "1px solid #E7D7B8",
+                    }}
+                  >
+                    Certificate ID
+                  </td>
+                  <td
+                    style={{
+                      padding: "4px 10px",
+                      width: "65%",
+                      fontFamily: "monospace",
+                      fontWeight: 700,
+                      backgroundColor: "#ffffff",
+                      color: "#111827",
+                    }}
+                  >
+                    {warranty.warrantyNumber}
+                  </td>
+                </tr>
+                <tr style={{ borderBottom: "1px solid #E7D7B8" }}>
+                  <td
+                    style={{
+                      padding: "4px 10px",
+                      fontWeight: 700,
+                      backgroundColor: "#FAF6EC",
+                      color: "#5C451D",
+                      borderRight: "1px solid #E7D7B8",
+                    }}
+                  >
+                    Device IMEI
+                  </td>
+                  <td
+                    style={{
+                      padding: "4px 10px",
+                      fontFamily: "monospace",
+                      fontWeight: 700,
+                      backgroundColor: "#ffffff",
+                      color: "#111827",
+                    }}
+                  >
+                    {warranty.imeiNumber}
+                  </td>
+                </tr>
+                <tr style={{ borderBottom: "1px solid #E7D7B8" }}>
+                  <td
+                    style={{
+                      padding: "4px 10px",
+                      fontWeight: 700,
+                      backgroundColor: "#FAF6EC",
+                      color: "#5C451D",
+                      borderRight: "1px solid #E7D7B8",
+                    }}
+                  >
+                    Coverage Period
+                  </td>
+                  <td
+                    style={{
+                      padding: "4px 10px",
+                      backgroundColor: "#ffffff",
+                      color: "#111827",
+                    }}
+                  >
+                    1 Year Brand Warranty
+                  </td>
+                </tr>
+                <tr style={{ borderBottom: "1px solid #E7D7B8" }}>
+                  <td
+                    style={{
+                      padding: "4px 10px",
+                      fontWeight: 700,
+                      backgroundColor: "#FAF6EC",
+                      color: "#5C451D",
+                      borderRight: "1px solid #E7D7B8",
+                    }}
+                  >
+                    Valid From
+                  </td>
+                  <td
+                    style={{
+                      padding: "4px 10px",
+                      backgroundColor: "#ffffff",
+                      color: "#111827",
+                    }}
+                  >
+                    {validFromFormatted}
+                  </td>
+                </tr>
+                <tr style={{ borderBottom: "1px solid #E7D7B8" }}>
+                  <td
+                    style={{
+                      padding: "4px 10px",
+                      fontWeight: 700,
+                      backgroundColor: "#FAF6EC",
+                      color: "#5C451D",
+                      borderRight: "1px solid #E7D7B8",
+                    }}
+                  >
+                    Valid Until
+                  </td>
+                  <td
+                    style={{
+                      padding: "4px 10px",
+                      fontWeight: isCancelled ? 400 : 700,
+                      backgroundColor: "#ffffff",
+                      color: "#111827",
+                    }}
+                  >
+                    {validUntilFormatted}
+                  </td>
+                </tr>
+                <tr style={{ borderBottom: "1px solid #E7D7B8" }}>
+                  <td
+                    style={{
+                      padding: "4px 10px",
+                      fontWeight: 700,
+                      backgroundColor: "#FAF6EC",
+                      color: "#5C451D",
+                      borderRight: "1px solid #E7D7B8",
+                    }}
+                  >
+                    Days Remaining
+                  </td>
+                  <td
+                    style={{
+                      padding: "4px 10px",
+                      backgroundColor: "#ffffff",
+                      color: "#111827",
+                    }}
+                  >
+                    {daysRemainingText}
+                  </td>
+                </tr>
+                <tr style={{ borderBottom: "1px solid #E7D7B8" }}>
+                  <td
+                    style={{
+                      padding: "4px 10px",
+                      fontWeight: 700,
+                      backgroundColor: "#FAF6EC",
+                      color: "#5C451D",
+                      borderRight: "1px solid #E7D7B8",
+                    }}
+                  >
+                    Order Reference
+                  </td>
+                  <td
+                    style={{
+                      padding: "4px 10px",
+                      fontFamily: "monospace",
+                      backgroundColor: "#ffffff",
+                      color: "#111827",
+                    }}
+                  >
+                    #{warranty.orderNumber}
+                  </td>
+                </tr>
+                <tr>
+                  <td
+                    style={{
+                      padding: "4px 10px",
+                      fontWeight: 700,
+                      backgroundColor: "#FAF6EC",
+                      color: "#5C451D",
+                      borderRight: "1px solid #E7D7B8",
+                    }}
+                  >
+                    Purchase Date
+                  </td>
+                  <td
+                    style={{
+                      padding: "4px 10px",
+                      backgroundColor: "#ffffff",
+                      color: "#111827",
+                    }}
+                  >
+                    {purchaseDateFormatted}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
-        {/* 4. WHAT IS COVERED and WHAT IS NOT COVERED: exact wording */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: "10px",
-            marginBottom: "10px",
-          }}
-        >
+          {/* 4. Two boxes side by side: WHAT IS COVERED and WHAT IS NOT COVERED */}
           <div
             style={{
-              border: "1px solid #000000",
-              borderRadius: "4px",
-              padding: "7px 10px",
-              fontSize: "9.5px",
-              lineHeight: 1.3,
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "10px",
+              marginBottom: "10px",
             }}
           >
-            <div style={{ fontWeight: 800, textTransform: "uppercase", marginBottom: "4px", fontSize: "10px" }}>
-              WHAT IS COVERED
+            {/* WHAT IS COVERED (light gold tint with check marks) */}
+            <div
+              style={{
+                backgroundColor: "#FAF6EC",
+                border: "1px solid #C9A66B",
+                borderRadius: "6px",
+                padding: "8px 10px",
+                fontSize: "9.5px",
+                lineHeight: 1.35,
+              }}
+            >
+              <div
+                style={{
+                  fontWeight: 800,
+                  textTransform: "uppercase",
+                  color: "#8C6A2E",
+                  fontSize: "10px",
+                  marginBottom: "4px",
+                  letterSpacing: "0.3px",
+                }}
+              >
+                WHAT IS COVERED
+              </div>
+              <div style={{ color: "#374151" }}>
+                <span style={{ color: "#16A34A", fontWeight: 800, marginRight: "5px" }}>✓</span>
+                Internal hardware and motherboard defects
+              </div>
+              <div style={{ color: "#374151" }}>
+                <span style={{ color: "#16A34A", fontWeight: 800, marginRight: "5px" }}>✓</span>
+                Touchscreen, display panel, and camera sensor failures
+              </div>
+              <div style={{ color: "#374151" }}>
+                <span style={{ color: "#16A34A", fontWeight: 800, marginRight: "5px" }}>✓</span>
+                Battery degradation falling below 80% capacity within 12 months
+              </div>
+              <div style={{ color: "#374151" }}>
+                <span style={{ color: "#16A34A", fontWeight: 800, marginRight: "5px" }}>✓</span>
+                Authorized pan-India brand service center repairs and genuine parts
+              </div>
             </div>
-            <div>&bull; Internal hardware and motherboard defects</div>
-            <div>&bull; Touchscreen, display panel, and camera sensor failures</div>
-            <div>&bull; Battery degradation falling below 80% capacity within 12 months</div>
-            <div>&bull; Authorized pan-India brand service center repairs and genuine parts</div>
+
+            {/* WHAT IS NOT COVERED (light red tint with cross marks) */}
+            <div
+              style={{
+                backgroundColor: "#FEF2F2",
+                border: "1px solid #FCA5A5",
+                borderRadius: "6px",
+                padding: "8px 10px",
+                fontSize: "9.5px",
+                lineHeight: 1.35,
+              }}
+            >
+              <div
+                style={{
+                  fontWeight: 800,
+                  textTransform: "uppercase",
+                  color: "#991B1B",
+                  fontSize: "10px",
+                  marginBottom: "4px",
+                  letterSpacing: "0.3px",
+                }}
+              >
+                WHAT IS NOT COVERED
+              </div>
+              <div style={{ color: "#374151" }}>
+                <span style={{ color: "#DC2626", fontWeight: 800, marginRight: "5px" }}>✕</span>
+                Liquid immersion or water exposure beyond IP rating
+              </div>
+              <div style={{ color: "#374151" }}>
+                <span style={{ color: "#DC2626", fontWeight: 800, marginRight: "5px" }}>✕</span>
+                Physical damage caused by drops, crushing, or accidents
+              </div>
+              <div style={{ color: "#374151" }}>
+                <span style={{ color: "#DC2626", fontWeight: 800, marginRight: "5px" }}>✕</span>
+                Unauthorized third-party repairs or software modifications
+              </div>
+            </div>
           </div>
 
+          {/* 5. "How to claim" strip */}
           <div
             style={{
-              border: "1px solid #000000",
-              borderRadius: "4px",
-              padding: "7px 10px",
-              fontSize: "9.5px",
-              lineHeight: 1.3,
+              backgroundColor: "#FAF7F0",
+              border: "1px solid #E7D7B8",
+              borderRadius: "6px",
+              padding: "6px 12px",
+              marginBottom: "8px",
+              fontSize: "10px",
+              lineHeight: 1.35,
+              color: "#374151",
             }}
           >
-            <div style={{ fontWeight: 800, textTransform: "uppercase", marginBottom: "4px", fontSize: "10px" }}>
-              WHAT IS NOT COVERED
+            <strong style={{ color: "#8C6A2E" }}>How to claim:</strong> Present this certificate
+            and the IMEI at an authorized brand service center, or contact{" "}
+            <span style={{ color: "#8C6A2E", fontWeight: 600 }}>support@vnmobiles.in</span> with the
+            certificate ID.
+          </div>
+
+          {/* 6. Terms (3 short lines) */}
+          <div
+            style={{
+              marginBottom: "8px",
+              fontSize: "9.5px",
+              color: "#4B5563",
+              lineHeight: 1.35,
+            }}
+          >
+            <div>&bull; Valid only for the listed hardware IMEI.</div>
+            <div>&bull; Requires valid original proof of purchase.</div>
+            <div>&bull; Void if the device has been tampered with or serviced by unauthorized personnel.</div>
+          </div>
+
+          {/* 7. Customer line: Registered Customer on left, masked email on right */}
+          <div
+            style={{
+              borderTop: "1px solid #E7D7B8",
+              paddingTop: "6px",
+              marginBottom: "6px",
+              display: "flex",
+              justifyContent: "space-between",
+              fontSize: "10px",
+              color: "#111827",
+            }}
+          >
+            <div>
+              <strong>Registered Customer:</strong> {customerName}
             </div>
-            <div>&bull; Liquid immersion or water exposure beyond IP rating</div>
-            <div>&bull; Physical damage caused by drops, crushing, or accidents</div>
-            <div>&bull; Unauthorized third-party repairs or software modifications</div>
+            <div>
+              <strong>Account:</strong> {maskedEmail}
+            </div>
           </div>
-        </div>
 
-        {/* 5. How to claim */}
-        <div
-          style={{
-            border: "1px solid #000000",
-            backgroundColor: "#f9f9f9",
-            borderRadius: "4px",
-            padding: "6px 10px",
-            marginBottom: "10px",
-            fontSize: "10px",
-            lineHeight: 1.3,
-          }}
-        >
-          <strong>How to claim:</strong> Present this certificate and the IMEI at an authorized brand service center, or contact support@vnmobiles.in with the certificate ID.
-        </div>
-
-        {/* 6. Terms (3 short lines) */}
-        <div
-          style={{
-            marginBottom: "10px",
-            fontSize: "9.5px",
-            color: "#333333",
-            lineHeight: 1.35,
-          }}
-        >
-          <div>&bull; Valid only for the listed hardware IMEI.</div>
-          <div>&bull; Requires valid original proof of purchase.</div>
-          <div>&bull; Void if the device has been tampered with or serviced by unauthorized personnel.</div>
-        </div>
-
-        {/* 7. Customer info: name, masked email */}
-        <div
-          style={{
-            borderTop: "1px solid #000000",
-            paddingTop: "6px",
-            marginBottom: "8px",
-            display: "flex",
-            justifyContent: "space-between",
-            fontSize: "10px",
-          }}
-        >
-          <div>
-            <strong>Registered Customer:</strong> {customerName}
+          {/* 8. Footer */}
+          <div
+            style={{
+              borderTop: "1px dashed #D1D5DB",
+              paddingTop: "5px",
+              fontSize: "9px",
+              color: "#6B7280",
+              textAlign: "center",
+            }}
+          >
+            Generated on {nowGenerated} from your VN Mobiles account. This is a computer-generated
+            certificate and needs no signature.
           </div>
-          <div>
-            <strong>Account:</strong> {maskedEmail}
-          </div>
-        </div>
-
-        {/* 8. Footer note */}
-        <div
-          style={{
-            borderTop: "1px dashed #888888",
-            paddingTop: "5px",
-            fontSize: "9px",
-            color: "#555555",
-            textAlign: "center",
-          }}
-        >
-          Generated on {nowGenerated} from your VN Mobiles account. This is a computer-generated certificate and needs no signature.
         </div>
       </div>
     </div>
   );
 }
-
