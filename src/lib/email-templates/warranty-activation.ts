@@ -4,6 +4,7 @@ import {
   renderEmailLayout,
   renderPlainFooter,
 } from "./layout";
+import { WARRANTY_TERMS } from "@/lib/warranty-terms";
 
 export interface WarrantyCertificateItem {
   productName: string;
@@ -124,26 +125,21 @@ export function renderWarrantyActivationEmail(
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#FFFFFF;border:1px solid #E2E8F0;border-radius:10px;margin:20px 0;font-size:12px;line-height:1.6;">
       <tr>
         <td style="padding:16px 20px;border-bottom:1px solid #E2E8F0;">
-          <div style="font-size:12px;font-weight:700;color:#065F46;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">
+          <div style="font-size:12px;font-weight:700;color:#065F46;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">
             WHAT IS COVERED
           </div>
           <div style="color:#475569;">
-            &bull; Internal hardware and motherboard defects<br>
-            &bull; Touchscreen, display panel, and camera sensor failures<br>
-            &bull; Battery degradation falling below 80% capacity within 12 months<br>
-            &bull; Authorized pan-India brand service center repairs and genuine parts
+            ${WARRANTY_TERMS.covered.map((item) => `&bull; ${escapeHtml(item)}`).join("<br><br>\n            ")}
           </div>
         </td>
       </tr>
       <tr>
         <td style="padding:16px 20px;">
-          <div style="font-size:12px;font-weight:700;color:#991B1B;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">
+          <div style="font-size:12px;font-weight:700;color:#991B1B;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">
             WHAT IS NOT COVERED
           </div>
           <div style="color:#475569;">
-            &bull; Liquid immersion or water exposure beyond IP rating<br>
-            &bull; Physical damage caused by drops, crushing, or accidents<br>
-            &bull; Unauthorized third-party repairs or software modifications
+            ${WARRANTY_TERMS.notCovered.map((item) => `&bull; ${escapeHtml(item)}`).join("<br><br>\n            ")}
           </div>
         </td>
       </tr>
@@ -202,15 +198,10 @@ export function renderWarrantyActivationEmail(
     plainTextItems,
     "",
     "WHAT IS COVERED:",
-    "- Hardware defects and motherboard failures",
-    "- Touchscreen and camera sensor malfunctions",
-    "- Battery degradation below 80% capacity",
-    "- Authorized brand service center repairs",
+    ...WARRANTY_TERMS.covered.map((item) => `- ${item}`),
     "",
     "WHAT IS NOT COVERED:",
-    "- Liquid immersion and water damage",
-    "- Accidental physical drops and screen breakage",
-    "- Unauthorized repairs or tampering",
+    ...WARRANTY_TERMS.notCovered.map((item) => `- ${item}`),
     "",
     `View your certificate online: ${cleanUrl}/account/warranties`,
     "",

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -16,9 +16,11 @@ import {
   ExternalLink,
   XCircle,
   FileText,
+  ChevronDown,
 } from "lucide-react";
 import WarrantyCountdown from "./WarrantyCountdown";
 import WarrantyCertificatePrint from "./WarrantyCertificatePrint";
+import { WARRANTY_TERMS } from "@/lib/warranty-terms";
 
 export interface EnrichedWarranty {
   id: string;
@@ -89,6 +91,25 @@ export default function WarrantiesClient({
     msg: string;
     isError?: boolean;
   } | null>(null);
+  const [expandedCoverage, setExpandedCoverage] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    // Expand coverage sections by default on desktop (>= 768px), keep collapsed on mobile (< 768px)
+    if (typeof window !== "undefined" && window.innerWidth >= 768) {
+      const initial: Record<string, boolean> = {};
+      [...activeWarranties, ...expiredWarranties, ...cancelledWarranties].forEach((w) => {
+        initial[w.id] = true;
+      });
+      setExpandedCoverage(initial);
+    }
+  }, [activeWarranties, expiredWarranties, cancelledWarranties]);
+
+  const toggleCoverage = (id: string) => {
+    setExpandedCoverage((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
 
   const copyToClipboard = (text: string, id: string) => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -476,6 +497,66 @@ export default function WarrantiesClient({
                         <span>{actionFeedback.msg}</span>
                       </div>
                     )}
+
+                    {/* Expandable Coverage Terms (collapsed by default on mobile) */}
+                    <div className="border border-border/80 rounded-xl overflow-hidden bg-tile/30">
+                      <button
+                        type="button"
+                        onClick={() => toggleCoverage(w.id)}
+                        className="w-full px-4 py-2.5 flex items-center justify-between text-xs font-semibold text-foreground hover:bg-tile transition-colors cursor-pointer"
+                        aria-expanded={!!expandedCoverage[w.id]}
+                      >
+                        <div className="flex items-center gap-2">
+                          <ShieldCheck className="w-4 h-4 text-[#C9A66B]" />
+                          <span>Coverage Policy & Terms</span>
+                          <span className="text-[11px] text-muted font-normal hidden sm:inline">
+                            ({WARRANTY_TERMS.covered.length} covered, {WARRANTY_TERMS.notCovered.length} excluded)
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[11px] text-muted">
+                          <span>{expandedCoverage[w.id] ? "Hide Terms" : "View Terms"}</span>
+                          <ChevronDown
+                            className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                              expandedCoverage[w.id] ? "rotate-180" : ""
+                            }`}
+                          />
+                        </div>
+                      </button>
+
+                      {expandedCoverage[w.id] && (
+                        <div className="p-4 border-t border-border/80 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs bg-background/50">
+                          {/* WHAT IS COVERED */}
+                          <div className="bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3.5 space-y-2">
+                            <div className="font-bold text-emerald-700 dark:text-emerald-400 text-xs uppercase tracking-wide flex items-center gap-1.5">
+                              <span className="font-extrabold text-sm">✓</span> WHAT IS COVERED
+                            </div>
+                            <ul className="space-y-2 text-muted dark:text-gray-300 text-[11px] leading-relaxed">
+                              {WARRANTY_TERMS.covered.map((term, idx) => (
+                                <li key={idx} className="flex items-start gap-2">
+                                  <span className="text-emerald-600 dark:text-emerald-400 font-bold shrink-0 mt-0.5">✓</span>
+                                  <span>{term}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+
+                          {/* WHAT IS NOT COVERED */}
+                          <div className="bg-red-500/5 dark:bg-red-500/10 border border-red-500/20 rounded-xl p-3.5 space-y-2">
+                            <div className="font-bold text-red-700 dark:text-red-400 text-xs uppercase tracking-wide flex items-center gap-1.5">
+                              <span className="font-extrabold text-sm">✕</span> WHAT IS NOT COVERED
+                            </div>
+                            <ul className="space-y-2 text-muted dark:text-gray-300 text-[11px] leading-relaxed">
+                              {WARRANTY_TERMS.notCovered.map((term, idx) => (
+                                <li key={idx} className="flex items-start gap-2">
+                                  <span className="text-red-600 dark:text-red-400 font-bold shrink-0 mt-0.5">✕</span>
+                                  <span>{term}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      )}
+                    </div>
 
                     {/* Card Actions Footer: Active or Cancelled print */}
                     <div className="flex flex-wrap items-center justify-between gap-3 pt-2">

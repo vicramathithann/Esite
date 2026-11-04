@@ -1,5 +1,6 @@
 import React from "react";
 import { EnrichedWarranty } from "./WarrantiesClient";
+import { WARRANTY_TERMS } from "@/lib/warranty-terms";
 
 interface WarrantyCertificatePrintProps {
   warranty: EnrichedWarranty;
@@ -139,7 +140,7 @@ export default function WarrantyCertificatePrint({
                 visibility: visible !important;
                 box-sizing: border-box !important;
                 width: 210mm !important;
-                padding: 14mm !important;
+                padding: 12mm !important;
                 margin: 0 auto !important;
                 background: #ffffff !important;
                 color: #111827 !important;
@@ -248,7 +249,7 @@ export default function WarrantyCertificatePrint({
         </div>
 
         {/* Inner Content Area */}
-        <div style={{ padding: "14px 18px" }}>
+        <div style={{ padding: "10px 14px" }}>
           {/* Cancelled Banner if applicable */}
           {isCancelled && (
             <div
@@ -256,12 +257,12 @@ export default function WarrantyCertificatePrint({
                 backgroundColor: "#FEF2F2",
                 border: "1.5px solid #DC2626",
                 color: "#991B1B",
-                padding: "8px 12px",
-                marginBottom: "12px",
-                borderRadius: "6px",
+                padding: "6px 10px",
+                marginBottom: "8px",
+                borderRadius: "5px",
                 textAlign: "center",
                 fontWeight: 800,
-                fontSize: "11.5px",
+                fontSize: "11px",
                 letterSpacing: "0.5px",
               }}
             >
@@ -274,9 +275,9 @@ export default function WarrantyCertificatePrint({
             style={{
               backgroundColor: "#FAF6EC",
               border: "1px solid #C9A66B",
-              borderRadius: "6px",
-              padding: "9px 14px",
-              marginBottom: "12px",
+              borderRadius: "5px",
+              padding: "6px 12px",
+              marginBottom: "8px",
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
@@ -319,20 +320,20 @@ export default function WarrantyCertificatePrint({
           </div>
 
           {/* 3. Details table: exactly the 8 specified rows */}
-          <div style={{ marginBottom: "12px" }}>
+          <div style={{ marginBottom: "8px" }}>
             <table
               style={{
                 width: "100%",
                 borderCollapse: "collapse",
                 border: "1px solid #C9A66B",
-                fontSize: "10.5px",
+                fontSize: "10px",
               }}
             >
               <tbody>
                 <tr style={{ borderBottom: "1px solid #E7D7B8" }}>
                   <td
                     style={{
-                      padding: "4px 10px",
+                      padding: "3px 8px",
                       width: "35%",
                       fontWeight: 700,
                       backgroundColor: "#FAF6EC",
@@ -344,7 +345,7 @@ export default function WarrantyCertificatePrint({
                   </td>
                   <td
                     style={{
-                      padding: "4px 10px",
+                      padding: "3px 8px",
                       width: "65%",
                       fontFamily: "monospace",
                       fontWeight: 700,
@@ -358,7 +359,7 @@ export default function WarrantyCertificatePrint({
                 <tr style={{ borderBottom: "1px solid #E7D7B8" }}>
                   <td
                     style={{
-                      padding: "4px 10px",
+                      padding: "3px 8px",
                       fontWeight: 700,
                       backgroundColor: "#FAF6EC",
                       color: "#5C451D",
@@ -369,7 +370,7 @@ export default function WarrantyCertificatePrint({
                   </td>
                   <td
                     style={{
-                      padding: "4px 10px",
+                      padding: "3px 8px",
                       fontFamily: "monospace",
                       fontWeight: 700,
                       backgroundColor: "#ffffff",
@@ -382,7 +383,7 @@ export default function WarrantyCertificatePrint({
                 <tr style={{ borderBottom: "1px solid #E7D7B8" }}>
                   <td
                     style={{
-                      padding: "4px 10px",
+                      padding: "3px 8px",
                       fontWeight: 700,
                       backgroundColor: "#FAF6EC",
                       color: "#5C451D",
@@ -393,7 +394,7 @@ export default function WarrantyCertificatePrint({
                   </td>
                   <td
                     style={{
-                      padding: "4px 10px",
+                      padding: "3px 8px",
                       backgroundColor: "#ffffff",
                       color: "#111827",
                     }}
@@ -404,7 +405,7 @@ export default function WarrantyCertificatePrint({
                 <tr style={{ borderBottom: "1px solid #E7D7B8" }}>
                   <td
                     style={{
-                      padding: "4px 10px",
+                      padding: "3px 8px",
                       fontWeight: 700,
                       backgroundColor: "#FAF6EC",
                       color: "#5C451D",
@@ -415,7 +416,7 @@ export default function WarrantyCertificatePrint({
                   </td>
                   <td
                     style={{
-                      padding: "4px 10px",
+                      padding: "3px 8px",
                       backgroundColor: "#ffffff",
                       color: "#111827",
                     }}
@@ -426,7 +427,7 @@ export default function WarrantyCertificatePrint({
                 <tr style={{ borderBottom: "1px solid #E7D7B8" }}>
                   <td
                     style={{
-                      padding: "4px 10px",
+                      padding: "3px 8px",
                       fontWeight: 700,
                       backgroundColor: "#FAF6EC",
                       color: "#5C451D",
@@ -437,7 +438,7 @@ export default function WarrantyCertificatePrint({
                   </td>
                   <td
                     style={{
-                      padding: "4px 10px",
+                      padding: "3px 8px",
                       fontWeight: isCancelled ? 400 : 700,
                       backgroundColor: "#ffffff",
                       color: "#111827",
@@ -449,7 +450,7 @@ export default function WarrantyCertificatePrint({
                 <tr style={{ borderBottom: "1px solid #E7D7B8" }}>
                   <td
                     style={{
-                      padding: "4px 10px",
+                      padding: "3px 8px",
                       fontWeight: 700,
                       backgroundColor: "#FAF6EC",
                       color: "#5C451D",
@@ -460,7 +461,7 @@ export default function WarrantyCertificatePrint({
                   </td>
                   <td
                     style={{
-                      padding: "4px 10px",
+                      padding: "3px 8px",
                       backgroundColor: "#ffffff",
                       color: "#111827",
                     }}
@@ -471,7 +472,7 @@ export default function WarrantyCertificatePrint({
                 <tr style={{ borderBottom: "1px solid #E7D7B8" }}>
                   <td
                     style={{
-                      padding: "4px 10px",
+                      padding: "3px 8px",
                       fontWeight: 700,
                       backgroundColor: "#FAF6EC",
                       color: "#5C451D",
@@ -482,7 +483,7 @@ export default function WarrantyCertificatePrint({
                   </td>
                   <td
                     style={{
-                      padding: "4px 10px",
+                      padding: "3px 8px",
                       fontFamily: "monospace",
                       backgroundColor: "#ffffff",
                       color: "#111827",
@@ -494,7 +495,7 @@ export default function WarrantyCertificatePrint({
                 <tr>
                   <td
                     style={{
-                      padding: "4px 10px",
+                      padding: "3px 8px",
                       fontWeight: 700,
                       backgroundColor: "#FAF6EC",
                       color: "#5C451D",
@@ -505,7 +506,7 @@ export default function WarrantyCertificatePrint({
                   </td>
                   <td
                     style={{
-                      padding: "4px 10px",
+                      padding: "3px 8px",
                       backgroundColor: "#ffffff",
                       color: "#111827",
                     }}
@@ -522,8 +523,8 @@ export default function WarrantyCertificatePrint({
             style={{
               display: "grid",
               gridTemplateColumns: "1fr 1fr",
-              gap: "10px",
-              marginBottom: "10px",
+              gap: "8px",
+              marginBottom: "8px",
             }}
           >
             {/* WHAT IS COVERED (light gold tint with check marks) */}
@@ -531,10 +532,10 @@ export default function WarrantyCertificatePrint({
               style={{
                 backgroundColor: "#FAF6EC",
                 border: "1px solid #C9A66B",
-                borderRadius: "6px",
-                padding: "8px 10px",
-                fontSize: "9.5px",
-                lineHeight: 1.35,
+                borderRadius: "5px",
+                padding: "6px 8px",
+                fontSize: "8.5pt",
+                lineHeight: 1.25,
               }}
             >
               <div
@@ -542,29 +543,27 @@ export default function WarrantyCertificatePrint({
                   fontWeight: 800,
                   textTransform: "uppercase",
                   color: "#8C6A2E",
-                  fontSize: "10px",
+                  fontSize: "9pt",
                   marginBottom: "4px",
                   letterSpacing: "0.3px",
                 }}
               >
                 WHAT IS COVERED
               </div>
-              <div style={{ color: "#374151" }}>
-                <span style={{ color: "#16A34A", fontWeight: 800, marginRight: "5px" }}>✓</span>
-                Internal hardware and motherboard defects
-              </div>
-              <div style={{ color: "#374151" }}>
-                <span style={{ color: "#16A34A", fontWeight: 800, marginRight: "5px" }}>✓</span>
-                Touchscreen, display panel, and camera sensor failures
-              </div>
-              <div style={{ color: "#374151" }}>
-                <span style={{ color: "#16A34A", fontWeight: 800, marginRight: "5px" }}>✓</span>
-                Battery degradation falling below 80% capacity within 12 months
-              </div>
-              <div style={{ color: "#374151" }}>
-                <span style={{ color: "#16A34A", fontWeight: 800, marginRight: "5px" }}>✓</span>
-                Authorized pan-India brand service center repairs and genuine parts
-              </div>
+              {WARRANTY_TERMS.covered.map((term, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    color: "#374151",
+                    marginBottom: "3px",
+                    display: "flex",
+                    alignItems: "flex-start",
+                  }}
+                >
+                  <span style={{ color: "#16A34A", fontWeight: 800, marginRight: "4px", flexShrink: 0 }}>✓</span>
+                  <span>{term}</span>
+                </div>
+              ))}
             </div>
 
             {/* WHAT IS NOT COVERED (light red tint with cross marks) */}
@@ -572,10 +571,10 @@ export default function WarrantyCertificatePrint({
               style={{
                 backgroundColor: "#FEF2F2",
                 border: "1px solid #FCA5A5",
-                borderRadius: "6px",
-                padding: "8px 10px",
-                fontSize: "9.5px",
-                lineHeight: 1.35,
+                borderRadius: "5px",
+                padding: "6px 8px",
+                fontSize: "8.5pt",
+                lineHeight: 1.25,
               }}
             >
               <div
@@ -583,25 +582,27 @@ export default function WarrantyCertificatePrint({
                   fontWeight: 800,
                   textTransform: "uppercase",
                   color: "#991B1B",
-                  fontSize: "10px",
+                  fontSize: "9pt",
                   marginBottom: "4px",
                   letterSpacing: "0.3px",
                 }}
               >
                 WHAT IS NOT COVERED
               </div>
-              <div style={{ color: "#374151" }}>
-                <span style={{ color: "#DC2626", fontWeight: 800, marginRight: "5px" }}>✕</span>
-                Liquid immersion or water exposure beyond IP rating
-              </div>
-              <div style={{ color: "#374151" }}>
-                <span style={{ color: "#DC2626", fontWeight: 800, marginRight: "5px" }}>✕</span>
-                Physical damage caused by drops, crushing, or accidents
-              </div>
-              <div style={{ color: "#374151" }}>
-                <span style={{ color: "#DC2626", fontWeight: 800, marginRight: "5px" }}>✕</span>
-                Unauthorized third-party repairs or software modifications
-              </div>
+              {WARRANTY_TERMS.notCovered.map((term, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    color: "#374151",
+                    marginBottom: "2.5px",
+                    display: "flex",
+                    alignItems: "flex-start",
+                  }}
+                >
+                  <span style={{ color: "#DC2626", fontWeight: 800, marginRight: "4px", flexShrink: 0 }}>✕</span>
+                  <span>{term}</span>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -610,11 +611,11 @@ export default function WarrantyCertificatePrint({
             style={{
               backgroundColor: "#FAF7F0",
               border: "1px solid #E7D7B8",
-              borderRadius: "6px",
-              padding: "6px 12px",
-              marginBottom: "8px",
-              fontSize: "10px",
-              lineHeight: 1.35,
+              borderRadius: "5px",
+              padding: "5px 10px",
+              marginBottom: "6px",
+              fontSize: "9.5px",
+              lineHeight: 1.3,
               color: "#374151",
             }}
           >
@@ -627,10 +628,10 @@ export default function WarrantyCertificatePrint({
           {/* 6. Terms (3 short lines) */}
           <div
             style={{
-              marginBottom: "8px",
-              fontSize: "9.5px",
+              marginBottom: "6px",
+              fontSize: "9px",
               color: "#4B5563",
-              lineHeight: 1.35,
+              lineHeight: 1.3,
             }}
           >
             <div>&bull; Valid only for the listed hardware IMEI.</div>
@@ -642,11 +643,11 @@ export default function WarrantyCertificatePrint({
           <div
             style={{
               borderTop: "1px solid #E7D7B8",
-              paddingTop: "6px",
-              marginBottom: "6px",
+              paddingTop: "5px",
+              marginBottom: "5px",
               display: "flex",
               justifyContent: "space-between",
-              fontSize: "10px",
+              fontSize: "9.5px",
               color: "#111827",
             }}
           >
@@ -662,8 +663,8 @@ export default function WarrantyCertificatePrint({
           <div
             style={{
               borderTop: "1px dashed #D1D5DB",
-              paddingTop: "5px",
-              fontSize: "9px",
+              paddingTop: "4px",
+              fontSize: "8.5px",
               color: "#6B7280",
               textAlign: "center",
             }}
