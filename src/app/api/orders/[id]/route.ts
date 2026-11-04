@@ -115,11 +115,13 @@ export async function PATCH(
         customerName: existingOrder.customerName,
         customerEmail: existingOrder.customerEmail,
         totalAmount: existingOrder.totalAmount,
-        items: (existingOrder.items || []).map((i: { productName: string; quantity: number; price: number; selectedStorage?: string | null }) => ({
+        items: (existingOrder.items || []).map((i: any) => ({
           productName: i.productName,
           quantity: i.quantity,
           price: i.price,
           selectedStorage: i.selectedStorage || undefined,
+          selectedColor: i.selectedColor || undefined,
+          imeiNumber: i.imeiNumber || undefined,
         })),
       });
 
@@ -322,11 +324,13 @@ export async function PATCH(
           note,
           {
             phoneName: phoneNames,
-            items: (updatedOrder.items || []).map((i: { productName: string; quantity: number; price: number; selectedStorage?: string | null }) => ({
+            items: (updatedOrder.items || []).map((i: any) => ({
               productName: i.productName,
               quantity: i.quantity,
               price: i.price,
               selectedStorage: i.selectedStorage || undefined,
+              selectedColor: i.selectedColor || undefined,
+              imeiNumber: i.imeiNumber || undefined,
             })),
           }
         );

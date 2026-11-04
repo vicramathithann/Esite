@@ -36,19 +36,19 @@ export function renderWarrantyExpiringEmail(
   const isOneDay = type === "1_DAY";
 
   const subject = isOneDay
-    ? `Warranty expires tomorrow: ${deviceName}`
+    ? `1 day left on your warranty: ${deviceName}`
     : `6 months of warranty remaining: ${deviceName}`;
 
   const preheader = isOneDay
-    ? "Final 24 hours of official coverage."
+    ? "Official manufacturer warranty coverage expires tomorrow."
     : "Check your device health before coverage expires.";
 
   const badge: BadgeConfig = isOneDay
-    ? { text: "EXPIRING TOMORROW", bg: "#FFF7ED", color: "#9A3412", border: "#FFEDD5" }
+    ? { text: "1 DAY REMAINING", bg: "#FFF7ED", color: "#9A3412", border: "#FFEDD5" }
     : { text: "6 MONTHS REMAINING", bg: "#EEF2FF", color: "#3730A3", border: "#C7D2FE" };
 
   const headline = isOneDay
-    ? "Final 24 hours of warranty."
+    ? "1 day left on your warranty."
     : "6 months of protection left.";
 
   const subheadline = isOneDay

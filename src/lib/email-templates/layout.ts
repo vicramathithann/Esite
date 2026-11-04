@@ -27,14 +27,31 @@ export function formatDate(date: Date | string | number): string {
 }
 
 export function getProductSummaryHeadline(
-  items?: Array<{ productName?: string }> | null,
-  fallback = "Smartphone"
+  items?: Array<{ productName?: string; selectedStorage?: string | null; selectedColor?: string | null }> | null,
+  fallback = "order"
 ): string {
   if (!items || items.length === 0) return fallback;
-  const first = items[0]?.productName?.trim() || fallback;
-  if (items.length === 1) return first;
+  const first = items[0];
+  const name = first?.productName?.trim();
+  if (!name) return fallback;
+
+  const variantParts = [first.selectedStorage, first.selectedColor].filter(Boolean);
+  const fullName = variantParts.length > 0 ? `${name}, ${variantParts.join(", ")}` : name;
+
+  if (items.length === 1) return fullName;
   const remaining = items.length - 1;
-  return `${first} + ${remaining} more`;
+  return `${fullName} + ${remaining} more`;
+}
+
+export function formatLockedInSubject(productSummary: string): string {
+  const clean = (productSummary || "").trim();
+  if (!clean || clean.toLowerCase() === "order") {
+    return "Your order is locked in";
+  }
+  if (/^your\s+/i.test(clean)) {
+    return `${clean} is locked in`;
+  }
+  return `Your ${clean} is locked in`;
 }
 
 export interface BadgeConfig {

@@ -28,6 +28,10 @@ const DATE_COLUMNS = new Set([
   "warrantyStartDate",
   "warrantyExpiryDate",
   "warrantyEmailSentAt",
+  "reminder1DaySentAt",
+  "reminder6MonthSentAt",
+  "reminded1DayAt",
+  "reminded6MonthsAt",
   "expiresAt",
   "sentAt",
   "usedAt",
@@ -114,10 +118,22 @@ function applyWhere(query: any, where: Record<string, any> | undefined, tableNam
           const cCol = mapColumnToDb(tableName, cRawCol);
           if (cVal === null) {
             orClauses.push(`${cCol}.is.null`);
-          } else if (typeof cVal === "object" && "contains" in cVal) {
-            orClauses.push(`${cCol}.ilike.%${(cVal as any).contains}%`);
-          } else if (typeof cVal === "object" && "in" in cVal && Array.isArray((cVal as any).in)) {
-            orClauses.push(`${cCol}.in.(${(cVal as any).in.join(",")})`);
+          } else if (typeof cVal === "object" && cVal !== null) {
+            if ("contains" in cVal) {
+              orClauses.push(`${cCol}.ilike.%${(cVal as any).contains}%`);
+            } else if ("in" in cVal && Array.isArray((cVal as any).in)) {
+              orClauses.push(`${cCol}.in.(${(cVal as any).in.join(",")})`);
+            } else if ("equals" in cVal) {
+              orClauses.push(`${cCol}.eq.${serializeValue((cVal as any).equals)}`);
+            } else if ("notIn" in cVal && Array.isArray((cVal as any).notIn)) {
+              orClauses.push(`${cCol}.not.in.(${(cVal as any).notIn.join(",")})`);
+            } else if ("gte" in cVal) {
+              orClauses.push(`${cCol}.gte.${serializeValue((cVal as any).gte)}`);
+            } else if ("lte" in cVal) {
+              orClauses.push(`${cCol}.lte.${serializeValue((cVal as any).lte)}`);
+            } else {
+              orClauses.push(`${cCol}.eq.${serializeValue(cVal)}`);
+            }
           } else {
             orClauses.push(`${cCol}.eq.${serializeValue(cVal)}`);
           }
@@ -136,8 +152,11 @@ function applyWhere(query: any, where: Record<string, any> | undefined, tableNam
       continue;
     }
 
-    // Complex operator objects: { in, notIn, not, contains, gte, lte, gt, lt }
+    // Complex operator objects: { in, notIn, not, contains, gte, lte, gt, lt, equals }
     if (typeof val === "object" && !(val instanceof Date)) {
+      if ("equals" in val) {
+        query = query.eq(col, serializeValue(val.equals));
+      }
       if ("contains" in val) {
         query = query.ilike(col, `%${val.contains}%`);
       }
@@ -393,6 +412,25 @@ export class SupabaseModelDelegate {
           }
           for (const rec of records) {
             rec.order = orderMap.get(rec.orderId) || null;
+          }
+        }
+      }
+
+      if (include.orderItem) {
+        const orderItemIds = records.map((r) => r.orderItemId).filter(Boolean);
+        if (orderItemIds.length > 0) {
+          const { data: items, error: itemErr } = await supabaseAdmin
+            .from("OrderItem")
+            .select("*")
+            .in("id", orderItemIds);
+          if (itemErr) logSupabaseError("OrderItem", "attachRelations(orderItem)", itemErr);
+
+          const itemMap = new Map<string, any>();
+          for (const item of (items || []).map((r) => deserializeRow(r, "OrderItem"))) {
+            itemMap.set(item.id, item);
+          }
+          for (const rec of records) {
+            rec.orderItem = itemMap.get(rec.orderItemId) || null;
           }
         }
       }

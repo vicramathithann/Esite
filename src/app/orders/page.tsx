@@ -24,6 +24,7 @@ export default function OrdersPage() {
 
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [ordersError, setOrdersError] = useState<string | null>(null);
   const [activeOrderTab, setActiveOrderTab] = useState<"active" | "cancelled" | "all">("active");
   const [cancelModalOrder, setCancelModalOrder] = useState<any | null>(null);
   const [cancelReason, setCancelReason] = useState<string>("Order created by mistake");
@@ -95,6 +96,7 @@ export default function OrdersPage() {
 
     try {
       setLoading(true);
+      setOrdersError(null);
       const params = new URLSearchParams();
       if (currentUser.id) params.set("userId", currentUser.id);
       if (currentUser.email) params.set("email", currentUser.email);
@@ -103,13 +105,18 @@ export default function OrdersPage() {
         params.set("admin", "true");
       }
 
-      const res = await fetch(`/api/orders?${params.toString()}`);
+      const res = await fetch(`/api/orders?${params.toString()}`, {
+        credentials: "include",
+      });
       const data = await res.json();
       if (data.success) {
         setOrders(data.orders || []);
+      } else {
+        setOrdersError(data.error || "Failed to load orders");
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error("Failed to load orders", e);
+      setOrdersError(e?.message || "Failed to load orders");
     } finally {
       setLoading(false);
     }
@@ -252,6 +259,18 @@ export default function OrdersPage() {
           <div className="py-20 text-center text-muted">
             <div className="w-8 h-8 border-3 border-[#C9A66B] dark:border-[#D4B483] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
             <p className="text-xs">Loading your orders...</p>
+          </div>
+        ) : ordersError ? (
+          <div className="bg-card border border-red-500/20 rounded-2xl p-10 text-center text-red-500 space-y-3 shadow-sm">
+            <AlertTriangle className="w-10 h-10 mx-auto text-red-500" />
+            <h3 className="text-base font-bold text-foreground">Failed to load order history</h3>
+            <p className="text-xs text-muted max-w-md mx-auto">{ordersError}</p>
+            <button
+              onClick={() => loadOrders()}
+              className="py-2 px-5 text-xs font-semibold rounded-full bg-[#C9A66B] hover:bg-[#B8914A] text-white inline-flex items-center gap-2 cursor-pointer transition"
+            >
+              <RefreshCw className="w-3.5 h-3.5" /> Try Again
+            </button>
           </div>
         ) : filteredOrders.length === 0 ? (
           <div className="bg-card border border-border rounded-2xl p-12 text-center text-muted space-y-4 shadow-sm">

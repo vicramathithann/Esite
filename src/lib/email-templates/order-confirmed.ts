@@ -3,6 +3,7 @@ import {
   formatINR,
   formatDate,
   getProductSummaryHeadline,
+  formatLockedInSubject,
   renderEmailLayout,
   renderPlainFooter,
 } from "./layout";
@@ -41,15 +42,18 @@ export function renderOrderConfirmedEmail(
   preheader: string;
 } {
   const cleanUrl = siteUrl.replace(/\/$/, "");
-  const productHeadline = getProductSummaryHeadline(order.items, "Your order");
-  const subject = `Your ${productHeadline} is locked in`;
+  const productHeadline = getProductSummaryHeadline(order.items, "order");
+  const subject = formatLockedInSubject(productHeadline);
+  const headline = `${subject}.`;
   const preheader = "Payment received and verified. We are packing your device.";
   const formattedTotal = formatINR(order.totalAmount);
   const formattedDate = formatDate(order.createdAt || new Date());
 
-  const items = order.items && order.items.length > 0
-    ? order.items
-    : [{ productName: "Flagship Smartphone", quantity: 1, price: order.totalAmount }];
+  let items = order.items && order.items.length > 0 ? order.items : [];
+  if (items.length === 0) {
+    console.warn(`[ORDER CONFIRMATION EMAIL] Warning: Order #${order.orderNumber || order.id} has no order items. Using order reference.`);
+    items = [{ productName: order.orderNumber ? `Order #${order.orderNumber}` : "Order", quantity: 1, price: order.totalAmount }];
+  }
 
   const totalQty = items.reduce((s, i) => s + (i.quantity || 1), 0);
 
@@ -158,7 +162,7 @@ export function renderOrderConfirmedEmail(
       color: "#065F46",
       border: "#A7F3D0",
     },
-    headline: `Your ${productHeadline} is locked in.`,
+    headline,
     subheadline: "Fresh drop incoming. Your payment has been received and our warehouse team is already preparing your box.",
     orderNumber: order.orderNumber,
     contentHtml,
@@ -170,7 +174,7 @@ export function renderOrderConfirmedEmail(
   });
 
   const text = [
-    `Your ${productHeadline} is locked in`,
+    subject,
     "",
     `Hi ${order.customerName},`,
     "",

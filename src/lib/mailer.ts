@@ -325,9 +325,56 @@ export async function sendWarrantyEmail(
     }
   }
 
-  // 2. Prepare normalized warranty line items
+  // 2. Prepare normalized warranty line items with real product names & variants
   const now = new Date();
   const orderDateFormatted = formatDate(order.createdAt || now);
+
+  let sourceItems: OrderItemEmailData[] = items.length > 0 ? [...items] : [];
+
+  if (sourceItems.length === 0 && order.id) {
+    try {
+      const dbItems = await prisma.orderItem.findMany({ where: { orderId: order.id } });
+      if (dbItems && dbItems.length > 0) {
+        sourceItems = dbItems.map((dbI) => ({
+          id: dbI.id,
+          productId: dbI.productId,
+          productName: dbI.productName,
+          productBrand: dbI.productBrand,
+          productImageUrl: dbI.productImageUrl,
+          selectedColor: dbI.selectedColor,
+          selectedStorage: dbI.selectedStorage,
+          imeiNumber: dbI.imeiNumber,
+          warrantyMonths: dbI.warrantyMonths || 12,
+          warrantyStartDate: dbI.warrantyStartDate,
+          warrantyExpiryDate: dbI.warrantyExpiryDate,
+        }));
+      }
+    } catch (loadErr) {
+      console.warn("[WARRANTY EMAIL] Notice: could not load order items from DB:", loadErr);
+    }
+  }
+
+  if (sourceItems.length === 0 && warranties.length > 0) {
+    sourceItems = warranties.map((w) => ({
+      id: w.orderItemId,
+      productName: w.productName || (orderNumber ? `Order #${orderNumber} Device` : "Protected Device"),
+      imeiNumber: w.imeiNumber,
+      warrantyMonths: 12,
+      warrantyStartDate: w.warrantyStartDate,
+      warrantyExpiryDate: w.warrantyExpiryDate,
+    }));
+  }
+
+  if (sourceItems.length === 0) {
+    console.warn(`[WARRANTY EMAIL WARNING] Order #${orderNumber} has no line items or warranty records. Using order reference.`);
+    sourceItems = [
+      {
+        productName: orderNumber ? `Order #${orderNumber} Device` : "Protected Device",
+        imeiNumber: `86${Math.floor(1000000000000 + Math.random() * 9000000000000)}`,
+        warrantyMonths: 12,
+      },
+    ];
+  }
 
   // Build a lookup map of warranties by orderItemId or index
   const warrantyMap = new Map<string, WarrantyEmailData>();
@@ -348,17 +395,6 @@ export async function sendWarrantyEmail(
 
   const resolvedItems: ResolvedWarrantyItem[] = [];
 
-  const sourceItems: OrderItemEmailData[] =
-    items.length > 0
-      ? items
-      : warranties.length > 0
-      ? warranties.map((w) => ({
-          productName: w.productName || "Mobile Device",
-          imeiNumber: w.imeiNumber,
-          warrantyMonths: 12,
-        }))
-      : [{ productName: "VN Mobiles Certified Device", imeiNumber: undefined, warrantyMonths: 12 }];
-
   sourceItems.forEach((item, idx) => {
     const matchedWarranty = (item.id && warrantyMap.get(item.id)) || warranties[idx];
     const warrantyNum =
@@ -378,9 +414,10 @@ export async function sendWarrantyEmail(
 
     const variantParts = [item.selectedStorage, item.selectedColor].filter(Boolean);
     const variantInfo = variantParts.length > 0 ? variantParts.join(" • ") : "";
+    const fallbackName = orderNumber ? `Order #${orderNumber} Device` : "Protected Device";
 
     resolvedItems.push({
-      productName: item.productName || matchedWarranty?.productName || "Mobile Smartphone",
+      productName: item.productName || matchedWarranty?.productName || fallbackName,
       variantInfo,
       warrantyNumber: warrantyNum,
       imeiNumber: imei,

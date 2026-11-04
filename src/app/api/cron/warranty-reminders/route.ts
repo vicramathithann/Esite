@@ -13,19 +13,15 @@ export async function POST(request: Request) {
     });
     if (rateLimitError) return rateLimitError;
 
-    // Optional bearer token authentication for automated webhooks / external crons
+    // Strictly enforce CRON_SECRET authorization check
     const authHeader = request.headers.get("authorization");
-    const cronSecret = process.env.CRON_SECRET;
-    const authUser = await getAuthenticatedUser(request);
+    const cronSecret = process.env.CRON_SECRET?.trim();
 
-    // If a CRON_SECRET is defined, verify it or require admin session
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-      if (!authUser || (authUser.role || "").toUpperCase() !== "ADMIN") {
-        return NextResponse.json(
-          { success: false, error: "Unauthorized: Invalid cron authorization token." },
-          { status: 401 }
-        );
-      }
+    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized: Missing or invalid CRON_SECRET authorization header." },
+        { status: 401 }
+      );
     }
 
     const result = await checkAndDispatchWarrantyReminders();

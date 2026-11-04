@@ -34,7 +34,7 @@ export function renderWarrantyActivationEmail(
 } {
   const cleanUrl = siteUrl.replace(/\/$/, "");
   const firstItem = data.items[0] || {
-    productName: "Smartphone",
+    productName: data.orderNumber ? `Order #${data.orderNumber} Device` : "Device",
     warrantyNumber: "WRT-PENDING",
     imeiNumber: "N/A",
     coveragePeriod: "1 Year",
@@ -43,10 +43,14 @@ export function renderWarrantyActivationEmail(
     status: "ACTIVE",
   };
 
+  const firstItemFullName = firstItem.variantInfo
+    ? `${firstItem.productName}, ${firstItem.variantInfo.replace(/\s*•\s*/g, ", ")}`
+    : firstItem.productName;
+
   const deviceSummary =
     data.items.length > 1
-      ? `${firstItem.productName} + ${data.items.length - 1} more`
-      : firstItem.productName;
+      ? `${firstItemFullName} + ${data.items.length - 1} more`
+      : firstItemFullName;
 
   const subject = `Warranty activated: ${deviceSummary}`;
   const preheader = "Official manufacturer coverage is locked in.";

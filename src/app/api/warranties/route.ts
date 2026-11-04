@@ -60,6 +60,7 @@ export async function GET(request: Request) {
             orderStatus: true,
           },
         },
+        orderItem: true,
       },
     });
 

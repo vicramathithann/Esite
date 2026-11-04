@@ -37,8 +37,9 @@ export function renderOrderCancelledEmail(
 } {
   const cleanUrl = siteUrl.replace(/\/$/, "");
   const allItems = extra?.items || order.items;
-  const productHeadline =
-    extra?.phoneName || getProductSummaryHeadline(allItems, "Your Smartphone");
+  const rawHeadline =
+    extra?.phoneName || getProductSummaryHeadline(allItems, "order");
+  const productHeadline = rawHeadline.replace(/^your\s+/i, "");
 
   const formattedTotal = formatINR(order.totalAmount);
   const subject = `Order cancelled: ${productHeadline}`;

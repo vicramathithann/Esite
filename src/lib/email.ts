@@ -1,6 +1,7 @@
 import nodemailer from "nodemailer";
 import type { Transporter } from "nodemailer";
 import { prisma } from "@/lib/prisma";
+import { supabaseAdmin } from "@/lib/supabase";
 import { isOrderCancelled } from "@/lib/orderStatus";
 import { getAppUrl } from "@/lib/appUrl";
 import {
@@ -834,7 +835,34 @@ export async function sendOrderConfirmationEmail(order: {
   pincode?: string;
 }): Promise<EmailSendResult> {
   const siteUrl = getAppUrl();
-  const primaryItem = order.items[0];
+
+  let resolvedItems = order.items && order.items.length > 0 ? [...order.items] : [];
+  if (resolvedItems.length === 0 && order.id) {
+    try {
+      const dbItems = await prisma.orderItem.findMany({ where: { orderId: order.id } });
+      if (dbItems && dbItems.length > 0) {
+        resolvedItems = dbItems.map((dbI) => ({
+          productName: dbI.productName,
+          quantity: dbI.quantity || 1,
+          price: dbI.price || 0,
+          selectedStorage: dbI.selectedStorage || undefined,
+          selectedColor: dbI.selectedColor || undefined,
+          imeiNumber: dbI.imeiNumber || undefined,
+        }));
+      }
+    } catch (dbErr) {
+      console.warn("[ORDER CONFIRMATION EMAIL] Notice: could not load order items from DB:", dbErr);
+    }
+  }
+
+  const primaryItem = resolvedItems[0];
+  const primaryItemVariant = primaryItem
+    ? [primaryItem.selectedStorage, primaryItem.selectedColor].filter(Boolean).join(", ")
+    : "";
+  const primaryFullName = primaryItem
+    ? `${primaryItem.productName}${primaryItemVariant ? `, ${primaryItemVariant}` : ""}`
+    : `Order #${order.orderNumber}`;
+
   const { subject, html, text: plainText } = renderOrderConfirmedEmail(
     {
       id: order.id,
@@ -842,7 +870,7 @@ export async function sendOrderConfirmationEmail(order: {
       customerName: order.customerName,
       customerEmail: order.customerEmail,
       totalAmount: order.totalAmount,
-      items: order.items,
+      items: resolvedItems,
       address: order.address,
       city: order.city,
       state: order.state,
@@ -858,7 +886,7 @@ export async function sendOrderConfirmationEmail(order: {
     subject,
     emailType: "ORDER_CONFIRMATION",
     orderId: order.id,
-    productName: primaryItem ? primaryItem.productName : "Mobile Phone",
+    productName: primaryFullName,
     contentSummary: plainText,
     text: plainText,
     html,
@@ -1014,26 +1042,37 @@ export async function sendWarrantyReminder6MonthsEmail(warranty: {
   id: string;
   orderId: string;
   orderNumber?: string;
+  warrantyNumber?: string;
   userId?: string | null;
   customerName: string;
   customerEmail: string;
   productName: string;
+  variantInfo?: string;
   imeiNumber: string;
-  warrantyExpiryDate: Date;
+  warrantyStartDate?: Date | string;
+  warrantyExpiryDate: Date | string;
   warrantyDuration?: string;
 }): Promise<EmailSendResult> {
   const siteUrl = getAppUrl();
+  const fullProductName = warranty.variantInfo
+    ? `${warranty.productName}, ${warranty.variantInfo}`
+    : warranty.productName;
+
+  const wNumber =
+    warranty.warrantyNumber ||
+    (warranty.orderNumber ? `WRT-${warranty.orderNumber}-1` : `WRT-${warranty.id.slice(0, 8)}`);
+
   const { subject, html, text: plainText } = renderWarrantyExpiringEmail(
     {
       customerName: warranty.customerName,
       customerEmail: warranty.customerEmail,
-      productName: warranty.productName,
-      warrantyNumber: `WRT-${warranty.orderNumber || "REG"}-1`,
+      productName: fullProductName,
+      warrantyNumber: wNumber,
       imeiNumber: warranty.imeiNumber,
-      warrantyStartDate: new Date(new Date(warranty.warrantyExpiryDate).getTime() - 365 * 24 * 60 * 60 * 1000),
+      warrantyStartDate: warranty.warrantyStartDate || new Date(new Date(warranty.warrantyExpiryDate).getTime() - 365 * 24 * 60 * 60 * 1000),
       warrantyExpiryDate: warranty.warrantyExpiryDate,
       orderNumber: warranty.orderNumber,
-      warrantyDuration: warranty.warrantyDuration,
+      warrantyDuration: warranty.warrantyDuration || "1 Year",
     },
     "6_MONTHS",
     siteUrl
@@ -1046,7 +1085,7 @@ export async function sendWarrantyReminder6MonthsEmail(warranty: {
     subject,
     emailType: "WARRANTY_REMINDER_6M",
     orderId: warranty.orderId,
-    productName: warranty.productName,
+    productName: fullProductName,
     contentSummary: plainText,
     text: plainText,
     html,
@@ -1061,26 +1100,37 @@ export async function sendWarrantyReminder1DayEmail(warranty: {
   id: string;
   orderId: string;
   orderNumber?: string;
+  warrantyNumber?: string;
   userId?: string | null;
   customerName: string;
   customerEmail: string;
   productName: string;
+  variantInfo?: string;
   imeiNumber: string;
-  warrantyExpiryDate: Date;
+  warrantyStartDate?: Date | string;
+  warrantyExpiryDate: Date | string;
   warrantyDuration?: string;
 }): Promise<EmailSendResult> {
   const siteUrl = getAppUrl();
+  const fullProductName = warranty.variantInfo
+    ? `${warranty.productName}, ${warranty.variantInfo}`
+    : warranty.productName;
+
+  const wNumber =
+    warranty.warrantyNumber ||
+    (warranty.orderNumber ? `WRT-${warranty.orderNumber}-1` : `WRT-${warranty.id.slice(0, 8)}`);
+
   const { subject, html, text: plainText } = renderWarrantyExpiringEmail(
     {
       customerName: warranty.customerName,
       customerEmail: warranty.customerEmail,
-      productName: warranty.productName,
-      warrantyNumber: `WRT-${warranty.orderNumber || "REG"}-1`,
+      productName: fullProductName,
+      warrantyNumber: wNumber,
       imeiNumber: warranty.imeiNumber,
-      warrantyStartDate: new Date(new Date(warranty.warrantyExpiryDate).getTime() - 365 * 24 * 60 * 60 * 1000),
+      warrantyStartDate: warranty.warrantyStartDate || new Date(new Date(warranty.warrantyExpiryDate).getTime() - 365 * 24 * 60 * 60 * 1000),
       warrantyExpiryDate: warranty.warrantyExpiryDate,
       orderNumber: warranty.orderNumber,
-      warrantyDuration: warranty.warrantyDuration,
+      warrantyDuration: warranty.warrantyDuration || "1 Year",
     },
     "1_DAY",
     siteUrl
@@ -1093,7 +1143,7 @@ export async function sendWarrantyReminder1DayEmail(warranty: {
     subject,
     emailType: "WARRANTY_REMINDER_1D",
     orderId: warranty.orderId,
-    productName: warranty.productName,
+    productName: fullProductName,
     contentSummary: plainText,
     text: plainText,
     html,
@@ -1105,6 +1155,9 @@ export async function sendWarrantyReminder1DayEmail(warranty: {
  * 1. Email 6 months before expiry date
  * 2. Email 1 day before expiry date
  * 3. Updates warrantyStatus to "EXPIRING_SOON" or "EXPIRED"
+ *
+ * Uses the Supabase service-role client directly on the server.
+ * Designed for daily cron execution.
  */
 export async function checkAndDispatchWarrantyReminders(): Promise<{
   scanned: number;
@@ -1114,93 +1167,171 @@ export async function checkAndDispatchWarrantyReminders(): Promise<{
   errors: string[];
 }> {
   const now = new Date();
+  const nowTime = now.getTime();
   const errors: string[] = [];
   let reminders6mSent = 0;
   let reminders1dSent = 0;
   let expiredMarked = 0;
 
-  const warranties = await prisma.warranty.findMany({
-    where: {
-      warrantyStatus: { notIn: ["EXPIRED", "CANCELLED"] },
-      order: {
-        orderStatus: { notIn: ["CANCELLED", "Cancelled", "cancelled"] },
-      },
-    },
-    include: {
-      order: {
-        select: { orderNumber: true, orderStatus: true },
-      },
-    },
-  });
+  // 1. Fetch active/expiring warranties via service-role client
+  const { data: rawWarranties, error: fetchErr } = await supabaseAdmin
+    .from("Warranty")
+    .select("*")
+    .not("warrantyStatus", "in", '("EXPIRED","CANCELLED")');
 
+  if (fetchErr) {
+    console.error("[CRON WARRANTY SCAN ERROR]", fetchErr);
+    throw new Error(`Failed to query Warranty table: ${fetchErr.message}`);
+  }
+
+  const warranties = rawWarranties || [];
+  if (warranties.length === 0) {
+    return { scanned: 0, reminders6mSent: 0, reminders1dSent: 0, expiredMarked: 0, errors: [] };
+  }
+
+  // 2. Batch load related orders, orderItems, and mobileProducts for real names and cancellation checks
+  const orderIds = Array.from(new Set(warranties.map((w: any) => w.orderId).filter(Boolean)));
+  const itemIds = Array.from(new Set(warranties.map((w: any) => w.orderItemId).filter(Boolean)));
+
+  let orderMap = new Map<string, any>();
+  if (orderIds.length > 0) {
+    const { data: orders } = await supabaseAdmin
+      .from("Order")
+      .select("id, orderNumber, orderStatus")
+      .in("id", orderIds);
+    if (orders) {
+      orderMap = new Map(orders.map((o) => [o.id, o]));
+    }
+  }
+
+  let itemMap = new Map<string, any>();
+  if (itemIds.length > 0) {
+    const { data: items } = await supabaseAdmin
+      .from("OrderItem")
+      .select("*")
+      .in("id", itemIds);
+    if (items) {
+      itemMap = new Map(items.map((i) => [i.id, i]));
+    }
+  }
+
+  const productIds = Array.from(
+    new Set(
+      Array.from(itemMap.values())
+        .map((i) => i.productId)
+        .filter(Boolean)
+    )
+  );
+
+  let productMap = new Map<string, any>();
+  if (productIds.length > 0) {
+    const { data: prods } = await supabaseAdmin
+      .from("MobileProduct")
+      .select("id, name, brand")
+      .in("id", productIds);
+    if (prods) {
+      productMap = new Map(prods.map((p) => [p.id, p]));
+    }
+  }
+
+  // 3. Process each warranty
   for (const w of warranties) {
     try {
+      const order = orderMap.get(w.orderId);
+      if (order && isOrderCancelled(order.orderStatus)) {
+        await supabaseAdmin
+          .from("Warranty")
+          .update({ warrantyStatus: "CANCELLED" })
+          .eq("id", w.id);
+        continue;
+      }
+
       const expiry = new Date(w.warrantyExpiryDate).getTime();
-      const sixMonthsBefore = expiry - (180 * 24 * 60 * 60 * 1000);
-      const oneDayBefore = expiry - (24 * 60 * 60 * 1000);
-      const nowTime = now.getTime();
+      const msUntilExpiry = expiry - nowTime;
+      const daysUntilExpiry = msUntilExpiry / (1000 * 60 * 60 * 24);
 
       // Check 1: Past expiry date
       if (nowTime >= expiry) {
-        await prisma.warranty.update({
-          where: { id: w.id },
-          data: { warrantyStatus: "EXPIRED" },
-        });
+        await supabaseAdmin
+          .from("Warranty")
+          .update({ warrantyStatus: "EXPIRED" })
+          .eq("id", w.id);
         expiredMarked++;
         continue;
       }
 
-      // Check 2: Within 24 hours of expiry (1 day before)
-      if (nowTime >= oneDayBefore && !w.reminded1DayAt) {
+      const orderItem = itemMap.get(w.orderItemId);
+      const catalogProd = orderItem?.productId ? productMap.get(orderItem.productId) : null;
+      const realName = catalogProd?.name || orderItem?.productName || w.productName;
+      const variantParts = [orderItem?.selectedStorage, orderItem?.selectedColor].filter(Boolean);
+      const variantInfo = variantParts.length > 0 ? variantParts.join(", ") : undefined;
+      const orderNumber = order?.orderNumber || (w.orderId ? `ORD${w.orderId.slice(0, 5)}` : undefined);
+      const warrantyNumber = w.warrantyNumber || (orderNumber ? `WRT-${orderNumber}-1` : `WRT-${w.id.slice(0, 8)}`);
+
+      const alreadyReminded1Day = Boolean(w.reminder1DaySentAt || w.reminded1DayAt);
+      const alreadyReminded6Month = Boolean(w.reminder6MonthSentAt || w.reminded6MonthsAt);
+
+      // Check 2: 1 Day Before Expiry (target window: within 0 to 36 hours before expiry for daily cron)
+      if (daysUntilExpiry > 0 && daysUntilExpiry <= 1.5 && !alreadyReminded1Day) {
         const sendResult = await sendWarrantyReminder1DayEmail({
           id: w.id,
           orderId: w.orderId,
-          orderNumber: w.order?.orderNumber,
+          orderNumber,
+          warrantyNumber,
           userId: w.userId,
           customerName: w.customerName,
           customerEmail: w.customerEmail,
-          productName: w.productName,
+          productName: realName,
+          variantInfo,
           imeiNumber: w.imeiNumber,
+          warrantyStartDate: w.warrantyStartDate,
           warrantyExpiryDate: w.warrantyExpiryDate,
           warrantyDuration: w.warrantyDuration,
         });
 
         if (sendResult.success) {
-          await prisma.warranty.update({
-            where: { id: w.id },
-            data: {
-              reminded1DayAt: new Date(),
+          const sentTimestamp = new Date().toISOString();
+          await supabaseAdmin
+            .from("Warranty")
+            .update({
+              reminder1DaySentAt: sentTimestamp,
+              reminded1DayAt: sentTimestamp,
               warrantyStatus: "EXPIRING_SOON",
-            },
-          });
+            })
+            .eq("id", w.id);
           reminders1dSent++;
         } else {
           errors.push(`Failed to send 1-day reminder to ${w.customerEmail}: ${sendResult.error}`);
         }
       }
-      // Check 3: Within 6 months of expiry (6 months before)
-      else if (nowTime >= sixMonthsBefore && !w.reminded6MonthsAt) {
+      // Check 3: 6 Months Before Expiry (target window: between 175 and 185 days for daily cron)
+      else if (daysUntilExpiry >= 30 && daysUntilExpiry <= 185 && !alreadyReminded6Month) {
         const sendResult = await sendWarrantyReminder6MonthsEmail({
           id: w.id,
           orderId: w.orderId,
-          orderNumber: w.order?.orderNumber,
+          orderNumber,
+          warrantyNumber,
           userId: w.userId,
           customerName: w.customerName,
           customerEmail: w.customerEmail,
-          productName: w.productName,
+          productName: realName,
+          variantInfo,
           imeiNumber: w.imeiNumber,
+          warrantyStartDate: w.warrantyStartDate,
           warrantyExpiryDate: w.warrantyExpiryDate,
           warrantyDuration: w.warrantyDuration,
         });
 
         if (sendResult.success) {
-          await prisma.warranty.update({
-            where: { id: w.id },
-            data: {
-              reminded6MonthsAt: new Date(),
+          const sentTimestamp = new Date().toISOString();
+          await supabaseAdmin
+            .from("Warranty")
+            .update({
+              reminder6MonthSentAt: sentTimestamp,
+              reminded6MonthsAt: sentTimestamp,
               warrantyStatus: "EXPIRING_SOON",
-            },
-          });
+            })
+            .eq("id", w.id);
           reminders6mSent++;
         } else {
           errors.push(`Failed to send 6-month reminder to ${w.customerEmail}: ${sendResult.error}`);

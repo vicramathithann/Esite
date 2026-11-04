@@ -156,6 +156,8 @@ CREATE TABLE IF NOT EXISTS "Warranty" (
   "emailSent" BOOLEAN NOT NULL DEFAULT false,
   "reminded6MonthsAt" TIMESTAMPTZ,
   "reminded1DayAt" TIMESTAMPTZ,
+  "reminder1DaySentAt" TIMESTAMPTZ,
+  "reminder6MonthSentAt" TIMESTAMPTZ,
   "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
