@@ -85,6 +85,169 @@ export function getProductSummaryHeadline(
   return `${fullName} + ${remaining} more`;
 }
 
+export function formatOrderDate(dateInput?: Date | string | number | null): string {
+  if (!dateInput) return "";
+  try {
+    const d =
+      typeof dateInput === "string" || typeof dateInput === "number"
+        ? new Date(dateInput)
+        : dateInput;
+    if (isNaN(d.getTime())) return "";
+    return d.toLocaleDateString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return "";
+  }
+}
+
+export function resolveDeliveryDate(order: {
+  estimatedDelivery?: Date | string | number | null;
+  deliveryDate?: Date | string | number | null;
+  expectedDeliveryDate?: Date | string | number | null;
+  createdAt?: Date | string | number | null;
+  orderedDate?: Date | string | number | null;
+}): string {
+  const directDate = order.deliveryDate || order.estimatedDelivery || order.expectedDeliveryDate;
+  if (directDate) {
+    const formatted = formatOrderDate(directDate);
+    if (formatted) return formatted;
+  }
+  const createdRaw = order.createdAt || order.orderedDate;
+  if (createdRaw) {
+    try {
+      const createdDate = new Date(createdRaw);
+      if (!isNaN(createdDate.getTime())) {
+        const delivery = new Date(createdDate.getTime() + 4 * 24 * 60 * 60 * 1000);
+        const formatted = formatOrderDate(delivery);
+        if (formatted) return formatted;
+      }
+    } catch {}
+  }
+  return "Will be updated soon";
+}
+
+export function resolvePaymentText(order: {
+  paymentMethod?: string | null;
+  paymentStatus?: string | null;
+  isPaid?: boolean | null;
+  paymentText?: string | null;
+}): string {
+  if (order.paymentText) {
+    const pt = order.paymentText.trim();
+    if (pt.toUpperCase().includes("COD") || pt.toUpperCase().includes("CASH ON DELIVERY")) {
+      return "Cash on Delivery (COD)";
+    }
+    return "Paid";
+  }
+
+  const method = (order.paymentMethod || "").trim().toUpperCase();
+  const status = (order.paymentStatus || "").trim().toUpperCase();
+
+  const isCod =
+    method.includes("COD") ||
+    method.includes("CASH ON DELIVERY") ||
+    method.includes("PAY ON DELIVERY") ||
+    status === "COD";
+
+  if (isCod) {
+    return "Cash on Delivery (COD)";
+  }
+  return "Paid";
+}
+
+export interface OrderDetailsTableData {
+  productName: string;
+  createdAt?: Date | string | number | null;
+  orderedDate?: Date | string | number | null;
+  estimatedDelivery?: Date | string | number | null;
+  deliveryDate?: Date | string | number | null;
+  expectedDeliveryDate?: Date | string | number | null;
+  paymentMethod?: string | null;
+  paymentStatus?: string | null;
+  isPaid?: boolean | null;
+  paymentText?: string | null;
+  quantity?: number | null;
+  totalAmount?: number | null;
+  price?: number | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  pincode?: string | null;
+}
+
+export function renderOrderDetailsTable(data: OrderDetailsTableData): { html: string; text: string } {
+  const orderedDate =
+    formatOrderDate(data.createdAt || data.orderedDate) ||
+    formatOrderDate(new Date());
+
+  const deliveryDate = resolveDeliveryDate(data);
+  const paymentText = resolvePaymentText(data);
+
+  // Exact 4 required rows first (never show order ID)
+  const rows: Array<{ label: string; value: string; isBold?: boolean }> = [
+    { label: "Product", value: data.productName, isBold: true },
+    { label: "Ordered on", value: orderedDate },
+    { label: "Expected delivery", value: deliveryDate },
+    { label: "Payment", value: paymentText, isBold: true },
+  ];
+
+  // Optional rows: added only if existing in the order data
+  if (typeof data.quantity === "number" && data.quantity > 0) {
+    rows.push({ label: "Quantity", value: String(data.quantity) });
+  }
+
+  const rawAmount = data.totalAmount ?? data.price;
+  if (typeof rawAmount === "number" && rawAmount > 0) {
+    rows.push({ label: "Total Amount", value: formatINR(rawAmount), isBold: true });
+  }
+
+  const addrParts = [data.address, data.city, data.state, data.pincode]
+    .map((p) => (p || "").trim())
+    .filter(Boolean);
+  if (addrParts.length > 0) {
+    rows.push({ label: "Delivery Address", value: addrParts.join(", ") });
+  }
+
+  const rowsHtml = rows
+    .map((row, idx) => {
+      const isLast = idx === rows.length - 1;
+      const borderBottom = isLast ? "" : "border-bottom:1px solid #E2E8F0;";
+      const valueStyle = row.isBold
+        ? "color:#0F172A;font-weight:700;"
+        : "color:#0F172A;font-weight:500;";
+      return `
+        <tr>
+          <td style="padding:12px 18px;${borderBottom}color:#64748B;font-size:13px;font-weight:600;width:38%;vertical-align:top;">
+            ${escapeHtml(row.label)}
+          </td>
+          <td style="padding:12px 18px;${borderBottom}${valueStyle}font-size:13px;vertical-align:top;">
+            ${escapeHtml(row.value)}
+          </td>
+        </tr>
+      `;
+    })
+    .join("");
+
+  const html = `
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:100%;background-color:#F8FAFC;border:1px solid #E2E8F0;border-top:2px solid #C9A66B;border-radius:10px;margin:24px 0 20px 0;border-collapse:separate;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+      <tbody>
+        ${rowsHtml}
+      </tbody>
+    </table>
+  `;
+
+  const text = [
+    "Order Details:",
+    ...rows.map((r) => `- ${r.label}: ${r.value}`),
+  ].join("\n");
+
+  return { html, text };
+}
+
 export function formatLockedInSubject(productSummary: string): string {
   const clean = (productSummary || "").trim();
   if (!clean || clean.toLowerCase() === "order") {

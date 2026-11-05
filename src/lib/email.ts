@@ -956,15 +956,18 @@ export async function sendWarrantyActivationEmail(warranty: {
   let resolvedBrand = "VN Mobiles";
   let resolvedVariant = "";
 
+  let linkedOrder: any = null;
   try {
     const dbWar = await prisma.warranty.findUnique({
       where: { id: warranty.id },
       include: {
         orderItem: true,
+        order: true,
       },
     });
 
     if (dbWar) {
+      if ((dbWar as any).order) linkedOrder = (dbWar as any).order;
       if (dbWar.productName) resolvedName = dbWar.productName;
       if (dbWar.orderItem) {
         if (dbWar.orderItem.productName) resolvedName = dbWar.orderItem.productName;
@@ -1033,6 +1036,15 @@ export async function sendWarrantyActivationEmail(warranty: {
           status: "ACTIVE",
         },
       ],
+      createdAt: warranty.purchaseDate || linkedOrder?.createdAt,
+      deliveryDate: linkedOrder?.estimatedDelivery,
+      paymentMethod: linkedOrder?.paymentMethod,
+      paymentStatus: linkedOrder?.paymentStatus,
+      totalAmount: linkedOrder?.totalAmount,
+      address: linkedOrder?.address,
+      city: linkedOrder?.city,
+      state: linkedOrder?.state,
+      pincode: linkedOrder?.pincode,
     },
     siteUrl
   );

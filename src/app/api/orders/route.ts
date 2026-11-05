@@ -274,7 +274,13 @@ export async function POST(request: Request) {
           state: state || "State",
           totalAmount: orderTotal,
           paymentMethod: paymentMethod || "Online Payment",
-          paymentStatus: "PAID",
+          paymentStatus:
+            paymentMethod &&
+            (paymentMethod.toUpperCase().includes("COD") ||
+              paymentMethod.toUpperCase().includes("CASH ON DELIVERY") ||
+              paymentMethod.toUpperCase().includes("PAY ON DELIVERY"))
+              ? "PENDING"
+              : "PAID",
           orderStatus: "Order Confirmed",
           statusHistory: {
             create: [

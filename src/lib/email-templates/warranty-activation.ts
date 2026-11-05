@@ -2,6 +2,7 @@ import {
   escapeHtml,
   renderEmailLayout,
   formatOrderProductsDisplayName,
+  renderOrderDetailsTable,
 } from "./layout";
 
 export interface WarrantyCertificateItem {
@@ -14,6 +15,8 @@ export interface WarrantyCertificateItem {
   startDateStr: string;
   expiryDateStr: string;
   status: string;
+  quantity?: number;
+  price?: number;
 }
 
 export interface WarrantyActivationData {
@@ -21,6 +24,24 @@ export interface WarrantyActivationData {
   customerName: string;
   customerEmail: string;
   items: WarrantyCertificateItem[];
+  // Order details for the order summary table
+  productName?: string;
+  createdAt?: Date | string | number | null;
+  orderedDate?: Date | string | number | null;
+  estimatedDelivery?: Date | string | number | null;
+  deliveryDate?: Date | string | number | null;
+  expectedDeliveryDate?: Date | string | number | null;
+  paymentMethod?: string | null;
+  paymentStatus?: string | null;
+  isPaid?: boolean | null;
+  paymentText?: string | null;
+  quantity?: number | null;
+  totalAmount?: number | null;
+  price?: number | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  pincode?: string | null;
 }
 
 export function renderWarrantyActivationEmail(
@@ -33,16 +54,38 @@ export function renderWarrantyActivationEmail(
   preheader: string;
 } {
   const cleanUrl = siteUrl.replace(/\/$/, "");
-  const productName = formatOrderProductsDisplayName(data.items);
+  const productName = data.productName || formatOrderProductsDisplayName(data.items);
 
   // Exact required format:
   // Subject: Your {productName} order was placed successfully
   // Heading: {productName}
   // Body: Thank you! Your order for {productName} has been placed successfully.
   //       Your warranty certificate is attached as a PDF.
+  // Note: Order ID stays strictly in the warranty PDF; never in the email text.
   const subject = `Your ${productName} order was placed successfully`;
   const heading = productName;
   const preheader = `Thank you! Your order for ${productName} has been placed successfully. Your warranty certificate is attached as a PDF.`;
+
+  // Render the order details table (Product, Ordered on, Expected delivery, Payment, and optional rows)
+  const table = renderOrderDetailsTable({
+    productName,
+    createdAt: data.createdAt,
+    orderedDate: data.orderedDate,
+    estimatedDelivery: data.estimatedDelivery,
+    deliveryDate: data.deliveryDate,
+    expectedDeliveryDate: data.expectedDeliveryDate,
+    paymentMethod: data.paymentMethod,
+    paymentStatus: data.paymentStatus,
+    isPaid: data.isPaid,
+    paymentText: data.paymentText,
+    quantity: data.quantity,
+    totalAmount: data.totalAmount,
+    price: data.price,
+    address: data.address,
+    city: data.city,
+    state: data.state,
+    pincode: data.pincode,
+  });
 
   const contentHtml = `
     <p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;color:#334155;">
@@ -52,11 +95,10 @@ export function renderWarrantyActivationEmail(
       Your warranty certificate is attached as a PDF.
     </p>
 
-    <div style="background-color:#FAF7F0;border:1px solid #E7D7B8;border-radius:10px;padding:14px 18px;margin:22px 0;font-size:13px;color:#5C451D;line-height:1.5;">
-      <strong>Official Warranty Certificate Attached:</strong> Your official manufacturer warranty certificate (including device serial / IMEI specifications, complete coverage terms, and brand service center claim instructions) has been generated and attached to this email as a PDF document for your records.
-    </div>
+    ${table.html}
   `;
 
+  // Render email layout without CTA button ("View Warranty in Account" removed per specification)
   const html = renderEmailLayout({
     preheader,
     badge: {
@@ -67,10 +109,6 @@ export function renderWarrantyActivationEmail(
     },
     headline: heading,
     contentHtml,
-    cta: {
-      label: "View Warranty in Account",
-      url: `${cleanUrl}/account/warranties`,
-    },
     siteUrl: cleanUrl,
   });
 
@@ -80,8 +118,7 @@ ${heading}
 Thank you! Your order for ${productName} has been placed successfully.
 Your warranty certificate is attached as a PDF.
 
-View your warranty in your account:
-${cleanUrl}/account/warranties
+${table.text}
 
 Need assistance? Our support team is here to help at support@vnmobiles.in
 This is an automated transaction notification from VN Mobiles India.

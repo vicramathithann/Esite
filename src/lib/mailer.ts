@@ -210,6 +210,16 @@ export interface OrderEmailData {
   totalAmount?: number;
   createdAt?: string | Date;
   warrantyEmailSentAt?: string | Date | null;
+  paymentMethod?: string | null;
+  paymentStatus?: string | null;
+  isPaid?: boolean | null;
+  estimatedDelivery?: string | Date | null;
+  deliveryDate?: string | Date | null;
+  expectedDeliveryDate?: string | Date | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  pincode?: string | null;
 }
 
 export interface OrderItemEmailData {
@@ -527,12 +537,70 @@ export async function sendWarrantyEmail(
     console.error(`[WARRANTY PDF ERROR] Could not generate PDF for order #${orderNumber}:`, pdfErr);
   }
 
+  // Retrieve stored order attributes if not fully populated
+  let dbOrderDetails: any = null;
+  if (order.id && (!order.paymentMethod || !order.address || !order.createdAt)) {
+    try {
+      dbOrderDetails = await prisma.order.findUnique({
+        where: { id: order.id },
+        select: {
+          createdAt: true,
+          estimatedDelivery: true,
+          paymentMethod: true,
+          paymentStatus: true,
+          totalAmount: true,
+          address: true,
+          city: true,
+          state: true,
+          pincode: true,
+        },
+      });
+    } catch {}
+  }
+
+  const orderCreatedAt = order.createdAt || dbOrderDetails?.createdAt || now;
+  const orderDeliveryDate =
+    order.deliveryDate ||
+    order.estimatedDelivery ||
+    order.expectedDeliveryDate ||
+    dbOrderDetails?.estimatedDelivery;
+  const orderPaymentMethod =
+    order.paymentMethod ||
+    dbOrderDetails?.paymentMethod ||
+    "Online Payment";
+  const orderPaymentStatus =
+    order.paymentStatus ||
+    dbOrderDetails?.paymentStatus ||
+    "PAID";
+  const orderIsPaid = order.isPaid;
+  const orderTotalAmount =
+    order.totalAmount ||
+    dbOrderDetails?.totalAmount ||
+    sourceItems.reduce((acc, it) => acc + (it.price || 0) * (it.quantity || 1), 0);
+  const orderAddress = order.address || dbOrderDetails?.address;
+  const orderCity = order.city || dbOrderDetails?.city;
+  const orderState = order.state || dbOrderDetails?.state;
+  const orderPincode = order.pincode || dbOrderDetails?.pincode;
+  const totalQuantity = sourceItems.reduce((acc, it) => acc + (it.quantity || 1), 0);
+
   const { subject, html, text: plainText } = renderWarrantyActivationEmail(
     {
       orderNumber,
       customerName,
       customerEmail: cleanRecipientEmail,
       items: resolvedItems,
+      createdAt: orderCreatedAt,
+      deliveryDate: orderDeliveryDate,
+      estimatedDelivery: orderDeliveryDate,
+      paymentMethod: orderPaymentMethod,
+      paymentStatus: orderPaymentStatus,
+      isPaid: orderIsPaid,
+      totalAmount: orderTotalAmount > 0 ? orderTotalAmount : undefined,
+      quantity: totalQuantity > 0 ? totalQuantity : undefined,
+      address: orderAddress,
+      city: orderCity,
+      state: orderState,
+      pincode: orderPincode,
     },
     siteUrl
   );
