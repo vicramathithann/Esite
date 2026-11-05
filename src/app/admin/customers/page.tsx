@@ -22,9 +22,7 @@ import {
   Check,
   Filter,
   ArrowUpDown,
-  Mail,
   AlertTriangle,
-  Package,
 } from "lucide-react";
 import { formatINR, formatDateOnly } from "@/lib/formatters";
 
@@ -67,12 +65,6 @@ export default function AdminCustomersPage() {
   // Deletion State
   const [deleteActionLoading, setDeleteActionLoading] = useState(false);
   const [deleteConfirmEmail, setDeleteConfirmEmail] = useState("");
-
-  // Certificate Modal State
-  const [certificateModalUser, setCertificateModalUser] = useState<CustomerRecord | null>(null);
-  const [userOrders, setUserOrders] = useState<any[]>([]);
-  const [loadingOrders, setLoadingOrders] = useState(false);
-  const [sendingCertificateId, setSendingCertificateId] = useState<string | null>(null);
 
   // Toast / Feedback State
   const [notification, setNotification] = useState<{
@@ -205,57 +197,6 @@ export default function AdminCustomersPage() {
       showToast("Network error contacting email service.", "error");
     } finally {
       setResetLinkSendingId(null);
-    }
-  };
-
-  // Open Certificate Email modal and load user orders
-  const handleOpenCertificateModal = async (user: CustomerRecord) => {
-    setCertificateModalUser(user);
-    setLoadingOrders(true);
-    setUserOrders([]);
-    try {
-      const res = await fetch(`/api/orders?admin=true&userId=${user.id}`, {
-        credentials: "include",
-        cache: "no-store",
-      });
-      const data = await res.json();
-      if (data.success && data.orders) {
-        setUserOrders(data.orders);
-      } else {
-        setUserOrders([]);
-      }
-    } catch (err) {
-      console.error("Failed to load user orders:", err);
-      setUserOrders([]);
-    } finally {
-      setLoadingOrders(false);
-    }
-  };
-
-  // Handle admin sending certificate email (unlimited times, no limit, server authorized)
-  const handleSendCertificateEmail = async (orderId?: string, warrantyId?: string) => {
-    const targetId = orderId || warrantyId;
-    if (!targetId) return;
-
-    try {
-      setSendingCertificateId(targetId);
-      const res = await fetch("/api/admin/send-certificate", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId, warrantyId }),
-      });
-
-      const data = await res.json();
-      if (data.success) {
-        showToast(data.message || `Warranty certificate email dispatched to ${certificateModalUser?.email || "user"}!`);
-      } else {
-        showToast(data.error || "Failed to dispatch warranty certificate email.", "error");
-      }
-    } catch {
-      showToast("Network error contacting email service.", "error");
-    } finally {
-      setSendingCertificateId(null);
     }
   };
 
@@ -637,26 +578,17 @@ export default function AdminCustomersPage() {
                       {/* Action Buttons */}
                       <td className="py-3.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          {/* Send Certificate Email Action */}
-                          <button
-                            onClick={() => handleOpenCertificateModal(c)}
-                            className="p-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 rounded-lg transition-colors cursor-pointer"
-                            title="Send Certificate Email for User's Orders/Warranties"
-                          >
-                            <ShieldCheck className="w-3.5 h-3.5" />
-                          </button>
-
-                          {/* Send Reset Link Action */}
+                          {/* Send Reset Link Action (Green Shield Icon) */}
                           <button
                             onClick={() => handleSendResetLink(c)}
                             disabled={resetLinkSendingId === c.id}
-                            className="p-1.5 bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 text-[#8C6226] dark:text-[#E5CBA2] border border-[#C9A66B]/20 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                            className="p-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
                             title="Send Password Reset Link by Email (30 min expiry)"
                           >
                             {resetLinkSendingId === c.id ? (
                               <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                             ) : (
-                              <Mail className="w-3.5 h-3.5" />
+                              <ShieldCheck className="w-3.5 h-3.5" />
                             )}
                           </button>
 
@@ -915,148 +847,6 @@ export default function AdminCustomersPage() {
                   <Trash2 className="w-3.5 h-3.5" />
                 )}
                 Permanently Delete User
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* MODAL 3: Send Certificate Email */}
-      {certificateModalUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-card border border-border w-full max-w-2xl rounded-2xl p-6 shadow-2xl space-y-5 max-h-[85vh] overflow-y-auto">
-            {/* Modal Header */}
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-700 dark:text-emerald-300">
-                  <ShieldCheck className="w-5 h-5" />
-                </div>
-                <div>
-                  <h2 className="text-base font-bold text-foreground">Send Warranty Certificate Email</h2>
-                  <p className="text-xs text-muted">
-                    For user <strong className="text-foreground">{certificateModalUser.name}</strong> ({certificateModalUser.email})
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setCertificateModalUser(null)}
-                className="text-muted hover:text-foreground p-1 transition cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <p className="text-xs text-muted">
-                Select an order or warranty below to dispatch the official warranty certificate with attached PDF to{" "}
-                <strong className="text-foreground">{certificateModalUser.email}</strong>. As an administrator, you may send this unlimited times.
-              </p>
-
-              {loadingOrders ? (
-                <div className="py-12 flex flex-col items-center justify-center space-y-2 text-muted">
-                  <RefreshCw className="w-6 h-6 animate-spin text-[#C9A66B]" />
-                  <p className="text-xs">Loading customer orders & warranties...</p>
-                </div>
-              ) : userOrders.length === 0 ? (
-                <div className="p-8 text-center bg-tile border border-border rounded-xl text-muted text-xs space-y-1">
-                  <Package className="w-8 h-8 mx-auto opacity-40 mb-2" />
-                  <p className="font-semibold text-foreground">No Registered Orders or Warranties Found</p>
-                  <p>This user has not placed any device orders on VN Mobiles yet.</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {userOrders.map((ord: any) => {
-                    const items = ord.items || [];
-                    const warranties = ord.warranties || [];
-
-                    return (
-                      <div
-                        key={ord.id}
-                        className="bg-tile border border-border rounded-xl p-4 space-y-3"
-                      >
-                        <div className="flex items-center justify-between gap-2 border-b border-border/50 pb-2">
-                          <div>
-                            <span className="font-mono text-xs font-bold text-foreground">Order #{ord.orderNumber}</span>
-                            <span className="text-[11px] text-muted ml-2">Placed on {formatDateOnly(ord.createdAt)}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold border border-border bg-card">
-                              {ord.orderStatus}
-                            </span>
-                            <button
-                              onClick={() => handleSendCertificateEmail(ord.id)}
-                              disabled={sendingCertificateId === ord.id}
-                              className="px-3 py-1.5 bg-[#C9A66B] hover:bg-[#B8914A] text-white text-xs font-semibold rounded-lg transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-xs"
-                              title="Send Certificate Email for this order"
-                            >
-                              {sendingCertificateId === ord.id ? (
-                                <>
-                                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                                  <span>Sending...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Mail className="w-3.5 h-3.5" />
-                                  <span>Send Certificate Email</span>
-                                </>
-                              )}
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Items / Devices in this order */}
-                        <div className="space-y-2">
-                          {items.map((item: any, idx: number) => {
-                            const matchedWar = warranties.find((w: any) => w.orderItemId === item.id) || warranties[idx];
-                            const variantParts = [item.selectedStorage, item.selectedColor].filter(Boolean);
-                            const variantText = variantParts.length > 0 ? variantParts.join(", ") : "";
-
-                            return (
-                              <div
-                                key={item.id || idx}
-                                className="flex items-center justify-between bg-card border border-border/60 rounded-lg p-2.5 text-xs"
-                              >
-                                <div className="space-y-0.5">
-                                  <div className="font-bold text-foreground">{item.productName}</div>
-                                  {variantText && <div className="text-[11px] text-muted">{variantText}</div>}
-                                  <div className="text-[10px] font-mono text-muted flex items-center gap-2">
-                                    <span>Certificate: {matchedWar?.warrantyNumber || `WRT-${ord.orderNumber}-${idx + 1}`}</span>
-                                    <span>•</span>
-                                    <span>IMEI: {matchedWar?.imeiNumber || item.imeiNumber || "N/A"}</span>
-                                  </div>
-                                </div>
-                                {matchedWar && (
-                                  <button
-                                    onClick={() => handleSendCertificateEmail(undefined, matchedWar.id)}
-                                    disabled={sendingCertificateId === matchedWar.id}
-                                    className="px-2.5 py-1 bg-tile hover:bg-card border border-border text-foreground text-[11px] font-medium rounded-md transition flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                                    title="Send certificate for this device"
-                                  >
-                                    {sendingCertificateId === matchedWar.id ? (
-                                      <RefreshCw className="w-3 h-3 animate-spin" />
-                                    ) : (
-                                      <ShieldCheck className="w-3 h-3 text-[#C9A66B]" />
-                                    )}
-                                    <span>Send Device Certificate</span>
-                                  </button>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Modal Footer */}
-            <div className="flex items-center justify-end pt-2 border-t border-border">
-              <button
-                onClick={() => setCertificateModalUser(null)}
-                className="px-4 py-2 border border-border text-foreground text-xs font-semibold rounded-xl hover:bg-tile transition cursor-pointer"
-              >
-                Close
               </button>
             </div>
           </div>
