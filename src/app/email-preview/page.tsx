@@ -291,6 +291,22 @@ export default function EmailPreviewPage() {
             recipientEmail: "rrroyce20@gmail.com",
             resetUrl: `${siteUrl}/reset-password?token=sample_admin_secure_token_9482&email=rrroyce20@gmail.com`,
             expiresInMinutes: 60,
+            isAdmin: true,
+          },
+          siteUrl
+        ),
+      },
+      {
+        key: "user_password_reset_link",
+        category: "Auth & Security",
+        title: "User Password Reset (Support Link)",
+        rendered: renderPasswordResetLinkEmail(
+          {
+            recipientName: sampleCustomer.name,
+            recipientEmail: sampleCustomer.email,
+            resetUrl: `${siteUrl}/reset-password?token=sample_user_secure_token_9482&email=${encodeURIComponent(sampleCustomer.email)}`,
+            expiresInMinutes: 30,
+            isAdmin: false,
           },
           siteUrl
         ),

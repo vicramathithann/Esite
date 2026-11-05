@@ -803,6 +803,7 @@ export async function sendAdminPasswordResetEmail(
       recipientEmail: admin.email,
       resetUrl: resetLink,
       expiresInMinutes,
+      isAdmin: true,
     },
     siteUrl
   );
@@ -1459,6 +1460,7 @@ export async function sendAdminPasswordResetLinkEmail(
       recipientEmail: user.email,
       resetUrl: resetLink,
       expiresInMinutes,
+      isAdmin: false,
     },
     appUrl
   );
