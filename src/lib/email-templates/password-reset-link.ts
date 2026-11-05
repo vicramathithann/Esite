@@ -102,10 +102,6 @@ export function renderPasswordResetLinkEmail(
 
   const contentHtml = `
     <p style="margin:0 0 16px 0;font-size:14px;line-height:1.6;color:#475569;">
-      A password reset link has been sent for your VN Mobiles account.
-    </p>
-
-    <p style="margin:0 0 16px 0;font-size:14px;line-height:1.6;color:#475569;">
       Hi ${escapeHtml(name)},<br>
       Our support team has started a password reset for your account linked with <strong style="color:#0F172A;">${escapeHtml(data.recipientEmail)}</strong>. Click the button below to set a new password.
     </p>
@@ -116,11 +112,6 @@ export function renderPasswordResetLinkEmail(
 
     <div style="background-color:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:16px 20px;margin:24px 0;font-size:13px;line-height:1.6;color:#475569;">
       <strong style="color:#0F172A;">Security notice:</strong> If you did not expect this, you can safely ignore this email. Your password will remain unchanged.
-    </div>
-
-    <div style="margin:24px 0 0 0;padding-top:16px;border-top:1px solid #E2E8F0;font-size:12px;color:#64748B;line-height:1.5;">
-      If the button above does not work, copy and paste this link into your browser:<br>
-      <a href="${escapeHtml(data.resetUrl)}" style="color:#C9A66B;word-break:break-all;text-decoration:underline;">${escapeHtml(data.resetUrl)}</a>
     </div>
   `;
 
