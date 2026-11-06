@@ -2,8 +2,9 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { User, Mail, ArrowLeft, CheckCircle2, AlertCircle, Save, RefreshCw } from "lucide-react";
+import { User, Mail, CheckCircle2, AlertCircle, Save, RefreshCw } from "lucide-react";
 import { useApp } from "@/context/AppContext";
+import AccountLayout from "@/components/AccountLayout";
 
 export default function ProfilePage() {
   const { currentUser, login } = useApp();
@@ -116,15 +117,8 @@ export default function ProfilePage() {
   const isVerified = currentUser.emailVerified;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 py-10 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-2xl mx-auto space-y-6">
-        <Link
-          href="/account"
-          className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white transition"
-        >
-          <ArrowLeft className="w-4 h-4" /> Back to Account Hub
-        </Link>
-
+    <AccountLayout>
+      <div className="max-w-3xl space-y-6">
         {/* Email Verification Banner */}
         {!isVerified ? (
           <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-300">
@@ -252,6 +246,6 @@ export default function ProfilePage() {
           </form>
         </div>
       </div>
-    </div>
+    </AccountLayout>
   );
 }

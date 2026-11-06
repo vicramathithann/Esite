@@ -20,6 +20,7 @@ import {
   ShoppingBag
 } from "lucide-react";
 import { calculateEMI } from "@/lib/formatters";
+import AccountLayout from "@/components/AccountLayout";
 
 export default function ComparePage() {
   const { compareList, addToCompare, removeFromCompare, clearCompare, addToCart } = useApp();
@@ -63,19 +64,10 @@ export default function ComparePage() {
   };
 
   return (
-    <div className="min-h-screen pb-24 bg-background text-foreground transition-colors duration-200">
-      {/* Breadcrumb */}
-      <div className="bg-card border-b border-border">
-        <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-3 text-xs text-muted flex items-center gap-1.5">
-          <Link href="/" className="hover:text-foreground transition-colors">Phones</Link>
-          <ChevronRight className="w-3 h-3 text-muted" />
-          <span className="text-foreground font-medium">Compare Models</span>
-        </div>
-      </div>
-
-      <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+    <AccountLayout>
+      <div className="space-y-6">
         {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-2">
           <div>
             <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
               Compare Smartphones
@@ -310,6 +302,6 @@ export default function ComparePage() {
           </div>
         </div>
       )}
-    </div>
+    </AccountLayout>
   );
 }

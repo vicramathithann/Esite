@@ -16,13 +16,14 @@ import {
 } from "lucide-react";
 import { formatINR } from "@/lib/formatters";
 import { useApp } from "@/context/AppContext";
+import AccountLayout from "@/components/AccountLayout";
 
 export default function CartPage() {
   const { currentUser, cart, updateQuantity, removeFromCart, clearCart, cartTotal, cartCount } = useApp();
 
   return (
-    <div className="min-h-screen bg-background text-foreground py-10 px-4 sm:px-6 lg:px-8 transition-colors duration-200">
-      <div className="max-w-[1280px] mx-auto space-y-6">
+    <AccountLayout>
+      <div className="space-y-6">
         <div className="flex items-center justify-between">
           <Link
             href="/"
@@ -186,6 +187,6 @@ export default function CartPage() {
           </div>
         )}
       </div>
-    </div>
+    </AccountLayout>
   );
 }

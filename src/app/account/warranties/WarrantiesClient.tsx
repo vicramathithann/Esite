@@ -5,7 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   ShieldCheck,
-  ArrowLeft,
   Smartphone,
   RefreshCw,
   Mail,
@@ -19,6 +18,7 @@ import {
 } from "lucide-react";
 import WarrantyCountdown from "./WarrantyCountdown";
 import WarrantyCertificatePrint from "./WarrantyCertificatePrint";
+import AccountLayout from "@/components/AccountLayout";
 
 export interface EnrichedWarranty {
   id: string;
@@ -118,23 +118,18 @@ export default function WarrantiesClient({
       )}
 
       {/* Screen Container: Hidden completely during @media print */}
-      <div className="no-print min-h-screen bg-background text-foreground py-8 px-4 sm:px-6 lg:px-8 transition-colors">
-        <div className="max-w-4xl mx-auto space-y-6">
-          {/* Navigation & Header */}
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <Link
-              href="/account"
-              className="inline-flex items-center gap-2 text-sm text-muted hover:text-foreground transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" /> Back to Account
-            </Link>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-tile border border-border text-xs text-muted font-medium">
-              <ShieldCheck className="w-3.5 h-3.5 text-[#C9A66B]" />
-              <span>
-                {activeWarranties.length} Active {activeWarranties.length === 1 ? "Warranty" : "Warranties"}
-              </span>
+      <div className="no-print">
+        <AccountLayout>
+          <div className="space-y-6">
+            {/* Header Status Badge */}
+            <div className="flex items-center justify-end">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#121B2E] border border-[#1F2A44] text-xs text-[#94A3B8] font-medium">
+                <ShieldCheck className="w-3.5 h-3.5 text-[#C9A56A]" />
+                <span>
+                  {activeWarranties.length} Active {activeWarranties.length === 1 ? "Warranty" : "Warranties"}
+                </span>
+              </div>
             </div>
-          </div>
 
           {/* Hero Banner */}
           <div className="bg-card border border-border rounded-2xl p-6 sm:p-8 shadow-sm">
@@ -452,7 +447,8 @@ export default function WarrantiesClient({
             </div>
           )}
         </div>
-      </div>
-    </>
-  );
+      </AccountLayout>
+    </div>
+  </>
+);
 }

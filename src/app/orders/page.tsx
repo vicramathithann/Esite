@@ -18,6 +18,7 @@ import {
 import { formatDateOnly, getDaysRemaining } from "@/lib/formatters";
 import { isOrderCancelled, canOrderBeCancelled } from "@/lib/orderStatus";
 import { useApp } from "@/context/AppContext";
+import AccountLayout from "@/components/AccountLayout";
 
 export default function OrdersPage() {
   const { currentUser } = useApp();
@@ -165,23 +166,19 @@ export default function OrdersPage() {
   });
 
   return (
-    <div className="min-h-screen pb-20 bg-background text-foreground">
-      {/* Breadcrumb */}
-      <div className="max-w-6xl mx-auto px-4 py-4 text-xs text-muted flex items-center gap-1.5">
-        <Link href="/" className="hover:text-foreground transition-colors">Your Account</Link>
-        <ChevronRight className="w-3 h-3 text-muted" />
-        <span className="text-foreground font-medium">Your Orders & Device Shield</span>
-      </div>
-
-      <div className="max-w-6xl mx-auto px-4">
+    <AccountLayout>
+      <div className="space-y-6">
         {/* Title & Actions row */}
-        <div className="flex flex-wrap items-center justify-between gap-4 pb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Your Orders</h1>
+        <div className="flex flex-wrap items-center justify-between gap-4 pb-2">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-[#E5E7EB]">Your Orders</h1>
+            <p className="text-xs text-[#94A3B8] mt-0.5">Track shipment delivery status and 1-Year Device Shield warranty protection.</p>
+          </div>
 
           <div className="flex items-center gap-2.5">
             <button
               onClick={loadOrders}
-              className="py-2 px-3.5 bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 rounded-xl hover:bg-[#C9A66B]/20 text-[#8C6226] dark:text-[#E5CBA2] text-xs font-medium flex items-center gap-1.5 cursor-pointer transition-all shadow-2xs"
+              className="py-2 px-3.5 bg-[#121B2E] border border-[#1F2A44] rounded-xl hover:bg-[#1F2A44] text-[#C9A56A] text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all shadow-xs"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
               <span>Refresh</span>
@@ -602,6 +599,6 @@ export default function OrdersPage() {
           </div>
         </div>
       )}
-    </div>
+    </AccountLayout>
   );
 }

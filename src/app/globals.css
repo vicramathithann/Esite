@@ -16,6 +16,17 @@
   --color-sandal-active: var(--sandal-active);
   --color-sandal-text: var(--sandal-text);
   --color-sandal-border: var(--sandal-border);
+
+  /* Account & Wishlist Area Tokens */
+  --color-account-bg: var(--account-bg);
+  --color-account-card: var(--account-card);
+  --color-account-border: var(--account-border);
+  --color-account-text: var(--account-text);
+  --color-account-muted: var(--account-muted);
+  --color-account-gold: var(--account-gold);
+  --color-account-gold-hover: var(--account-gold-hover);
+  --color-account-gold-text: var(--account-gold-text);
+  --color-account-danger: var(--account-danger);
 }
 
 :root {
@@ -27,6 +38,17 @@
   --border: #E5E5EA;
   --accent: #0071E3;
   --accent-hover: #0077ED;
+
+  /* Account Area Palette Tokens */
+  --account-bg: #0B1220;
+  --account-card: #121B2E;
+  --account-border: #1F2A44;
+  --account-text: #E5E7EB;
+  --account-muted: #94A3B8;
+  --account-gold: #C9A56A;
+  --account-gold-hover: #D8B47E;
+  --account-gold-text: #0B1220;
+  --account-danger: #EF4444;
 
   /* Warm Sandal Button Color Tokens */
   --sandal-primary: #C9A66B;
@@ -57,6 +79,17 @@
   --border: #2C2C2E;
   --accent: #2997FF;
   --accent-hover: #389eff;
+
+  /* Account Area Palette Tokens (Consistent across modes) */
+  --account-bg: #0B1220;
+  --account-card: #121B2E;
+  --account-border: #1F2A44;
+  --account-text: #E5E7EB;
+  --account-muted: #94A3B8;
+  --account-gold: #C9A56A;
+  --account-gold-hover: #D8B47E;
+  --account-gold-text: #0B1220;
+  --account-danger: #EF4444;
 
   /* Warm Sandal Button Color Tokens (Dark Mode) */
   --sandal-primary: #D4B483;
