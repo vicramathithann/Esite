@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useSearchParams } from "next/navigation";
 import MobileCard from "@/components/MobileCard";
 import { MobileProductData } from "@/lib/types";
@@ -16,6 +17,13 @@ import {
   Sparkles,
   ChevronDown,
   ChevronRight,
+  Search,
+  Star,
+  Zap,
+  Camera,
+  Cpu,
+  Monitor,
+  Battery,
 } from "lucide-react";
 
 export const FAMOUS_BRANDS = [
@@ -36,19 +44,6 @@ export const FAMOUS_BRANDS = [
   "iQOO",
   "Tecno",
   "Nokia",
-];
-
-const QUICK_BRANDS = [
-  "Apple",
-  "Samsung",
-  "Google Pixel",
-  "OnePlus",
-  "Xiaomi",
-  "Nothing",
-  "Motorola",
-  "Realme",
-  "Vivo",
-  "Oppo",
 ];
 
 const BRAND_BADGES: Record<string, string> = {
@@ -72,14 +67,45 @@ const BRAND_BADGES: Record<string, string> = {
 
 const RAM_OPTIONS = ["All", "4GB", "6GB", "8GB", "12GB", "16GB"];
 const STORAGE_OPTIONS = ["All", "128GB", "256GB", "512GB", "1TB"];
-const OS_OPTIONS = ["All", "iOS", "Android", "OxygenOS", "HyperOS", "Nothing OS", "ColorOS"];
+const OS_OPTIONS = ["All", "iOS", "Android", "OxygenOS", "One UI", "HyperOS", "Nothing OS", "ColorOS"];
 const BATTERY_OPTIONS = [
-  { label: "All", value: "All" },
-  { label: "< 4500 mAh", value: "under-4500" },
+  { label: "All Capacities", value: "All" },
+  { label: "Under 4500 mAh", value: "under-4500" },
   { label: "4500 - 5000 mAh", value: "4500-5000" },
   { label: "5000+ mAh", value: "5000-plus" },
 ];
+const CAMERA_OPTIONS = [
+  { label: "All Cameras", value: "All" },
+  { label: "50MP Main", value: "50mp" },
+  { label: "64MP - 108MP", value: "64mp-plus" },
+  { label: "200MP Ultra Zoom", value: "200mp" },
+  { label: "32MP+ Front Selfie", value: "selfie-32" },
+];
+const DISPLAY_OPTIONS = [
+  { label: "All Displays", value: "All" },
+  { label: "120Hz+ Refresh Rate", value: "120hz" },
+  { label: "AMOLED / OLED", value: "oled" },
+  { label: "Large Display (6.7\"+)", value: "large-screen" },
+];
+const PROCESSOR_OPTIONS = [
+  { label: "All Processors", value: "All" },
+  { label: "Snapdragon", value: "snapdragon" },
+  { label: "Apple Silicon (A/M)", value: "apple" },
+  { label: "MediaTek Dimensity", value: "dimensity" },
+  { label: "Google Tensor", value: "tensor" },
+];
+const CHARGING_OPTIONS = [
+  { label: "All Charging", value: "All" },
+  { label: "65W+ Fast Charging", value: "65w" },
+  { label: "100W+ HyperCharge", value: "100w" },
+  { label: "Wireless Charging", value: "wireless" },
+];
 const NETWORK_OPTIONS = ["All", "5G Only"];
+const RATING_OPTIONS = [
+  { label: "All Ratings", value: 0 },
+  { label: "4.5★ & Above", value: 4.5 },
+  { label: "4.0★ & Above", value: 4.0 },
+];
 
 export interface ProductCatalogProps {
   initialBrand?: string;
@@ -121,6 +147,7 @@ export default function ProductCatalog({
 
   const [products, setProducts] = useState<MobileProductData[]>(() => globalCatalogCache || DEFAULT_PRODUCTS);
   const [loading, setLoading] = useState(() => !globalCatalogCache);
+  const [mounted, setMounted] = useState(false);
 
   // Filter States
   const [selectedBrand, setSelectedBrand] = useState<string>(
@@ -137,22 +164,37 @@ export default function ProductCatalog({
   const [selectedStorage, setSelectedStorage] = useState<string>("All");
   const [selectedOS, setSelectedOS] = useState<string>("All");
   const [selectedBattery, setSelectedBattery] = useState<string>("All");
+  const [selectedCamera, setSelectedCamera] = useState<string>("All");
+  const [selectedDisplay, setSelectedDisplay] = useState<string>("All");
+  const [selectedProcessor, setSelectedProcessor] = useState<string>("All");
+  const [selectedCharging, setSelectedCharging] = useState<string>("All");
+  const [selectedRating, setSelectedRating] = useState<number>(0);
   const [selected5G, setSelected5G] = useState<string>("All");
   const [inStockOnly, setInStockOnly] = useState<boolean>(false);
   const [sortBy, setSortBy] = useState<string>("featured");
 
-  // Popovers & Drawer State
+  // Popover & Drawer Open States
   const [openPopover, setOpenPopover] = useState<"brand" | "price" | "ram" | "more" | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
-  const filterBarRef = useRef<HTMLDivElement>(null);
+  const [brandSearch, setBrandSearch] = useState<string>("");
 
-  // Close popover on outside click and Esc key
+  const filterBarRef = useRef<HTMLDivElement>(null);
+  const popoverContentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Handle outside click & Esc key dismissal
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (filterBarRef.current && !filterBarRef.current.contains(e.target as Node)) {
-        setOpenPopover(null);
+      const target = e.target as Node;
+      if (filterBarRef.current?.contains(target) || popoverContentRef.current?.contains(target)) {
+        return;
       }
+      setOpenPopover(null);
     };
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setOpenPopover(null);
@@ -238,8 +280,8 @@ export default function ProductCatalog({
       handleBrandSelect("All Mobiles");
       return;
     }
-    const current = selectedBrand === "All Mobiles" 
-      ? [] 
+    const current = selectedBrand === "All Mobiles"
+      ? []
       : selectedBrand.split(",").map((s) => s.trim()).filter(Boolean);
     const exists = current.some((b) => b.toLowerCase() === brand.toLowerCase());
     let nextList: string[];
@@ -285,6 +327,11 @@ export default function ProductCatalog({
     setSelectedStorage("All");
     setSelectedOS("All");
     setSelectedBattery("All");
+    setSelectedCamera("All");
+    setSelectedDisplay("All");
+    setSelectedProcessor("All");
+    setSelectedCharging("All");
+    setSelectedRating(0);
     setSelected5G("All");
     setInStockOnly(false);
     setSortBy("featured");
@@ -306,7 +353,7 @@ export default function ProductCatalog({
           if (prodCat !== selectedCategory.toUpperCase()) return false;
         }
 
-        // 2. Brand Filter (supports single and multi-select)
+        // 2. Brand Filter (multi-select supported)
         if (selectedBrand !== "All Mobiles") {
           const brandNormalized = (p.brand || "").toLowerCase();
           const targetBrands = selectedBrand.split(",").map((b) => b.trim().toLowerCase());
@@ -324,7 +371,7 @@ export default function ProductCatalog({
           return false;
         }
 
-        // 4. RAM Filter (supports single and multi-select)
+        // 4. RAM Filter (multi-select supported)
         if (selectedRam !== "All") {
           const targetRams = selectedRam.split(",").map((r) => r.trim().toLowerCase());
           const prodRam = (p.ram || "").toLowerCase();
@@ -334,18 +381,24 @@ export default function ProductCatalog({
 
         // 5. Storage Filter
         if (selectedStorage !== "All") {
+          const targetStorages = selectedStorage.split(",").map((s) => s.trim().toLowerCase());
           const storageList = Array.isArray(p.storageOptions) ? p.storageOptions : [];
-          const hasMatchingStorage = storageList.some((s) =>
-            (s?.size || "").toLowerCase().includes(selectedStorage.toLowerCase())
+          const matches = targetStorages.some((targetStorage) =>
+            storageList.some((s) => (s?.size || "").toLowerCase().includes(targetStorage))
           );
-          if (!hasMatchingStorage) return false;
+          if (!matches) return false;
         }
 
         // 6. OS Filter
         if (selectedOS !== "All") {
-          if (!(p.os || "").toLowerCase().includes(selectedOS.toLowerCase())) {
-            return false;
-          }
+          const osStr = (p.os || "").toLowerCase();
+          if (selectedOS === "iOS" && !osStr.includes("ios")) return false;
+          if (selectedOS === "Android" && !osStr.includes("android")) return false;
+          if (selectedOS === "OxygenOS" && !osStr.includes("oxygen")) return false;
+          if (selectedOS === "One UI" && !osStr.includes("one ui") && !osStr.includes("oneui")) return false;
+          if (selectedOS === "HyperOS" && !osStr.includes("hyperos") && !osStr.includes("miui")) return false;
+          if (selectedOS === "Nothing OS" && !osStr.includes("nothing")) return false;
+          if (selectedOS === "ColorOS" && !osStr.includes("coloros")) return false;
         }
 
         // 7. Battery Filter
@@ -359,7 +412,52 @@ export default function ProductCatalog({
           }
         }
 
-        // 8. 5G Filter
+        // 8. Camera Filter
+        if (selectedCamera !== "All") {
+          const camStr = (p.camera || "").toLowerCase();
+          if (selectedCamera === "50mp" && !camStr.includes("50mp")) return false;
+          if (selectedCamera === "64mp-plus") {
+            const has64OrAbove = camStr.includes("64mp") || camStr.includes("108mp") || camStr.includes("200mp");
+            if (!has64OrAbove) return false;
+          }
+          if (selectedCamera === "200mp" && !camStr.includes("200mp")) return false;
+          if (selectedCamera === "selfie-32" && !camStr.includes("32mp") && !camStr.includes("50mp front") && !camStr.includes("60mp")) return false;
+        }
+
+        // 9. Display Filter
+        if (selectedDisplay !== "All") {
+          const dispStr = (p.display || "").toLowerCase();
+          if (selectedDisplay === "120hz" && !dispStr.includes("120hz") && !dispStr.includes("144hz") && !dispStr.includes("165hz")) return false;
+          if (selectedDisplay === "oled" && !dispStr.includes("amoled") && !dispStr.includes("oled") && !dispStr.includes("retina")) return false;
+          if (selectedDisplay === "large-screen") {
+            const sizeMatch = dispStr.match(/(\d+\.?\d*)\s*-?\s*inch/);
+            if (sizeMatch && parseFloat(sizeMatch[1]) < 6.7) return false;
+          }
+        }
+
+        // 10. Processor Filter
+        if (selectedProcessor !== "All") {
+          const procStr = (p.processor || "").toLowerCase();
+          if (selectedProcessor === "snapdragon" && !procStr.includes("snapdragon")) return false;
+          if (selectedProcessor === "apple" && !procStr.includes("a1") && !procStr.includes("m4") && !procStr.includes("bionic") && !procStr.includes("apple")) return false;
+          if (selectedProcessor === "dimensity" && !procStr.includes("dimensity") && !procStr.includes("mediatek")) return false;
+          if (selectedProcessor === "tensor" && !procStr.includes("tensor")) return false;
+        }
+
+        // 11. Fast Charging Filter
+        if (selectedCharging !== "All") {
+          const batStr = (p.battery || "").toLowerCase();
+          if (selectedCharging === "65w" && !batStr.match(/(6[5-9]|[7-9]\d|\d{3})\s*w/)) return false;
+          if (selectedCharging === "100w" && !batStr.match(/(\d{3})\s*w/)) return false;
+          if (selectedCharging === "wireless" && !batStr.includes("wireless")) return false;
+        }
+
+        // 12. Rating Filter
+        if (selectedRating > 0 && (p.rating || 0) < selectedRating) {
+          return false;
+        }
+
+        // 13. 5G Filter
         if (selected5G === "5G Only") {
           const is5G =
             (p.network5G || "").includes("5G") ||
@@ -368,12 +466,12 @@ export default function ProductCatalog({
           if (!is5G) return false;
         }
 
-        // 9. In Stock Only Filter
+        // 14. In Stock Only Filter
         if (inStockOnly && !p.inStock) {
           return false;
         }
 
-        // 10. Search Query Filter
+        // 15. Search Query Filter
         if (searchQuery.trim()) {
           const terms = searchQuery.toLowerCase().trim().split(/\s+/);
           const searchableText = `${p.brand || ""} ${p.name || ""} ${p.series || ""} ${p.processor || ""} ${p.tagline || ""}`.toLowerCase();
@@ -399,6 +497,11 @@ export default function ProductCatalog({
     selectedStorage,
     selectedOS,
     selectedBattery,
+    selectedCamera,
+    selectedDisplay,
+    selectedProcessor,
+    selectedCharging,
+    selectedRating,
     selected5G,
     inStockOnly,
     searchQuery,
@@ -411,6 +514,11 @@ export default function ProductCatalog({
   const isStorageActive = selectedStorage !== "All";
   const isOSActive = selectedOS !== "All";
   const isBatteryActive = selectedBattery !== "All";
+  const isCameraActive = selectedCamera !== "All";
+  const isDisplayActive = selectedDisplay !== "All";
+  const isProcessorActive = selectedProcessor !== "All";
+  const isChargingActive = selectedCharging !== "All";
+  const isRatingActive = selectedRating > 0;
   const is5GActive = selected5G !== "All";
   const isInStockActive = inStockOnly;
   const isCategoryActive = selectedCategory !== "all";
@@ -420,6 +528,11 @@ export default function ProductCatalog({
     (isStorageActive ? 1 : 0) +
     (isOSActive ? 1 : 0) +
     (isBatteryActive ? 1 : 0) +
+    (isCameraActive ? 1 : 0) +
+    (isDisplayActive ? 1 : 0) +
+    (isProcessorActive ? 1 : 0) +
+    (isChargingActive ? 1 : 0) +
+    (isRatingActive ? 1 : 0) +
     (is5GActive ? 1 : 0) +
     (isInStockActive ? 1 : 0);
 
@@ -427,11 +540,7 @@ export default function ProductCatalog({
     (isBrandActive ? 1 : 0) +
     (isPriceActive ? 1 : 0) +
     (isRamActive ? 1 : 0) +
-    (isStorageActive ? 1 : 0) +
-    (isOSActive ? 1 : 0) +
-    (isBatteryActive ? 1 : 0) +
-    (is5GActive ? 1 : 0) +
-    (isInStockActive ? 1 : 0) +
+    moreFiltersCount +
     (isCategoryActive ? 1 : 0) +
     (isSearchActive ? 1 : 0);
 
@@ -449,8 +558,19 @@ export default function ProductCatalog({
   }, [selectedRamList]);
 
   const priceChipLabel = isPriceActive
-    ? `Under ₹${priceRange.toLocaleString("en-IN")}`
+    ? `Price: Under ₹${priceRange.toLocaleString("en-IN")}`
     : "Price: Under ₹2,00,000";
+
+  // Filtered brands for brand popover search
+  const visibleBrandsInPopover = useMemo(() => {
+    const list = FAMOUS_BRANDS.filter((b) => b !== "All Mobiles");
+    if (!brandSearch.trim()) return list;
+    return list.filter((b) => b.toLowerCase().includes(brandSearch.toLowerCase().trim()));
+  }, [brandSearch]);
+
+  const togglePopover = (name: "brand" | "price" | "ram" | "more") => {
+    setOpenPopover((prev) => (prev === name ? null : name));
+  };
 
   return (
     <div className="w-full text-foreground">
@@ -508,7 +628,7 @@ export default function ProductCatalog({
         </div>
       )}
 
-      {/* 2. Promotional Deals Banner (Controllable via Admin) */}
+      {/* 2. Promotional Deals Banner */}
       {siteSettings.showDealsBanner === "true" && (
         <div className="bg-gradient-to-r from-[#C9A66B]/20 via-[#C9A66B]/10 to-card border border-[#C9A66B]/35 rounded-[20px] p-5 sm:p-6 mb-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all duration-200 animate-fade-in">
           <div className="flex items-start sm:items-center gap-3.5">
@@ -645,6 +765,81 @@ export default function ProductCatalog({
             </span>
           )}
 
+          {isCameraActive && (
+            <span className="bg-[#C9A66B]/15 border border-[#C9A66B]/30 text-[#8C6226] dark:text-[#E5CBA2] text-xs font-medium px-2.5 py-1 rounded-full flex items-center gap-1.5 shadow-2xs animate-fade-in">
+              <span>{CAMERA_OPTIONS.find((c) => c.value === selectedCamera)?.label || selectedCamera}</span>
+              <button
+                type="button"
+                onClick={() => setSelectedCamera("All")}
+                className="cursor-pointer hover:text-red-500 p-0.5"
+                title="Remove camera filter"
+                aria-label="Remove camera filter"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          )}
+
+          {isDisplayActive && (
+            <span className="bg-[#C9A66B]/15 border border-[#C9A66B]/30 text-[#8C6226] dark:text-[#E5CBA2] text-xs font-medium px-2.5 py-1 rounded-full flex items-center gap-1.5 shadow-2xs animate-fade-in">
+              <span>{DISPLAY_OPTIONS.find((d) => d.value === selectedDisplay)?.label || selectedDisplay}</span>
+              <button
+                type="button"
+                onClick={() => setSelectedDisplay("All")}
+                className="cursor-pointer hover:text-red-500 p-0.5"
+                title="Remove display filter"
+                aria-label="Remove display filter"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          )}
+
+          {isProcessorActive && (
+            <span className="bg-[#C9A66B]/15 border border-[#C9A66B]/30 text-[#8C6226] dark:text-[#E5CBA2] text-xs font-medium px-2.5 py-1 rounded-full flex items-center gap-1.5 shadow-2xs animate-fade-in">
+              <span>{PROCESSOR_OPTIONS.find((pr) => pr.value === selectedProcessor)?.label || selectedProcessor}</span>
+              <button
+                type="button"
+                onClick={() => setSelectedProcessor("All")}
+                className="cursor-pointer hover:text-red-500 p-0.5"
+                title="Remove processor filter"
+                aria-label="Remove processor filter"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          )}
+
+          {isChargingActive && (
+            <span className="bg-[#C9A66B]/15 border border-[#C9A66B]/30 text-[#8C6226] dark:text-[#E5CBA2] text-xs font-medium px-2.5 py-1 rounded-full flex items-center gap-1.5 shadow-2xs animate-fade-in">
+              <span>{CHARGING_OPTIONS.find((ch) => ch.value === selectedCharging)?.label || selectedCharging}</span>
+              <button
+                type="button"
+                onClick={() => setSelectedCharging("All")}
+                className="cursor-pointer hover:text-red-500 p-0.5"
+                title="Remove charging filter"
+                aria-label="Remove charging filter"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          )}
+
+          {isRatingActive && (
+            <span className="bg-[#C9A66B]/15 border border-[#C9A66B]/30 text-[#8C6226] dark:text-[#E5CBA2] text-xs font-medium px-2.5 py-1 rounded-full flex items-center gap-1.5 shadow-2xs animate-fade-in">
+              <span>{selectedRating}★ & Above</span>
+              <button
+                type="button"
+                onClick={() => setSelectedRating(0)}
+                className="cursor-pointer hover:text-red-500 p-0.5"
+                title="Remove rating filter"
+                aria-label="Remove rating filter"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          )}
+
           {is5GActive && (
             <span className="bg-[#C9A66B]/15 border border-[#C9A66B]/30 text-[#8C6226] dark:text-[#E5CBA2] text-xs font-medium px-2.5 py-1 rounded-full flex items-center gap-1.5 shadow-2xs animate-fade-in">
               <span>5G Only</span>
@@ -724,16 +919,18 @@ export default function ProductCatalog({
       </div>
 
       {/* 4. Horizontal Filter Bar */}
+      {/* Important: sm:overflow-visible ensures desktop dropdown popovers are NEVER clipped */}
       <div
         ref={filterBarRef}
-        className="relative bg-card/85 dark:bg-card/60 border border-[#C9A66B]/25 dark:border-[#D4B483]/25 bg-gradient-to-r from-[#C9A66B]/8 via-[#C9A66B]/3 to-transparent rounded-2xl p-2 sm:p-2.5 mb-6 shadow-xs flex items-center justify-between gap-3 overflow-x-auto scrollbar-none"
+        className="relative z-30 bg-card/85 dark:bg-card/60 border border-[#C9A66B]/25 dark:border-[#D4B483]/25 bg-gradient-to-r from-[#C9A66B]/8 via-[#C9A66B]/3 to-transparent rounded-2xl p-2 sm:p-2.5 mb-6 shadow-xs flex items-center justify-between gap-3 overflow-x-auto sm:overflow-visible scrollbar-none"
       >
         <div className="flex items-center gap-2 flex-nowrap shrink-0">
           {/* "All Filters" Button: Pinned at left on mobile */}
-          <div className="sticky left-0 z-10 shrink-0 bg-card sm:bg-transparent pr-1">
+          <div className="sticky left-0 z-10 shrink-0 bg-card/90 sm:bg-transparent pr-1">
             <button
               type="button"
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 setOpenPopover(null);
                 setIsDrawerOpen(true);
               }}
@@ -754,7 +951,10 @@ export default function ProductCatalog({
           <div className="relative shrink-0">
             <button
               type="button"
-              onClick={() => setOpenPopover(openPopover === "brand" ? null : "brand")}
+              onClick={(e) => {
+                e.stopPropagation();
+                togglePopover("brand");
+              }}
               aria-expanded={openPopover === "brand"}
               aria-haspopup="true"
               className={`px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 border transition-all duration-150 cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A66B] ${
@@ -774,22 +974,47 @@ export default function ProductCatalog({
 
             {/* Brand Popover (Desktop Dropdown) */}
             {openPopover === "brand" && (
-              <div className="hidden sm:block absolute top-full left-0 mt-2 z-40 w-72 p-3 bg-card border border-border rounded-2xl shadow-xl animate-in fade-in zoom-in-95 duration-150">
+              <div 
+                ref={popoverContentRef}
+                className="hidden sm:block absolute top-full left-0 mt-2 z-50 w-80 p-3.5 bg-card border border-border rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-150"
+              >
                 <div className="flex items-center justify-between pb-2 mb-2 border-b border-border">
-                  <span className="text-xs font-bold text-foreground">Select Brand</span>
+                  <span className="text-xs font-bold text-foreground">Filter by Brand</span>
                   {isBrandActive && (
                     <button
                       type="button"
                       onClick={() => handleBrandSelect("All Mobiles")}
-                      className="text-[11px] text-[#8C6226] dark:text-[#E5CBA2] hover:underline cursor-pointer"
+                      className="text-[11px] text-[#8C6226] dark:text-[#E5CBA2] hover:underline cursor-pointer font-semibold"
                     >
-                      Clear
+                      Clear Selection
                     </button>
                   )}
                 </div>
 
+                {/* Brand Search Input */}
+                <div className="relative mb-2.5">
+                  <Search className="w-3.5 h-3.5 text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={brandSearch}
+                    onChange={(e) => setBrandSearch(e.target.value)}
+                    placeholder="Search brand (Apple, Samsung...)"
+                    className="w-full pl-8 pr-3 py-1.5 text-xs bg-tile text-foreground placeholder:text-muted rounded-xl border border-border focus:border-[#C9A66B] focus:outline-none transition-colors"
+                  />
+                  {brandSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setBrandSearch("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-foreground p-0.5"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Brands Grid */}
                 <div className="grid grid-cols-2 gap-1.5 max-h-56 overflow-y-auto scrollbar-thin pr-1">
-                  {QUICK_BRANDS.map((b) => {
+                  {visibleBrandsInPopover.map((b) => {
                     const isSelected = selectedBrandList.some((item) => item.toLowerCase() === b.toLowerCase());
                     return (
                       <button
@@ -816,9 +1041,14 @@ export default function ProductCatalog({
                       </button>
                     );
                   })}
+                  {visibleBrandsInPopover.length === 0 && (
+                    <div className="col-span-2 py-4 text-center text-xs text-muted">
+                      No brands match &quot;{brandSearch}&quot;
+                    </div>
+                  )}
                 </div>
 
-                <div className="pt-2 mt-2 border-t border-border flex items-center justify-between">
+                <div className="pt-2.5 mt-2.5 border-t border-border flex items-center justify-between">
                   <button
                     type="button"
                     onClick={() => {
@@ -827,7 +1057,7 @@ export default function ProductCatalog({
                     }}
                     className="text-xs font-semibold text-[#8C6226] dark:text-[#E5CBA2] hover:text-[#B8914A] hover:underline flex items-center gap-1 cursor-pointer"
                   >
-                    <span>View All ({FAMOUS_BRANDS.length - 1} brands)</span>
+                    <span>View All in Drawer ({FAMOUS_BRANDS.length - 1} brands)</span>
                     <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -839,7 +1069,10 @@ export default function ProductCatalog({
           <div className="relative shrink-0">
             <button
               type="button"
-              onClick={() => setOpenPopover(openPopover === "price" ? null : "price")}
+              onClick={(e) => {
+                e.stopPropagation();
+                togglePopover("price");
+              }}
               aria-expanded={openPopover === "price"}
               aria-haspopup="true"
               className={`px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 border transition-all duration-150 cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A66B] ${
@@ -859,7 +1092,10 @@ export default function ProductCatalog({
 
             {/* Price Popover (Desktop Dropdown) */}
             {openPopover === "price" && (
-              <div className="hidden sm:block absolute top-full left-0 mt-2 z-40 w-72 p-4 bg-card border border-border rounded-2xl shadow-xl animate-in fade-in zoom-in-95 duration-150">
+              <div 
+                ref={popoverContentRef}
+                className="hidden sm:block absolute top-full left-0 mt-2 z-50 w-72 p-4 bg-card border border-border rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-150"
+              >
                 <div className="flex items-center justify-between text-xs font-bold mb-3">
                   <span className="text-foreground">Max Price Limit</span>
                   <span className="text-[#8C6226] dark:text-[#E5CBA2] font-semibold">
@@ -920,7 +1156,10 @@ export default function ProductCatalog({
           <div className="relative shrink-0">
             <button
               type="button"
-              onClick={() => setOpenPopover(openPopover === "ram" ? null : "ram")}
+              onClick={(e) => {
+                e.stopPropagation();
+                togglePopover("ram");
+              }}
               aria-expanded={openPopover === "ram"}
               aria-haspopup="true"
               className={`px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 border transition-all duration-150 cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A66B] ${
@@ -940,7 +1179,10 @@ export default function ProductCatalog({
 
             {/* RAM Popover (Desktop Dropdown) */}
             {openPopover === "ram" && (
-              <div className="hidden sm:block absolute top-full left-0 mt-2 z-40 w-64 p-3.5 bg-card border border-border rounded-2xl shadow-xl animate-in fade-in zoom-in-95 duration-150">
+              <div 
+                ref={popoverContentRef}
+                className="hidden sm:block absolute top-full left-0 mt-2 z-50 w-64 p-3.5 bg-card border border-border rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-150"
+              >
                 <div className="flex items-center justify-between pb-2 mb-2 border-b border-border">
                   <span className="text-xs font-bold text-foreground">Select RAM Size</span>
                   {isRamActive && (
@@ -980,7 +1222,10 @@ export default function ProductCatalog({
           <div className="relative shrink-0">
             <button
               type="button"
-              onClick={() => setOpenPopover(openPopover === "more" ? null : "more")}
+              onClick={(e) => {
+                e.stopPropagation();
+                togglePopover("more");
+              }}
               aria-expanded={openPopover === "more"}
               aria-haspopup="true"
               className={`px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 border transition-all duration-150 cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A66B] ${
@@ -990,7 +1235,7 @@ export default function ProductCatalog({
               }`}
             >
               {moreFiltersCount > 0 && <Check className="w-3 h-3 text-[#C9A66B] dark:text-[#D4B483]" />}
-              <span>{moreFiltersCount > 0 ? `More Filters (${moreFiltersCount})` : "More Filters"}</span>
+              <span>{moreFiltersCount > 0 ? `More (${moreFiltersCount})` : "More Filters"}</span>
               <ChevronDown
                 className={`w-3.5 h-3.5 text-muted transition-transform duration-150 ${
                   openPopover === "more" ? "rotate-180" : ""
@@ -1000,10 +1245,18 @@ export default function ProductCatalog({
 
             {/* More Filters Popover (Desktop Dropdown) */}
             {openPopover === "more" && (
-              <div className="hidden sm:block absolute top-full left-auto right-0 sm:left-0 sm:right-auto mt-2 z-40 w-80 p-4 bg-card border border-border rounded-2xl shadow-xl animate-in fade-in zoom-in-95 duration-150 max-h-[420px] overflow-y-auto scrollbar-thin">
+              <div 
+                ref={popoverContentRef}
+                className="hidden sm:block absolute top-full left-auto right-0 sm:left-0 sm:right-auto mt-2 z-50 w-84 p-4 bg-card border border-border rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-150 max-h-[460px] overflow-y-auto scrollbar-thin space-y-4"
+              >
                 {/* Storage */}
                 <div className="space-y-1.5">
-                  <span className="text-xs font-bold text-foreground block">Internal Storage</span>
+                  <div className="flex items-center justify-between text-xs font-bold text-foreground">
+                    <span>Internal Storage</span>
+                    {isStorageActive && (
+                      <button onClick={() => setSelectedStorage("All")} className="text-[10px] text-muted hover:text-red-500 font-normal">Reset</button>
+                    )}
+                  </div>
                   <div className="flex flex-wrap gap-1.5">
                     {STORAGE_OPTIONS.map((s) => (
                       <button
@@ -1022,30 +1275,14 @@ export default function ProductCatalog({
                   </div>
                 </div>
 
-                {/* Operating System */}
-                <div className="space-y-1.5 pt-3 border-t border-border mt-3">
-                  <span className="text-xs font-bold text-foreground block">Operating System</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {OS_OPTIONS.map((os) => (
-                      <button
-                        key={os}
-                        type="button"
-                        onClick={() => setSelectedOS(os)}
-                        className={`px-2.5 py-1 text-xs rounded-lg font-medium transition-all cursor-pointer ${
-                          selectedOS === os
-                            ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] font-semibold shadow-2xs"
-                            : "bg-tile hover:bg-tile/80 text-foreground"
-                        }`}
-                      >
-                        {os}
-                      </button>
-                    ))}
+                {/* Battery Capacity */}
+                <div className="space-y-1.5 pt-3 border-t border-border">
+                  <div className="flex items-center justify-between text-xs font-bold text-foreground">
+                    <span className="flex items-center gap-1.5"><Battery className="w-3.5 h-3.5 text-[#C9A66B]" /> Battery Capacity</span>
+                    {isBatteryActive && (
+                      <button onClick={() => setSelectedBattery("All")} className="text-[10px] text-muted hover:text-red-500 font-normal">Reset</button>
+                    )}
                   </div>
-                </div>
-
-                {/* Battery */}
-                <div className="space-y-1 pt-3 border-t border-border mt-3">
-                  <span className="text-xs font-bold text-foreground block mb-1">Battery Capacity</span>
                   <div className="space-y-1">
                     {BATTERY_OPTIONS.map((b) => (
                       <button
@@ -1065,9 +1302,162 @@ export default function ProductCatalog({
                   </div>
                 </div>
 
-                {/* 5G Support & Stock Checkbox */}
-                <div className="space-y-2 pt-3 border-t border-border mt-3">
+                {/* Camera System */}
+                <div className="space-y-1.5 pt-3 border-t border-border">
+                  <div className="flex items-center justify-between text-xs font-bold text-foreground">
+                    <span className="flex items-center gap-1.5"><Camera className="w-3.5 h-3.5 text-[#C9A66B]" /> Camera Specs</span>
+                    {isCameraActive && (
+                      <button onClick={() => setSelectedCamera("All")} className="text-[10px] text-muted hover:text-red-500 font-normal">Reset</button>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    {CAMERA_OPTIONS.map((c) => (
+                      <button
+                        key={c.value}
+                        type="button"
+                        onClick={() => setSelectedCamera(c.value)}
+                        className={`w-full text-left px-2.5 py-1 rounded-lg text-xs flex items-center justify-between transition-all cursor-pointer ${
+                          selectedCamera === c.value
+                            ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] font-semibold"
+                            : "bg-tile hover:bg-tile/80 text-foreground"
+                        }`}
+                      >
+                        <span>{c.label}</span>
+                        {selectedCamera === c.value && <Check className="w-3.5 h-3.5 text-[#FFFCFA]" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Display Specs */}
+                <div className="space-y-1.5 pt-3 border-t border-border">
+                  <div className="flex items-center justify-between text-xs font-bold text-foreground">
+                    <span className="flex items-center gap-1.5"><Monitor className="w-3.5 h-3.5 text-[#C9A66B]" /> Display & Screen</span>
+                    {isDisplayActive && (
+                      <button onClick={() => setSelectedDisplay("All")} className="text-[10px] text-muted hover:text-red-500 font-normal">Reset</button>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    {DISPLAY_OPTIONS.map((d) => (
+                      <button
+                        key={d.value}
+                        type="button"
+                        onClick={() => setSelectedDisplay(d.value)}
+                        className={`w-full text-left px-2.5 py-1 rounded-lg text-xs flex items-center justify-between transition-all cursor-pointer ${
+                          selectedDisplay === d.value
+                            ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] font-semibold"
+                            : "bg-tile hover:bg-tile/80 text-foreground"
+                        }`}
+                      >
+                        <span>{d.label}</span>
+                        {selectedDisplay === d.value && <Check className="w-3.5 h-3.5 text-[#FFFCFA]" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Processor */}
+                <div className="space-y-1.5 pt-3 border-t border-border">
+                  <div className="flex items-center justify-between text-xs font-bold text-foreground">
+                    <span className="flex items-center gap-1.5"><Cpu className="w-3.5 h-3.5 text-[#C9A66B]" /> Processor Architecture</span>
+                    {isProcessorActive && (
+                      <button onClick={() => setSelectedProcessor("All")} className="text-[10px] text-muted hover:text-red-500 font-normal">Reset</button>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {PROCESSOR_OPTIONS.map((pr) => (
+                      <button
+                        key={pr.value}
+                        type="button"
+                        onClick={() => setSelectedProcessor(pr.value)}
+                        className={`px-2.5 py-1 text-xs rounded-lg font-medium transition-all cursor-pointer ${
+                          selectedProcessor === pr.value
+                            ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] font-semibold shadow-2xs"
+                            : "bg-tile hover:bg-tile/80 text-foreground"
+                        }`}
+                      >
+                        {pr.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Operating System */}
+                <div className="space-y-1.5 pt-3 border-t border-border">
+                  <div className="flex items-center justify-between text-xs font-bold text-foreground">
+                    <span>Operating System</span>
+                    {isOSActive && (
+                      <button onClick={() => setSelectedOS("All")} className="text-[10px] text-muted hover:text-red-500 font-normal">Reset</button>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {OS_OPTIONS.map((os) => (
+                      <button
+                        key={os}
+                        type="button"
+                        onClick={() => setSelectedOS(os)}
+                        className={`px-2.5 py-1 text-xs rounded-lg font-medium transition-all cursor-pointer ${
+                          selectedOS === os
+                            ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] font-semibold shadow-2xs"
+                            : "bg-tile hover:bg-tile/80 text-foreground"
+                        }`}
+                      >
+                        {os}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Fast Charging */}
+                <div className="space-y-1.5 pt-3 border-t border-border">
+                  <div className="flex items-center justify-between text-xs font-bold text-foreground">
+                    <span className="flex items-center gap-1.5"><Zap className="w-3.5 h-3.5 text-[#C9A66B]" /> Charging Technology</span>
+                    {isChargingActive && (
+                      <button onClick={() => setSelectedCharging("All")} className="text-[10px] text-muted hover:text-red-500 font-normal">Reset</button>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    {CHARGING_OPTIONS.map((ch) => (
+                      <button
+                        key={ch.value}
+                        type="button"
+                        onClick={() => setSelectedCharging(ch.value)}
+                        className={`w-full text-left px-2.5 py-1 rounded-lg text-xs flex items-center justify-between transition-all cursor-pointer ${
+                          selectedCharging === ch.value
+                            ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] font-semibold"
+                            : "bg-tile hover:bg-tile/80 text-foreground"
+                        }`}
+                      >
+                        <span>{ch.label}</span>
+                        {selectedCharging === ch.value && <Check className="w-3.5 h-3.5 text-[#FFFCFA]" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Ratings & 5G Network */}
+                <div className="space-y-2 pt-3 border-t border-border">
                   <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-foreground flex items-center gap-1.5"><Star className="w-3.5 h-3.5 text-amber-500" /> Customer Rating</span>
+                    <div className="flex gap-1.5">
+                      {RATING_OPTIONS.map((rt) => (
+                        <button
+                          key={rt.value}
+                          type="button"
+                          onClick={() => setSelectedRating(rt.value)}
+                          className={`px-2 py-0.5 text-xs rounded-lg font-medium transition-all cursor-pointer ${
+                            selectedRating === rt.value
+                              ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] font-semibold"
+                              : "bg-tile text-muted hover:text-foreground"
+                          }`}
+                        >
+                          {rt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
                     <span className="text-xs font-bold text-foreground">5G Cellular Network</span>
                     <button
                       type="button"
@@ -1078,7 +1468,7 @@ export default function ProductCatalog({
                           : "bg-tile text-muted hover:text-foreground"
                       }`}
                     >
-                      {selected5G === "5G Only" ? "5G Only" : "All"}
+                      {selected5G === "5G Only" ? "5G Only Active" : "All Networks"}
                     </button>
                   </div>
 
@@ -1089,20 +1479,20 @@ export default function ProductCatalog({
                       onChange={(e) => setInStockOnly(e.target.checked)}
                       className="rounded border-border text-[#C9A66B] focus:ring-[#C9A66B]"
                     />
-                    <span>In Stock Devices Only</span>
+                    <span className="font-medium text-foreground">In Stock Devices Only</span>
                   </label>
                 </div>
 
-                <div className="pt-3 border-t border-border mt-3">
+                <div className="pt-3 border-t border-border">
                   <button
                     type="button"
                     onClick={() => {
                       setOpenPopover(null);
                       setIsDrawerOpen(true);
                     }}
-                    className="w-full py-1.5 text-center text-xs text-[#8C6226] dark:text-[#E5CBA2] font-semibold hover:underline cursor-pointer flex items-center justify-center gap-1"
+                    className="w-full py-2 text-center text-xs text-[#8C6226] dark:text-[#E5CBA2] font-semibold hover:underline cursor-pointer flex items-center justify-center gap-1 bg-tile rounded-xl"
                   >
-                    <span>Open All Filters Drawer</span>
+                    <span>Open Comprehensive Drawer</span>
                     <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -1126,15 +1516,18 @@ export default function ProductCatalog({
         )}
       </div>
 
-      {/* Mobile Popover Bottom Sheet (when open on screens < sm) */}
-      {openPopover && (
-        <div className="sm:hidden fixed inset-0 z-50 flex items-end">
+      {/* 5. Mobile Popover Bottom Sheet (rendered via React Portal to document.body) */}
+      {mounted && openPopover && typeof document !== "undefined" && createPortal(
+        <div className="sm:hidden fixed inset-0 z-[999] flex items-end">
           <div
             className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-150"
             onClick={() => setOpenPopover(null)}
             aria-hidden="true"
           />
-          <div className="relative w-full max-h-[82vh] bg-card border-t border-border rounded-t-3xl p-5 shadow-2xl z-10 animate-in slide-in-from-bottom duration-150 flex flex-col">
+          <div 
+            ref={popoverContentRef}
+            className="relative w-full max-h-[85vh] bg-card border-t border-border rounded-t-3xl p-5 shadow-2xl z-10 animate-in slide-in-from-bottom duration-150 flex flex-col"
+          >
             <div className="flex items-center justify-between pb-3 border-b border-border mb-3">
               <h3 className="font-bold text-sm text-foreground">
                 {openPopover === "brand" && "Filter by Brand"}
@@ -1146,6 +1539,7 @@ export default function ProductCatalog({
                 type="button"
                 onClick={() => setOpenPopover(null)}
                 className="p-1 rounded-full text-muted hover:text-foreground cursor-pointer"
+                aria-label="Close sheet"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1153,35 +1547,47 @@ export default function ProductCatalog({
 
             <div className="overflow-y-auto flex-1 space-y-4 pr-1">
               {openPopover === "brand" && (
-                <div className="grid grid-cols-2 gap-2">
-                  {QUICK_BRANDS.map((b) => {
-                    const isSelected = selectedBrandList.some((item) => item.toLowerCase() === b.toLowerCase());
-                    return (
-                      <button
-                        key={b}
-                        type="button"
-                        onClick={() => handleBrandToggle(b)}
-                        className={`px-3 py-2 rounded-xl text-xs font-medium flex items-center gap-2 border transition-all text-left cursor-pointer ${
-                          isSelected
-                            ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] border-[#C9A66B] font-semibold shadow-2xs"
-                            : "bg-tile border-border text-foreground"
-                        }`}
-                      >
-                        <span className="w-5 h-5 rounded-full bg-black/10 dark:bg-white/10 flex items-center justify-center text-[10px] font-bold">
-                          {BRAND_BADGES[b] || b.charAt(0)}
-                        </span>
-                        <span className="truncate flex-1">{b}</span>
-                        {isSelected && <Check className="w-3.5 h-3.5 text-[#FFFCFA]" />}
-                      </button>
-                    );
-                  })}
+                <div className="space-y-3">
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={brandSearch}
+                      onChange={(e) => setBrandSearch(e.target.value)}
+                      placeholder="Search brand (Apple, Samsung...)"
+                      className="w-full pl-8 pr-3 py-2 text-xs bg-tile text-foreground placeholder:text-muted rounded-xl border border-border focus:border-[#C9A66B] focus:outline-none"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {visibleBrandsInPopover.map((b) => {
+                      const isSelected = selectedBrandList.some((item) => item.toLowerCase() === b.toLowerCase());
+                      return (
+                        <button
+                          key={b}
+                          type="button"
+                          onClick={() => handleBrandToggle(b)}
+                          className={`px-3 py-2 rounded-xl text-xs font-medium flex items-center gap-2 border transition-all text-left cursor-pointer ${
+                            isSelected
+                              ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] border-[#C9A66B] font-semibold shadow-2xs"
+                              : "bg-tile border-border text-foreground"
+                          }`}
+                        >
+                          <span className="w-5 h-5 rounded-full bg-black/10 dark:bg-white/10 flex items-center justify-center text-[10px] font-bold">
+                            {BRAND_BADGES[b] || b.charAt(0)}
+                          </span>
+                          <span className="truncate flex-1">{b}</span>
+                          {isSelected && <Check className="w-3.5 h-3.5 text-[#FFFCFA]" />}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 
               {openPopover === "price" && (
                 <div className="space-y-4 p-1">
                   <div className="flex items-center justify-between text-xs font-bold">
-                    <span className="text-foreground">Max Price</span>
+                    <span className="text-foreground">Max Price Limit</span>
                     <span className="text-[#8C6226] dark:text-[#E5CBA2] text-sm">
                       ₹{priceRange.toLocaleString("en-IN")}
                     </span>
@@ -1307,7 +1713,7 @@ export default function ProductCatalog({
                           }`}
                         >
                           <span>{b.label}</span>
-                          {selectedBattery === b.value && <Check className="w-3.5 h-3.5" />}
+                          {selectedBattery === b.value && <Check className="w-3.5 h-3.5 text-[#FFFCFA]" />}
                         </button>
                       ))}
                     </div>
@@ -1326,12 +1732,13 @@ export default function ProductCatalog({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* 5. Slide-in All Filters Drawer (Right on desktop, bottom sheet on mobile) */}
-      {isDrawerOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-stretch sm:justify-end">
+      {/* 6. Slide-in All Filters Drawer (rendered via React Portal to document.body) */}
+      {mounted && isDrawerOpen && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-[1000] flex items-end sm:items-stretch sm:justify-end">
           {/* Backdrop */}
           <div
             className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-200"
@@ -1340,7 +1747,7 @@ export default function ProductCatalog({
           />
 
           {/* Drawer Panel */}
-          <div className="relative w-full sm:w-[440px] max-h-[88vh] sm:max-h-full bg-card border-t sm:border-t-0 sm:border-l border-border rounded-t-3xl sm:rounded-none shadow-2xl flex flex-col z-10 animate-in slide-in-from-bottom sm:slide-in-from-right duration-200">
+          <div className="relative w-full sm:w-[460px] max-h-[88vh] sm:max-h-full bg-card border-t sm:border-t-0 sm:border-l border-border rounded-t-3xl sm:rounded-none shadow-2xl flex flex-col z-10 animate-in slide-in-from-bottom sm:slide-in-from-right duration-200">
             {/* Drawer Header */}
             <div className="p-4 sm:p-5 border-b border-border flex items-center justify-between bg-card shrink-0">
               <div className="flex items-center gap-2.5">
@@ -1386,7 +1793,7 @@ export default function ProductCatalog({
                 </div>
                 <div className="space-y-1 max-h-52 overflow-y-auto pr-1 scrollbar-thin">
                   {FAMOUS_BRANDS.map((brand) => {
-                    const isSelected = brand === "All Mobiles" 
+                    const isSelected = brand === "All Mobiles"
                       ? selectedBrand === "All Mobiles"
                       : selectedBrandList.some((b) => b.toLowerCase() === brand.toLowerCase());
 
@@ -1487,6 +1894,71 @@ export default function ProductCatalog({
                 </div>
               </div>
 
+              {/* Camera Filter */}
+              <div className="space-y-2 pt-4 border-t border-border">
+                <span className="text-xs font-bold text-foreground block">Camera Resolution</span>
+                <div className="space-y-1">
+                  {CAMERA_OPTIONS.map((c) => (
+                    <button
+                      key={c.value}
+                      type="button"
+                      onClick={() => setSelectedCamera(c.value)}
+                      className={`w-full text-left px-3 py-1.5 rounded-full text-xs transition-all duration-200 flex items-center justify-between cursor-pointer ${
+                        selectedCamera === c.value
+                          ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] font-semibold shadow-xs"
+                          : "text-muted hover:text-foreground hover:bg-[#C9A66B]/10"
+                      }`}
+                    >
+                      <span>{c.label}</span>
+                      {selectedCamera === c.value && <Check className="w-3.5 h-3.5 text-[#FFFCFA]" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Display Filter */}
+              <div className="space-y-2 pt-4 border-t border-border">
+                <span className="text-xs font-bold text-foreground block">Display & Screen</span>
+                <div className="space-y-1">
+                  {DISPLAY_OPTIONS.map((d) => (
+                    <button
+                      key={d.value}
+                      type="button"
+                      onClick={() => setSelectedDisplay(d.value)}
+                      className={`w-full text-left px-3 py-1.5 rounded-full text-xs transition-all duration-200 flex items-center justify-between cursor-pointer ${
+                        selectedDisplay === d.value
+                          ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] font-semibold shadow-xs"
+                          : "text-muted hover:text-foreground hover:bg-[#C9A66B]/10"
+                      }`}
+                    >
+                      <span>{d.label}</span>
+                      {selectedDisplay === d.value && <Check className="w-3.5 h-3.5 text-[#FFFCFA]" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Processor Filter */}
+              <div className="space-y-2 pt-4 border-t border-border">
+                <span className="text-xs font-bold text-foreground block">Processor Architecture</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {PROCESSOR_OPTIONS.map((pr) => (
+                    <button
+                      key={pr.value}
+                      type="button"
+                      onClick={() => setSelectedProcessor(pr.value)}
+                      className={`px-3 py-1.5 text-xs rounded-full font-medium transition-all duration-200 cursor-pointer ${
+                        selectedProcessor === pr.value
+                          ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] font-semibold shadow-xs"
+                          : "bg-[#C9A66B]/10 text-[#8C6226] dark:text-[#E2C799] hover:bg-[#C9A66B]/20 border border-[#C9A66B]/30"
+                      }`}
+                    >
+                      {pr.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* OS Filter */}
               <div className="space-y-2 pt-4 border-t border-border">
                 <span className="text-xs font-bold text-foreground block">Operating System</span>
@@ -1532,6 +2004,28 @@ export default function ProductCatalog({
                 </div>
               </div>
 
+              {/* Fast Charging */}
+              <div className="space-y-2 pt-4 border-t border-border">
+                <span className="text-xs font-bold text-foreground block">Charging Technology</span>
+                <div className="space-y-1">
+                  {CHARGING_OPTIONS.map((ch) => (
+                    <button
+                      key={ch.value}
+                      type="button"
+                      onClick={() => setSelectedCharging(ch.value)}
+                      className={`w-full text-left px-3 py-1.5 rounded-full text-xs transition-all duration-200 flex items-center justify-between cursor-pointer ${
+                        selectedCharging === ch.value
+                          ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] font-semibold shadow-xs"
+                          : "text-muted hover:text-foreground hover:bg-[#C9A66B]/10"
+                      }`}
+                    >
+                      <span>{ch.label}</span>
+                      {selectedCharging === ch.value && <Check className="w-3.5 h-3.5 text-[#FFFCFA]" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* 5G Support Filter */}
               <div className="space-y-2 pt-4 border-t border-border">
                 <span className="text-xs font-bold text-foreground block">Cellular Network</span>
@@ -1548,6 +2042,27 @@ export default function ProductCatalog({
                       }`}
                     >
                       {opt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Ratings */}
+              <div className="space-y-2 pt-4 border-t border-border">
+                <span className="text-xs font-bold text-foreground block">Customer Rating</span>
+                <div className="flex gap-2">
+                  {RATING_OPTIONS.map((rt) => (
+                    <button
+                      key={rt.value}
+                      type="button"
+                      onClick={() => setSelectedRating(rt.value)}
+                      className={`flex-1 py-1.5 text-xs rounded-full font-medium transition-all duration-200 cursor-pointer text-center ${
+                        selectedRating === rt.value
+                          ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] font-semibold shadow-xs"
+                          : "bg-[#C9A66B]/10 text-[#8C6226] dark:text-[#E2C799] hover:bg-[#C9A66B]/20 border border-[#C9A66B]/30"
+                      }`}
+                    >
+                      {rt.label}
                     </button>
                   ))}
                 </div>
@@ -1585,10 +2100,11 @@ export default function ProductCatalog({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* 6. Product Grid: Full width beside vertical sidebar */}
+      {/* 7. Product Grid: Full width beside vertical sidebar */}
       <div className="space-y-4">
         {loading ? (
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
