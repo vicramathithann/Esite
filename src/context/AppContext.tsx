@@ -51,6 +51,9 @@ interface AppContextType {
   addToCompare: (product: MobileProductData) => boolean;
   removeFromCompare: (productId: string) => void;
   clearCompare: () => void;
+
+  isUserSidebarOpen: boolean;
+  setIsUserSidebarOpen: (open: boolean) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -60,6 +63,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isUserSidebarOpen, setIsUserSidebarOpen] = useState(false);
   const [compareList, setCompareList] = useState<MobileProductData[]>([]);
   const [siteSettings, setSiteSettings] = useState<Record<string, string>>(DEFAULT_SITE_SETTINGS);
 
@@ -310,6 +314,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     addToCompare,
     removeFromCompare,
     clearCompare,
+    isUserSidebarOpen,
+    setIsUserSidebarOpen,
   }), [
     currentUser,
     login,
@@ -325,6 +331,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     cartTotal,
     cartCount,
     isCartOpen,
+    isUserSidebarOpen,
     wishlist,
     toggleWishlist,
     isInWishlist,

@@ -171,14 +171,14 @@ export default function OrdersPage() {
         {/* Title & Actions row */}
         <div className="flex flex-wrap items-center justify-between gap-4 pb-2">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-[#E5E7EB]">Your Orders</h1>
-            <p className="text-xs text-[#94A3B8] mt-0.5">Track shipment delivery status and 1-Year Device Shield warranty protection.</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Your Orders</h1>
+            <p className="text-xs text-muted mt-0.5">Track shipment delivery status and 1-Year Device Shield warranty protection.</p>
           </div>
 
           <div className="flex items-center gap-2.5">
             <button
               onClick={loadOrders}
-              className="py-2 px-3.5 bg-[#121B2E] border border-[#1F2A44] rounded-xl hover:bg-[#1F2A44] text-[#C9A56A] text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all shadow-xs"
+              className="py-2 px-3.5 bg-card border border-border rounded-xl hover:bg-tile text-[#8C6226] dark:text-[#E5CBA2] text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all shadow-xs"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
               <span>Refresh</span>

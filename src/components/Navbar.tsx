@@ -6,13 +6,8 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { 
   Search, 
-  ShoppingBag, 
-  Layers, 
   ShieldCheck, 
-  ChevronDown,
-  Heart,
-  Menu,
-  Package
+  Menu
 } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 
@@ -80,19 +75,9 @@ export default function Navbar() {
 
   const router = useRouter();
   const { 
-    currentUser,
-    logout,
-    cartCount, 
-    setIsCartOpen, 
-    compareList,
-    wishlistCount,
     siteSettings,
+    setIsUserSidebarOpen,
   } = useApp();
-
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -147,127 +132,20 @@ export default function Navbar() {
         </form>
 
         {/* Right Navigation Section */}
-        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-          {/* User Account / Sign In */}
-          <div className="relative group">
-            {mounted && currentUser ? (
-              <div className="relative">
-                <Link
-                  href="/account"
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-foreground hover:text-accent hover:bg-tile rounded-full transition-all duration-200 font-medium"
-                >
-                  <div className="w-5 h-5 rounded-full bg-foreground text-background flex items-center justify-center text-[10px] font-semibold">
-                    {currentUser.name ? currentUser.name[0].toUpperCase() : "U"}
-                  </div>
-                  <span className="hidden md:inline max-w-[80px] truncate">
-                    {currentUser.name.split(" ")[0]}
-                  </span>
-                  <ChevronDown className="w-3 h-3 text-muted" />
-                </Link>
-
-                {/* Dropdown Menu */}
-                <div className="hidden group-hover:block absolute right-0 top-full mt-1 w-56 bg-card text-foreground shadow-2xl border border-border rounded-2xl py-2 z-50 text-xs">
-                  <div className="px-4 py-2 border-b border-border text-muted">
-                    Signed in as <span className="text-foreground block truncate font-medium">{currentUser.email}</span>
-                  </div>
-                  <Link href="/account" className="block px-4 py-2 hover:bg-tile text-foreground hover:text-accent transition-colors">
-                    Account & Profile
-                  </Link>
-                  <Link href="/account/warranties" prefetch={true} className="block px-4 py-2 hover:bg-tile text-foreground hover:text-accent transition-colors">
-                    Device Warranties
-                  </Link>
-                  <Link href="/account/wishlist" className="block px-4 py-2 hover:bg-tile text-foreground hover:text-accent transition-colors">
-                    Wishlist {wishlistCount > 0 && `(${wishlistCount})`}
-                  </Link>
-                  <Link href="/orders" className="block px-4 py-2 hover:bg-tile text-foreground hover:text-accent transition-colors">
-                    Orders & Tracking
-                  </Link>
-                  {currentUser.role === "ADMIN" && (currentUser.email || "").toLowerCase() === "rrroyce20@gmail.com" && (
-                    <Link
-                      href="/admin"
-                      className="block px-4 py-2 text-[#8C6226] dark:text-[#E5CBA2] bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 font-semibold flex items-center gap-1.5 border-t border-border"
-                    >
-                      <ShieldCheck className="w-3.5 h-3.5 text-[#C9A66B]" /> Admin Portal
-                    </Link>
-                  )}
-                  <button
-                    onClick={logout}
-                    className="w-full text-left px-4 py-2 hover:bg-[#C9A66B]/15 text-[#8C6226] dark:text-[#D4B483] font-medium border-t border-border mt-1 cursor-pointer transition-colors"
-                  >
-                    Sign Out
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <Link
-                href="/login"
-                className="px-3 py-1.5 text-xs font-semibold text-[#8C6226] dark:text-[#E2C799] bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 border border-[#C9A66B]/30 rounded-full transition-all duration-200"
-              >
-                Sign In
-              </Link>
-            )}
-          </div>
-
-          {/* Compare Link (Controllable by Admin) */}
-          {siteSettings.showCompare === "true" && (
-            <Link
-              href="/compare"
-              className="relative p-2 text-muted hover:text-[#8C6226] dark:hover:text-[#D4B483] hover:bg-[#C9A66B]/15 rounded-full transition-all duration-200"
-              title="Compare Mobiles"
-            >
-              <Layers className="w-4 h-4" />
-              {mounted && compareList.length > 0 && (
-                <span className="absolute top-0.5 right-0.5 bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center ring-2 ring-card shadow-2xs">
-                  {compareList.length}
-                </span>
-              )}
-            </Link>
-          )}
-
-          {/* Wishlist Link (Controllable by Admin) */}
-          {siteSettings.showWishlist === "true" && (
-            <Link
-              href="/account/wishlist"
-              className="relative p-2 text-muted hover:text-[#8C6226] dark:hover:text-[#D4B483] hover:bg-[#C9A66B]/15 rounded-full transition-all duration-200"
-              title="Wishlist"
-            >
-              <Heart className="w-4 h-4" />
-              {mounted && wishlistCount > 0 && (
-                <span className="absolute top-0.5 right-0.5 bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center ring-2 ring-card shadow-2xs">
-                  {wishlistCount}
-                </span>
-              )}
-            </Link>
-          )}
-
-          {/* Orders Link (Quick Access) */}
-          <Link
-            href="/orders"
-            className="relative p-2 text-foreground hover:text-[#8C6226] dark:hover:text-[#D4B483] hover:bg-[#C9A66B]/15 rounded-full transition-all duration-200 cursor-pointer flex items-center gap-1.5"
-            title="My Orders & Tracking"
-          >
-            <Package className="w-4 h-4" />
-            <span className="hidden xl:inline text-xs font-semibold">Orders</span>
-          </Link>
-
-          {/* Slide-in Mini Cart Trigger */}
-          <button
-            onClick={() => setIsCartOpen(true)}
-            className="relative p-2 text-foreground hover:text-[#8C6226] dark:hover:text-[#D4B483] hover:bg-[#C9A66B]/15 rounded-full transition-all duration-200 cursor-pointer flex items-center gap-1.5"
-            title="Shopping Cart"
-          >
-            <ShoppingBag className="w-4 h-4" />
-            {mounted && cartCount > 0 && (
-              <span className="bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] text-[10px] font-semibold px-1.5 py-0.2 rounded-full min-w-4 text-center shadow-2xs">
-                {cartCount}
-              </span>
-            )}
-          </button>
-
+        <div className="flex items-center gap-2 shrink-0">
           {/* Theme Toggle (Light / Dark / System 3-segment switcher) */}
-          <div className="ml-1 shrink-0">
-            <ThemeToggle />
-          </div>
+          <ThemeToggle />
+
+          {/* Mobile/Tablet Menu Button to open User Navigation Sidebar Drawer */}
+          <button
+            type="button"
+            onClick={() => setIsUserSidebarOpen(true)}
+            className="lg:hidden p-2 rounded-xl text-foreground hover:bg-tile border border-border/60 transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+            aria-label="Open User Navigation Menu"
+            title="Account Menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
         </div>
       </div>
 

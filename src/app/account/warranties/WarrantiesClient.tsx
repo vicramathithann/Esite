@@ -123,8 +123,8 @@ export default function WarrantiesClient({
           <div className="space-y-6">
             {/* Header Status Badge */}
             <div className="flex items-center justify-end">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#121B2E] border border-[#1F2A44] text-xs text-[#94A3B8] font-medium">
-                <ShieldCheck className="w-3.5 h-3.5 text-[#C9A56A]" />
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-tile border border-border text-xs text-muted font-medium">
+                <ShieldCheck className="w-3.5 h-3.5 text-[#C9A66B] dark:text-[#D4B483]" />
                 <span>
                   {activeWarranties.length} Active {activeWarranties.length === 1 ? "Warranty" : "Warranties"}
                 </span>
