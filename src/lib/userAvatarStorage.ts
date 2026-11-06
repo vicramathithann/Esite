@@ -1,15 +1,56 @@
-import fs from "fs";
-import path from "path";
+type NodeFs = {
+  existsSync: (path: string) => boolean;
+  mkdirSync: (path: string, options?: { recursive?: boolean }) => void;
+  readFileSync: (path: string, encoding: string) => string;
+  writeFileSync: (path: string, data: string, encoding: string) => void;
+  unlinkSync: (path: string) => void;
+};
 
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "avatars");
-const MANIFEST_PATH = path.join(UPLOAD_DIR, "manifest.json");
+type NodePath = {
+  join: (...paths: string[]) => string;
+  basename: (path: string) => string;
+};
+
+function getFs(): NodeFs | null {
+  if (typeof window !== "undefined") return null;
+  try {
+    const req = eval("require");
+    return req("fs") as NodeFs;
+  } catch {
+    return null;
+  }
+}
+
+function getPath(): NodePath | null {
+  if (typeof window !== "undefined") return null;
+  try {
+    const req = eval("require");
+    return req("path") as NodePath;
+  } catch {
+    return null;
+  }
+}
+
+function getUploadDir(): string {
+  const path = getPath();
+  if (!path) return "";
+  return path.join(process.cwd(), "public", "uploads", "avatars");
+}
+
+function getManifestPath(): string {
+  const path = getPath();
+  if (!path) return "";
+  return path.join(getUploadDir(), "manifest.json");
+}
 
 /**
- * Ensures the avatar upload directory exists.
+ * Ensures the avatar upload directory exists on server.
  */
 export function ensureAvatarDir(): void {
-  if (!fs.existsSync(UPLOAD_DIR)) {
-    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+  const fs = getFs();
+  const dir = getUploadDir();
+  if (fs && dir && !fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
   }
 }
 
@@ -17,10 +58,13 @@ export function ensureAvatarDir(): void {
  * Reads the server-side avatar manifest.
  */
 function readManifest(): Record<string, string> {
+  const fs = getFs();
+  const manifestPath = getManifestPath();
+  if (!fs || !manifestPath) return {};
   try {
     ensureAvatarDir();
-    if (fs.existsSync(MANIFEST_PATH)) {
-      const data = fs.readFileSync(MANIFEST_PATH, "utf-8");
+    if (fs.existsSync(manifestPath)) {
+      const data = fs.readFileSync(manifestPath, "utf-8");
       return JSON.parse(data) || {};
     }
   } catch (err) {
@@ -33,9 +77,12 @@ function readManifest(): Record<string, string> {
  * Writes the server-side avatar manifest.
  */
 function writeManifest(manifest: Record<string, string>): void {
+  const fs = getFs();
+  const manifestPath = getManifestPath();
+  if (!fs || !manifestPath) return;
   try {
     ensureAvatarDir();
-    fs.writeFileSync(MANIFEST_PATH, JSON.stringify(manifest, null, 2), "utf-8");
+    fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), "utf-8");
   } catch (err) {
     console.error("Failed to write avatar manifest:", err);
   }
@@ -55,13 +102,15 @@ export function getUserAvatar(userId: string): string | null {
  */
 export function setUserAvatar(userId: string, avatarUrl: string): void {
   if (!userId) return;
+  const fs = getFs();
+  const path = getPath();
   const manifest = readManifest();
   const oldUrl = manifest[userId];
 
   // If there's an old local file, delete it
-  if (oldUrl && oldUrl !== avatarUrl && oldUrl.startsWith("/uploads/avatars/")) {
+  if (oldUrl && oldUrl !== avatarUrl && oldUrl.startsWith("/uploads/avatars/") && fs && path) {
     const oldFileName = path.basename(oldUrl);
-    const oldFilePath = path.join(UPLOAD_DIR, oldFileName);
+    const oldFilePath = path.join(getUploadDir(), oldFileName);
     try {
       if (fs.existsSync(oldFilePath)) {
         fs.unlinkSync(oldFilePath);
@@ -80,12 +129,14 @@ export function setUserAvatar(userId: string, avatarUrl: string): void {
  */
 export function removeUserAvatar(userId: string): void {
   if (!userId) return;
+  const fs = getFs();
+  const path = getPath();
   const manifest = readManifest();
   const oldUrl = manifest[userId];
 
-  if (oldUrl && oldUrl.startsWith("/uploads/avatars/")) {
+  if (oldUrl && oldUrl.startsWith("/uploads/avatars/") && fs && path) {
     const oldFileName = path.basename(oldUrl);
-    const oldFilePath = path.join(UPLOAD_DIR, oldFileName);
+    const oldFilePath = path.join(getUploadDir(), oldFileName);
     try {
       if (fs.existsSync(oldFilePath)) {
         fs.unlinkSync(oldFilePath);
@@ -135,4 +186,3 @@ export function validateImageBuffer(buffer: Buffer): { valid: boolean; ext: stri
 
   return { valid: false, ext: "", mime: "" };
 }
-

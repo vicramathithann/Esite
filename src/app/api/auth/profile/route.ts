@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth, ADMIN_EMAIL } from "@/lib/auth";
 import { getUserAvatar } from "@/lib/userAvatarStorage";
 
+export const runtime = "nodejs";
+
 export async function PATCH(request: Request) {
   try {
     const auth = await requireAuth(request);

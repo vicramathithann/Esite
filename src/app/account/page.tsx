@@ -62,7 +62,6 @@ export default function AccountPage() {
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef({ x: 0, y: 0 });
   const [cropShape, setCropShape] = useState<"circle" | "square">("circle");
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageElementRef = useRef<HTMLImageElement | null>(null);
 
   // Personal Information Inline Edit States
@@ -75,7 +74,23 @@ export default function AccountPage() {
   const [infoSuccess, setInfoSuccess] = useState<string | null>(null);
 
   // Delivery Addresses States
-  const [addresses, setAddresses] = useState<DeliveryAddress[]>([]);
+  const [addresses, setAddresses] = useState<DeliveryAddress[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const savedUserStr = localStorage.getItem("novamobile_user");
+      const uId = savedUserStr ? JSON.parse(savedUserStr)?.id : null;
+      if (uId) {
+        const saved = localStorage.getItem(`vn_user_addresses_${uId}`);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      }
+    } catch {
+      // Ignore
+    }
+    return [];
+  });
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
   const [addrLabel, setAddrLabel] = useState<"Home" | "Work" | "Other">("Home");
@@ -108,49 +123,36 @@ export default function AccountPage() {
   // Self-Service Account Deletion Modal State
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
-  // Initialize Personal Information from current user
-  useEffect(() => {
-    if (currentUser) {
+  // Computed displayed addresses list (derives default from currentUser if list is empty)
+  const displayedAddresses: DeliveryAddress[] =
+    addresses.length > 0
+      ? addresses
+      : currentUser?.address
+      ? [
+          {
+            id: "addr-default-1",
+            label: "Home",
+            recipientName: currentUser.name || "Customer",
+            phone: currentUser.phone || "",
+            street: currentUser.address,
+            city: "Bengaluru",
+            state: "Karnataka",
+            pincode: "560001",
+            isDefault: true,
+          },
+        ]
+      : [];
+
+  const handleToggleEditInfo = () => {
+    if (!isEditingInfo && currentUser) {
       setInfoName(currentUser.name || "");
       setInfoEmail(currentUser.email || "");
       setInfoPhone(currentUser.phone || "");
+      setInfoError(null);
+      setInfoSuccess(null);
     }
-  }, [currentUser]);
-
-  // Load Saved Addresses from localStorage or initialize with currentUser.address
-  useEffect(() => {
-    if (!currentUser) return;
-    try {
-      const storageKey = `vn_user_addresses_${currentUser.id}`;
-      const saved = localStorage.getItem(storageKey);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setAddresses(parsed);
-          return;
-        }
-      }
-
-      // If no stored array yet, create initial entry from currentUser.address if present
-      if (currentUser.address && currentUser.address.trim()) {
-        const initialAddr: DeliveryAddress = {
-          id: "addr-default-1",
-          label: "Home",
-          recipientName: currentUser.name || "Customer",
-          phone: currentUser.phone || "",
-          street: currentUser.address,
-          city: "Bengaluru",
-          state: "Karnataka",
-          pincode: "560001",
-          isDefault: true,
-        };
-        setAddresses([initialAddr]);
-        localStorage.setItem(storageKey, JSON.stringify([initialAddr]));
-      }
-    } catch (e) {
-      console.warn("Failed to parse delivery addresses:", e);
-    }
-  }, [currentUser?.id, currentUser?.address, currentUser?.name, currentUser?.phone]);
+    setIsEditingInfo((prev) => !prev);
+  };
 
   // Persist addresses
   const persistAddresses = useCallback(
@@ -160,7 +162,7 @@ export default function AccountPage() {
         localStorage.setItem(`vn_user_addresses_${currentUser.id}`, JSON.stringify(nextList));
       }
     },
-    [currentUser?.id]
+    [currentUser]
   );
 
   // Load Account Summary Data (Orders count, Warranties count)
@@ -756,7 +758,7 @@ export default function AccountPage() {
             {/* Right: Tidy Action Group */}
             <div className="flex flex-wrap items-center gap-2.5 pt-4 lg:pt-0 border-t lg:border-t-0 border-[#1F2A44] shrink-0">
               <button
-                onClick={() => setIsEditingInfo(!isEditingInfo)}
+                onClick={handleToggleEditInfo}
                 className="px-4 py-2 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
               >
                 <Pencil className="w-3.5 h-3.5" />
@@ -819,7 +821,7 @@ export default function AccountPage() {
 
                 <button
                   type="button"
-                  onClick={() => setIsEditingInfo(!isEditingInfo)}
+                  onClick={handleToggleEditInfo}
                   className="px-3 py-1.5 text-xs font-semibold rounded-lg text-[#8C6226] dark:text-[#E5CBA2] hover:bg-tile transition-colors flex items-center gap-1 cursor-pointer"
                 >
                   <Pencil className="w-3.5 h-3.5" />
@@ -969,7 +971,7 @@ export default function AccountPage() {
               )}
 
               {/* Address List */}
-              {addresses.length === 0 ? (
+              {displayedAddresses.length === 0 ? (
                 <div className="py-8 text-center border-2 border-dashed border-border rounded-2xl space-y-2.5">
                   <MapPin className="w-8 h-8 mx-auto text-muted opacity-40" />
                   <p className="text-xs text-muted">No delivery address saved yet.</p>
@@ -982,7 +984,7 @@ export default function AccountPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {addresses.map((addr) => (
+                  {displayedAddresses.map((addr) => (
                     <div
                       key={addr.id}
                       className={`p-3.5 rounded-xl border transition-all ${

@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
-import path from "path";
-import fs from "fs/promises";
+import path from "node:path";
+import fs from "node:fs/promises";
 import { requireAuth } from "@/lib/auth";
+
+export const runtime = "nodejs";
 import { prisma } from "@/lib/prisma";
 import {
   ensureAvatarDir,
@@ -73,7 +75,7 @@ export async function POST(request: Request) {
     try {
       await prisma.user.update({
         where: { id: authUser.id },
-        data: { avatar: avatarUrl } as any,
+        data: { avatar: avatarUrl } as Record<string, unknown>,
       });
     } catch {
       // Ignored if column doesn't exist yet on remote table
@@ -107,7 +109,7 @@ export async function DELETE(request: Request) {
     try {
       await prisma.user.update({
         where: { id: authUser.id },
-        data: { avatar: "" } as any,
+        data: { avatar: "" } as Record<string, unknown>,
       });
     } catch {
       // Ignored

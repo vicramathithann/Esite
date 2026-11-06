@@ -3,7 +3,6 @@ import type { NextRequest } from "next/server";
 import {
   inspectSessionToken,
   ADMIN_COOKIE_NAME,
-  CUSTOMER_COOKIE_NAME,
 } from "@/lib/auth";
 
 export function proxy(request: NextRequest) {

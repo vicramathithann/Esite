@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle2, AlertCircle, Mail, ArrowRight, Loader2, RefreshCw, KeyRound, ShieldCheck } from "lucide-react";
 import { useApp } from "@/context/AppContext";
-import { isValidInternalRedirect } from "@/lib/auth";
+import { isValidInternalRedirect } from "@/lib/redirect";
 
 function VerifyEmailContent() {
   const searchParams = useSearchParams();

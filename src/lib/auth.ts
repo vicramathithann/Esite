@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
-import { getUserAvatar } from "@/lib/userAvatarStorage";
 
 const PBKDF2_ITERATIONS = 100000;
 const PBKDF2_KEYLEN = 64;
@@ -253,19 +252,7 @@ export function verifySessionToken(token: string): string | null {
 /**
  * Helper to validate safe internal redirects (preventing open redirect vulnerabilities)
  */
-export function isValidInternalRedirect(url?: string | null): string {
-  if (!url || typeof url !== "string") return "/";
-  const trimmed = url.trim();
-  if (
-    trimmed.startsWith("/") &&
-    !trimmed.startsWith("//") &&
-    !trimmed.startsWith("/\\") &&
-    !trimmed.includes("://")
-  ) {
-    return trimmed;
-  }
-  return "/";
-}
+export { isValidInternalRedirect } from "./redirect";
 
 /**
  * Extracts session token from incoming request (Authorization header, specific cookie, or next/headers).
@@ -401,11 +388,9 @@ export async function getAuthenticatedUser(request?: Request): Promise<AuthUser 
     user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase() &&
     (user.role || "").toUpperCase() === "ADMIN";
 
-  const avatar = getUserAvatar(user.id);
-
   return {
     ...user,
-    avatar: avatar || null,
+    avatar: (user as any).avatar || null,
     role: isAuthorizedAdmin ? "ADMIN" : "USER",
   };
 }

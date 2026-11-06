@@ -4,7 +4,7 @@ import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, AlertCircle, RefreshCw, CheckCircle2 } from "lucide-react";
-import { isValidInternalRedirect } from "@/lib/auth";
+import { isValidInternalRedirect } from "@/lib/redirect";
 
 function getFriendlyReasonMessage(reason: string | null): string {
   switch (reason) {
