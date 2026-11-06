@@ -576,7 +576,7 @@ export async function sendWarrantyEmail(
     siteUrl
   );
 
-  // 5. Dispatch Email via Shared Single Send Function (enforces IST timestamp suffix, fresh Message-ID, and no In-Reply-To/References)
+  // 5. Dispatch Email via Shared Single Send Function (enforces fresh unique Message-ID and no In-Reply-To/References)
   const sendResult = await sendSharedMail({
     userId: order.userId || null,
     recipientEmail: cleanRecipientEmail,

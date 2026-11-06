@@ -35,14 +35,10 @@ import { sendWarrantyEmail } from "./mailer";
 
 import {
   sendSharedMail,
-  formatSubjectWithIstTime,
-  getIstTimeString,
   generateFreshMessageId,
 } from "./email-sender";
 export {
   sendSharedMail,
-  formatSubjectWithIstTime,
-  getIstTimeString,
   generateFreshMessageId,
 };
 

@@ -36,34 +36,6 @@ export interface SharedMailResult {
 }
 
 /**
- * Returns current time formatted in Asia/Kolkata (IST), e.g. "5:27 PM"
- */
-export function getIstTimeString(date = new Date()): string {
-  return date.toLocaleTimeString("en-US", {
-    timeZone: "Asia/Kolkata",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
-}
-
-/**
- * Appends an IST time suffix to the subject line: e.g. "Subject (5:27 PM)".
- * If the subject already ends with an IST time suffix, it refreshes it with the current send time.
- */
-export function formatSubjectWithIstTime(subject: string, date = new Date()): string {
-  const trimmed = (subject || "").trim();
-  const timeStr = getIstTimeString(date);
-  const timeSuffixRegex = /\s*\(\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM)\)$/i;
-
-  if (timeSuffixRegex.test(trimmed)) {
-    return trimmed.replace(timeSuffixRegex, ` (${timeStr})`);
-  }
-
-  return `${trimmed} (${timeStr})`;
-}
-
-/**
  * Generates an RFC 5322 compliant unique Message-ID header for every single outgoing email.
  */
 export function generateFreshMessageId(domain = "vnmobiles.in"): string {
@@ -122,7 +94,7 @@ export function createSharedTransport(): Transporter {
  * Enforces:
  * 1. Fresh unique Message-ID on every email.
  * 2. Strictly NO In-Reply-To and NO References headers (prevents conversation stacking in Gmail).
- * 3. Unique subject line with IST send time suffix, e.g. "Subject (5:27 PM)".
+ * 3. Plain subject line with zero time suffix.
  * 4. Audit recording in EmailNotification table (status: PENDING -> SENT / FAILED).
  */
 export async function sendSharedMail(options: SendSharedMailOptions): Promise<SharedMailResult> {
@@ -130,8 +102,10 @@ export async function sendSharedMail(options: SendSharedMailOptions): Promise<Sh
   const recipientName = (options.recipientName || "Valued Customer").trim();
   const { user: userEmail, pass: userPass } = getSanitizedGmailCredentials();
 
-  // 1. Format subject with IST time suffix (e.g. "Your OnePlus Nord 6 order was placed successfully (5:27 PM)")
-  const finalSubject = formatSubjectWithIstTime(options.subject);
+  // Plain subject line without time suffix
+  const finalSubject = (options.subject || "")
+    .replace(/\s*\(\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM)\)$/i, "")
+    .trim();
 
   // 2. Create initial audit record in DB with PENDING status
   let notificationRecord: { id: string } | null = null;
