@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
+import { getUserAvatar } from "@/lib/userAvatarStorage";
 
 const PBKDF2_ITERATIONS = 100000;
 const PBKDF2_KEYLEN = 64;
@@ -350,6 +351,7 @@ export type AuthUser = {
   role: string;
   emailVerified: boolean;
   createdAt: Date;
+  avatar?: string | null;
 };
 
 /**
@@ -399,8 +401,11 @@ export async function getAuthenticatedUser(request?: Request): Promise<AuthUser 
     user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase() &&
     (user.role || "").toUpperCase() === "ADMIN";
 
+  const avatar = getUserAvatar(user.id);
+
   return {
     ...user,
+    avatar: avatar || null,
     role: isAuthorizedAdmin ? "ADMIN" : "USER",
   };
 }

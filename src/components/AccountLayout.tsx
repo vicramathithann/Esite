@@ -131,9 +131,17 @@ export default function AccountLayout({
               <div className="flex items-center justify-between pb-4 border-b border-border mb-4">
                 {currentUser ? (
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-full bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
-                      {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "U"}
-                    </div>
+                    {currentUser.avatar ? (
+                      <img
+                        src={currentUser.avatar}
+                        alt={currentUser.name || "User"}
+                        className="w-10 h-10 rounded-full object-cover border border-[#C9A66B]/40 shadow-xs shrink-0"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
+                        {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "U"}
+                      </div>
+                    )}
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-bold text-foreground truncate">
                         {currentUser.name || "Customer"}
@@ -273,15 +281,31 @@ export default function AccountLayout({
                 {currentUser ? (
                   isCollapsed ? (
                     <div className="flex flex-col items-center gap-2" title={`${currentUser.name} (${currentUser.email})`}>
-                      <div className="w-10 h-10 rounded-full bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] flex items-center justify-center text-sm font-bold shadow-xs">
-                        {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "U"}
-                      </div>
+                      {currentUser.avatar ? (
+                        <img
+                          src={currentUser.avatar}
+                          alt={currentUser.name || "User"}
+                          className="w-10 h-10 rounded-full object-cover border border-[#C9A66B]/40 shadow-xs"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] flex items-center justify-center text-sm font-bold shadow-xs">
+                          {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "U"}
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] flex items-center justify-center text-sm font-bold shadow-xs shrink-0">
-                        {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "U"}
-                      </div>
+                      {currentUser.avatar ? (
+                        <img
+                          src={currentUser.avatar}
+                          alt={currentUser.name || "User"}
+                          className="w-10 h-10 rounded-full object-cover border border-[#C9A66B]/40 shadow-xs shrink-0"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] flex items-center justify-center text-sm font-bold shadow-xs shrink-0">
+                          {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "U"}
+                        </div>
+                      )}
                       <div className="min-w-0 flex-1">
                         <div className="text-xs font-bold text-foreground truncate">
                           {currentUser.name || "Customer Account"}

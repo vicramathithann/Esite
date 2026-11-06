@@ -11,6 +11,8 @@ export interface UserProfile {
   address?: string;
   role: "USER" | "ADMIN";
   emailVerified?: boolean;
+  avatar?: string | null;
+  createdAt?: string;
 }
 
 export const DEFAULT_SITE_SETTINGS: Record<string, string> = {

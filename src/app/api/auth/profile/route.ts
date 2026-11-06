@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, ADMIN_EMAIL } from "@/lib/auth";
+import { getUserAvatar } from "@/lib/userAvatarStorage";
 
 export async function PATCH(request: Request) {
   try {
@@ -131,8 +132,11 @@ export async function PATCH(request: Request) {
       updated.email.toLowerCase() === ADMIN_EMAIL.toLowerCase() ||
       (updated.role || "").toUpperCase() === "ADMIN";
 
+    const avatar = getUserAvatar(targetUserId);
+
     const sanitizedUser = {
       ...updated,
+      avatar: avatar || null,
       role: isAuthorizedAdmin ? ("ADMIN" as const) : ("USER" as const),
     };
 

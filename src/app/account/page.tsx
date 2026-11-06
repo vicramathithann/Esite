@@ -1,100 +1,387 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import Image from "next/image";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import { 
-  ShieldCheck, 
-  Smartphone, 
-  Clock, 
-  AlertTriangle, 
-  RefreshCw, 
-  ChevronRight,
-  BellRing,
-  Award,
-  Truck,
+import {
   User,
   Mail,
   Phone,
-  LogOut,
-  X,
-  Pencil,
   MapPin,
+  ShieldCheck,
+  Lock,
+  Camera,
+  Pencil,
+  Trash2,
+  Plus,
   CheckCircle2,
   AlertCircle,
-  Save,
-  Trash2
+  RefreshCw,
+  LogOut,
+  ShoppingBag,
+  Package,
+  Heart,
+  Calendar,
+  ArrowRight,
+  X,
+  Eye,
+  EyeOff,
+  ZoomIn,
+  ZoomOut,
+  Check,
 } from "lucide-react";
 import DeleteAccountModal from "@/components/DeleteAccountModal";
-import { formatDateOnly, getDaysRemaining } from "@/lib/formatters";
-import { isOrderCancelled, canOrderBeCancelled } from "@/lib/orderStatus";
 import { useApp } from "@/context/AppContext";
 import AccountLayout from "@/components/AccountLayout";
 
+interface DeliveryAddress {
+  id: string;
+  label: "Home" | "Work" | "Other";
+  recipientName: string;
+  phone: string;
+  street: string;
+  city: string;
+  state: string;
+  pincode: string;
+  isDefault: boolean;
+}
+
 export default function AccountPage() {
-  const { currentUser, logout, login } = useApp();
+  const { currentUser, logout, login, wishlistCount } = useApp();
 
-  const [orders, setOrders] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [ordersError, setOrdersError] = useState<string | null>(null);
-  const [activeOrderTab, setActiveOrderTab] = useState<"all" | "active" | "cancelled">("active");
-  const [cancelModalOrder, setCancelModalOrder] = useState<any | null>(null);
-  const [cancelReason, setCancelReason] = useState<string>("Order created by mistake");
-  const [cancelling, setCancelling] = useState(false);
+  // Avatar states
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [avatarSuccess, setAvatarSuccess] = useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
 
-  // Edit Profile States
-  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
-  const [editName, setEditName] = useState("");
-  const [editEmail, setEditEmail] = useState("");
-  const [editPhone, setEditPhone] = useState("");
-  const [editAddress, setEditAddress] = useState("");
-  const [editSaving, setEditSaving] = useState(false);
-  const [editError, setEditError] = useState<string | null>(null);
-  const [editSuccess, setEditSuccess] = useState<string | null>(null);
+  // Crop & Preview Modal States
+  const [cropModalOpen, setCropModalOpen] = useState(false);
+  const [rawImageSrc, setRawImageSrc] = useState<string | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef({ x: 0, y: 0 });
+  const [cropShape, setCropShape] = useState<"circle" | "square">("circle");
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const imageElementRef = useRef<HTMLImageElement | null>(null);
+
+  // Personal Information Inline Edit States
+  const [isEditingInfo, setIsEditingInfo] = useState(false);
+  const [infoName, setInfoName] = useState("");
+  const [infoEmail, setInfoEmail] = useState("");
+  const [infoPhone, setInfoPhone] = useState("");
+  const [infoSaving, setInfoSaving] = useState(false);
+  const [infoError, setInfoError] = useState<string | null>(null);
+  const [infoSuccess, setInfoSuccess] = useState<string | null>(null);
+
+  // Delivery Addresses States
+  const [addresses, setAddresses] = useState<DeliveryAddress[]>([]);
+  const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
+  const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
+  const [addrLabel, setAddrLabel] = useState<"Home" | "Work" | "Other">("Home");
+  const [addrName, setAddrName] = useState("");
+  const [addrPhone, setAddrPhone] = useState("");
+  const [addrStreet, setAddrStreet] = useState("");
+  const [addrCity, setAddrCity] = useState("");
+  const [addrState, setAddrState] = useState("");
+  const [addrPincode, setAddrPincode] = useState("");
+  const [addrIsDefault, setAddrIsDefault] = useState(false);
+  const [addrError, setAddrError] = useState<string | null>(null);
+  const [addrSuccess, setAddrSuccess] = useState<string | null>(null);
+
+  // Security (Change Password) States
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordUpdating, setPasswordUpdating] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
+
+  // Account Summary Metrics
+  const [totalOrdersCount, setTotalOrdersCount] = useState<number>(0);
+  const [activeWarrantiesCount, setActiveWarrantiesCount] = useState<number>(0);
+  const [metricsLoading, setMetricsLoading] = useState<boolean>(true);
 
   // Self-Service Account Deletion Modal State
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
-  const openEditProfile = () => {
+  // Initialize Personal Information from current user
+  useEffect(() => {
+    if (currentUser) {
+      setInfoName(currentUser.name || "");
+      setInfoEmail(currentUser.email || "");
+      setInfoPhone(currentUser.phone || "");
+    }
+  }, [currentUser]);
+
+  // Load Saved Addresses from localStorage or initialize with currentUser.address
+  useEffect(() => {
     if (!currentUser) return;
-    setEditName(currentUser.name || "");
-    setEditEmail(currentUser.email || "");
-    setEditPhone(currentUser.phone || "");
-    setEditAddress(currentUser.address || "");
-    setEditError(null);
-    setEditSuccess(null);
-    setIsEditProfileOpen(true);
+    try {
+      const storageKey = `vn_user_addresses_${currentUser.id}`;
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setAddresses(parsed);
+          return;
+        }
+      }
+
+      // If no stored array yet, create initial entry from currentUser.address if present
+      if (currentUser.address && currentUser.address.trim()) {
+        const initialAddr: DeliveryAddress = {
+          id: "addr-default-1",
+          label: "Home",
+          recipientName: currentUser.name || "Customer",
+          phone: currentUser.phone || "",
+          street: currentUser.address,
+          city: "Bengaluru",
+          state: "Karnataka",
+          pincode: "560001",
+          isDefault: true,
+        };
+        setAddresses([initialAddr]);
+        localStorage.setItem(storageKey, JSON.stringify([initialAddr]));
+      }
+    } catch (e) {
+      console.warn("Failed to parse delivery addresses:", e);
+    }
+  }, [currentUser?.id, currentUser?.address, currentUser?.name, currentUser?.phone]);
+
+  // Persist addresses
+  const persistAddresses = useCallback(
+    (nextList: DeliveryAddress[]) => {
+      setAddresses(nextList);
+      if (currentUser?.id) {
+        localStorage.setItem(`vn_user_addresses_${currentUser.id}`, JSON.stringify(nextList));
+      }
+    },
+    [currentUser?.id]
+  );
+
+  // Load Account Summary Data (Orders count, Warranties count)
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchSummary() {
+      if (!currentUser?.id) {
+        setMetricsLoading(false);
+        return;
+      }
+      try {
+        setMetricsLoading(true);
+        const params = new URLSearchParams();
+        if (currentUser.id) params.set("userId", currentUser.id);
+        if (currentUser.email) params.set("email", currentUser.email);
+
+        const res = await fetch(`/api/orders?${params.toString()}`, { credentials: "include" });
+        const data = await res.json();
+        if (isMounted && data.success && Array.isArray(data.orders)) {
+          setTotalOrdersCount(data.orders.length);
+          let activeWar = 0;
+          for (const ord of data.orders) {
+            if (ord.orderStatus !== "CANCELLED" && Array.isArray(ord.items)) {
+              for (const it of ord.items) {
+                if (it.warrantyStatus === "ACTIVE") activeWar++;
+              }
+            }
+          }
+          setActiveWarrantiesCount(activeWar);
+        }
+      } catch (err) {
+        console.warn("Summary metrics fetch error:", err);
+      } finally {
+        if (isMounted) setMetricsLoading(false);
+      }
+    }
+    fetchSummary();
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUser?.id, currentUser?.email]);
+
+  // Handle Photo Picker Selection
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setAvatarError(null);
+    setAvatarSuccess(null);
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Reset input value so same file can be re-selected if cancelled
+    e.target.value = "";
+
+    // 1. Validate file size (max 2 MB)
+    if (file.size > 2 * 1024 * 1024) {
+      setAvatarError("Image file exceeds 2 MB limit. Please choose a smaller photo.");
+      return;
+    }
+
+    // 2. Validate MIME type
+    const validTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!validTypes.includes(file.type)) {
+      setAvatarError("Please select a valid image file (JPG, PNG, or WEBP).");
+      return;
+    }
+
+    // Read image for preview & crop
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const result = event.target?.result as string;
+      setRawImageSrc(result);
+      setZoom(1);
+      setPan({ x: 0, y: 0 });
+      setCropModalOpen(true);
+    };
+    reader.onerror = () => {
+      setAvatarError("Failed to read image file. Please try another photo.");
+    };
+    reader.readAsDataURL(file);
   };
 
-  const handleSaveProfile = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
+  // Crop & Save to Server
+  const handleSaveCroppedPhoto = async () => {
+    if (!rawImageSrc || !imageElementRef.current) return;
+
+    try {
+      setAvatarUploading(true);
+      setAvatarError(null);
+
+      // Create high-res canvas (400x400)
+      const canvas = document.createElement("canvas");
+      canvas.width = 400;
+      canvas.height = 400;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Could not initialize canvas context");
+
+      const img = imageElementRef.current;
+      const naturalWidth = img.naturalWidth || 400;
+      const naturalHeight = img.naturalHeight || 400;
+
+      // Base scale to cover 400x400
+      const baseScale = Math.max(400 / naturalWidth, 400 / naturalHeight);
+      const currentScale = baseScale * zoom;
+
+      const drawWidth = naturalWidth * currentScale;
+      const drawHeight = naturalHeight * currentScale;
+
+      // Center with pan offset
+      const drawX = (400 - drawWidth) / 2 + pan.x;
+      const drawY = (400 - drawHeight) / 2 + pan.y;
+
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+
+      // Convert canvas to Blob
+      const blob: Blob | null = await new Promise((resolve) =>
+        canvas.toBlob((b) => resolve(b), "image/jpeg", 0.92)
+      );
+
+      if (!blob) throw new Error("Canvas export failed");
+
+      // Send to authenticated API
+      const formData = new FormData();
+      formData.append("file", blob, "profile.jpg");
+
+      const res = await fetch("/api/auth/profile/avatar", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (data.success && data.avatar) {
+        if (currentUser) {
+          login({ ...currentUser, avatar: data.avatar });
+        }
+        setAvatarSuccess("Profile picture updated successfully!");
+        setCropModalOpen(false);
+        setRawImageSrc(null);
+        setTimeout(() => setAvatarSuccess(null), 4000);
+      } else {
+        setAvatarError(data.error || "Failed to upload profile picture.");
+      }
+    } catch (err) {
+      console.error("Avatar save error:", err);
+      setAvatarError("An error occurred while uploading. Please try again.");
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
+  // Remove Photo
+  const handleRemovePhoto = async () => {
+    if (!currentUser?.avatar) return;
+    if (!confirm("Are you sure you want to remove your profile photo?")) return;
+
+    try {
+      setAvatarUploading(true);
+      setAvatarError(null);
+      const res = await fetch("/api/auth/profile/avatar", { method: "DELETE" });
+      const data = await res.json();
+      if (data.success) {
+        login({ ...currentUser, avatar: undefined });
+        setAvatarSuccess("Profile photo removed.");
+        setTimeout(() => setAvatarSuccess(null), 3000);
+      } else {
+        setAvatarError(data.error || "Failed to remove photo.");
+      }
+    } catch (err) {
+      console.error(err);
+      setAvatarError("Failed to remove photo. Please try again.");
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
+  // Drag Handlers for Crop Pan
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true);
+    dragStartRef.current = { x: e.clientX - pan.x, y: e.clientY - pan.y };
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return;
+    setPan({
+      x: e.clientX - dragStartRef.current.x,
+      y: e.clientY - dragStartRef.current.y,
+    });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  // Save Personal Information
+  const handleSavePersonalInfo = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!currentUser) return;
-    setEditError(null);
+    setInfoError(null);
+    setInfoSuccess(null);
 
-    const cleanName = editName.trim();
-    const cleanEmail = editEmail.trim().toLowerCase();
-    const cleanPhone = editPhone.trim().replace(/[^0-9]/g, "");
-    const cleanAddress = editAddress.trim();
+    const cleanName = infoName.trim();
+    const cleanEmail = infoEmail.trim().toLowerCase();
+    const cleanPhone = infoPhone.trim().replace(/[^0-9]/g, "");
 
-    // Validations
     if (!cleanName || cleanName.length < 2) {
-      setEditError("Please enter your full name (at least 2 characters).");
+      setInfoError("Please enter a valid full name (at least 2 characters).");
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!cleanEmail || !emailRegex.test(cleanEmail)) {
-      setEditError("Please enter a valid email address (e.g. name@domain.com).");
+      setInfoError("Please enter a valid email address.");
       return;
     }
 
     if (!cleanPhone || cleanPhone.length < 10) {
-      setEditError("Please enter a valid 10-digit mobile number.");
+      setInfoError("Please enter a valid 10-digit mobile number.");
       return;
     }
 
     try {
-      setEditSaving(true);
+      setInfoSaving(true);
       const res = await fetch("/api/auth/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -103,223 +390,390 @@ export default function AccountPage() {
           name: cleanName,
           email: cleanEmail,
           phone: cleanPhone,
-          address: cleanAddress,
+          address: currentUser.address || "",
         }),
       });
 
       const data = await res.json();
       if (data.success && data.user) {
         login(data.user);
-        setEditSuccess("Profile updated successfully!");
-        setTimeout(() => {
-          setIsEditProfileOpen(false);
-          setEditSuccess(null);
-        }, 1000);
+        setInfoSuccess("Personal information updated successfully!");
+        setIsEditingInfo(false);
+        setTimeout(() => setInfoSuccess(null), 3500);
       } else {
-        setEditError(data.error || "Failed to update profile. Please try again.");
+        setInfoError(data.error || "Failed to update profile.");
       }
-    } catch (err) {
-      console.error("Save profile error:", err);
-      setEditError("Network error. Please check your connection and try again.");
+    } catch {
+      setInfoError("Network error. Please try again.");
     } finally {
-      setEditSaving(false);
+      setInfoSaving(false);
     }
   };
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const tab = params.get("tab");
-      if (tab === "cancelled" || tab === "active" || tab === "all") {
-        setActiveOrderTab(tab as "all" | "active" | "cancelled");
-      }
-    }
-  }, []);
+  // Address Modal Helpers
+  const openAddAddressModal = () => {
+    setEditingAddressId(null);
+    setAddrLabel("Home");
+    setAddrName(currentUser?.name || "");
+    setAddrPhone(currentUser?.phone || "");
+    setAddrStreet("");
+    setAddrCity("");
+    setAddrState("");
+    setAddrPincode("");
+    setAddrIsDefault(addresses.length === 0);
+    setAddrError(null);
+    setIsAddressModalOpen(true);
+  };
 
-  const handleConfirmCancel = async () => {
-    if (!cancelModalOrder) return;
-    const targetOrder = cancelModalOrder;
-    try {
-      setCancelling(true);
-      const res = await fetch(`/api/orders/${targetOrder.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          orderStatus: "CANCELLED",
-          action: "CANCEL_ORDER",
-          cancelReason,
-        }),
+  const openEditAddressModal = (addr: DeliveryAddress) => {
+    setEditingAddressId(addr.id);
+    setAddrLabel(addr.label);
+    setAddrName(addr.recipientName);
+    setAddrPhone(addr.phone);
+    setAddrStreet(addr.street);
+    setAddrCity(addr.city);
+    setAddrState(addr.state);
+    setAddrPincode(addr.pincode);
+    setAddrIsDefault(addr.isDefault);
+    setAddrError(null);
+    setIsAddressModalOpen(true);
+  };
+
+  const handleSaveAddress = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAddrError(null);
+
+    const cleanStreet = addrStreet.trim();
+    const cleanCity = addrCity.trim();
+    const cleanState = addrState.trim();
+    const cleanPincode = addrPincode.trim().replace(/[^0-9]/g, "");
+    const cleanName = addrName.trim();
+    const cleanPhone = addrPhone.trim();
+
+    if (!cleanStreet || cleanStreet.length < 5) {
+      setAddrError("Please enter a complete street address.");
+      return;
+    }
+    if (!cleanCity) {
+      setAddrError("Please enter your city.");
+      return;
+    }
+    if (!cleanState) {
+      setAddrError("Please enter your state.");
+      return;
+    }
+    if (!cleanPincode || cleanPincode.length !== 6) {
+      setAddrError("Please enter a valid 6-digit postal PIN code.");
+      return;
+    }
+
+    const fullFormattedAddress = `${cleanStreet}, ${cleanCity}, ${cleanState} - ${cleanPincode}`;
+
+    let updatedList: DeliveryAddress[];
+    if (editingAddressId) {
+      // Edit existing
+      updatedList = addresses.map((a) => {
+        if (a.id === editingAddressId) {
+          return {
+            ...a,
+            label: addrLabel,
+            recipientName: cleanName || (currentUser?.name || "Customer"),
+            phone: cleanPhone || (currentUser?.phone || ""),
+            street: cleanStreet,
+            city: cleanCity,
+            state: cleanState,
+            pincode: cleanPincode,
+            isDefault: addrIsDefault,
+          };
+        }
+        return addrIsDefault ? { ...a, isDefault: false } : a;
       });
-      const data = await res.json();
-      if (data.success) {
-        setOrders((prev) =>
-          prev.map((o) =>
-            o.id === targetOrder.id
-              ? {
-                  ...o,
-                  orderStatus: "CANCELLED",
-                  paymentStatus: "Refund Initiated",
-                  items: o.items?.map((it: any) => ({ ...it, warrantyStatus: "CANCELLED" })),
-                  warranties: o.warranties?.map((w: any) => ({ ...w, warrantyStatus: "CANCELLED" })),
-                }
-              : o
-          )
-        );
-        setCancelModalOrder(null);
-        setActiveOrderTab("cancelled");
-        await loadOrders();
-        const targetPhoneNames = targetOrder.items?.map((i: any) => i.productName).filter(Boolean).join(", ") || "Smartphone";
-        alert(data.message || `Your order for ${targetPhoneNames} has been cancelled and the amount will be refunded.`);
-      } else {
-        alert(data.error || "Failed to cancel order.");
+    } else {
+      // Add new
+      const newAddr: DeliveryAddress = {
+        id: `addr-${Date.now()}`,
+        label: addrLabel,
+        recipientName: cleanName || (currentUser?.name || "Customer"),
+        phone: cleanPhone || (currentUser?.phone || ""),
+        street: cleanStreet,
+        city: cleanCity,
+        state: cleanState,
+        pincode: cleanPincode,
+        isDefault: addrIsDefault || addresses.length === 0,
+      };
+
+      updatedList = addrIsDefault
+        ? [...addresses.map((a) => ({ ...a, isDefault: false })), newAddr]
+        : [...addresses, newAddr];
+    }
+
+    persistAddresses(updatedList);
+
+    // If default, sync to user profile in backend database
+    if (addrIsDefault || addresses.length === 0) {
+      try {
+        if (currentUser) {
+          const res = await fetch("/api/auth/profile", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId: currentUser.id,
+              name: currentUser.name,
+              email: currentUser.email,
+              phone: currentUser.phone,
+              address: fullFormattedAddress,
+            }),
+          });
+          const data = await res.json();
+          if (data.success && data.user) {
+            login(data.user);
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to sync default address to backend profile:", err);
       }
-    } catch (e) {
-      console.error(e);
-      alert("Error cancelling order.");
-    } finally {
-      setCancelling(false);
+    }
+
+    setAddrSuccess(editingAddressId ? "Address updated successfully!" : "Address added successfully!");
+    setIsAddressModalOpen(false);
+    setTimeout(() => setAddrSuccess(null), 3000);
+  };
+
+  const handleSetDefaultAddress = async (id: string) => {
+    const target = addresses.find((a) => a.id === id);
+    if (!target) return;
+
+    const nextList = addresses.map((a) => ({
+      ...a,
+      isDefault: a.id === id,
+    }));
+    persistAddresses(nextList);
+
+    const fullFormatted = `${target.street}, ${target.city}, ${target.state} - ${target.pincode}`;
+    if (currentUser) {
+      try {
+        const res = await fetch("/api/auth/profile", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: currentUser.id,
+            name: currentUser.name,
+            email: currentUser.email,
+            phone: currentUser.phone,
+            address: fullFormatted,
+          }),
+        });
+        const data = await res.json();
+        if (data.success && data.user) {
+          login(data.user);
+        }
+      } catch (err) {
+        console.warn("Error setting default address:", err);
+      }
     }
   };
 
-  const loadOrders = useCallback(async () => {
-    if (!currentUser) {
-      setOrders([]);
-      setLoading(false);
+  const handleDeleteAddress = (id: string) => {
+    if (!confirm("Are you sure you want to delete this delivery address?")) return;
+    const target = addresses.find((a) => a.id === id);
+    const remaining = addresses.filter((a) => a.id !== id);
+
+    // If we deleted the default and there are remaining, promote first one
+    if (target?.isDefault && remaining.length > 0) {
+      remaining[0].isDefault = true;
+      handleSetDefaultAddress(remaining[0].id);
+    }
+    persistAddresses(remaining);
+  };
+
+  // Change Password
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError(null);
+    setPasswordSuccess(null);
+
+    if (!currentPassword) {
+      setPasswordError("Please enter your current password.");
+      return;
+    }
+    if (!newPassword || newPassword.length < 6) {
+      setPasswordError("New password must be at least 6 characters.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError("New passwords do not match.");
       return;
     }
 
     try {
-      setLoading(true);
-      setOrdersError(null);
-      const params = new URLSearchParams();
-      if (currentUser.id) params.set("userId", currentUser.id);
-      if (currentUser.email) params.set("email", currentUser.email);
-      if (currentUser.role === "ADMIN" && (currentUser.email || "").toLowerCase() === "rrroyce20@gmail.com") {
-        params.set("admin", "true");
-      }
-
-      const res = await fetch(`/api/orders?${params.toString()}`, {
-        credentials: "include",
+      setPasswordUpdating(true);
+      const res = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          currentPassword,
+          newPassword,
+          confirmPassword,
+        }),
       });
+
       const data = await res.json();
       if (data.success) {
-        setOrders(data.orders || []);
+        setPasswordSuccess("Password updated successfully!");
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+        setTimeout(() => setPasswordSuccess(null), 4000);
       } else {
-        setOrdersError(data.error || "Failed to load orders");
+        setPasswordError(data.error || "Failed to update password.");
       }
-    } catch (e: any) {
-      console.error("Failed to load orders", e);
-      setOrdersError(e?.message || "Failed to load orders");
+    } catch {
+      setPasswordError("Network error. Please try again.");
     } finally {
-      setLoading(false);
+      setPasswordUpdating(false);
     }
-  }, [currentUser?.id, currentUser?.email, currentUser?.role]);
-
-  useEffect(() => {
-    loadOrders();
-  }, [loadOrders]);
-
-  const getStatusBadge = (status: string, daysLeft: number) => {
-    if (status === "CANCELLED" || status === "Cancelled") {
-      return (
-        <span className="inline-flex items-center gap-1 text-xs font-bold text-red-700 bg-red-50 border border-red-200 px-2.5 py-0.5 rounded-full">
-          <X className="w-3.5 h-3.5" /> Warranty Cancelled
-        </span>
-      );
-    }
-    if (status === "EXPIRED" || daysLeft <= 0) {
-      return (
-        <span className="inline-flex items-center gap-1 text-xs font-bold text-[#cc0c39] bg-red-50 border border-red-200 px-2.5 py-0.5 rounded-full">
-          <Clock className="w-3.5 h-3.5" /> Protection Expired
-        </span>
-      );
-    }
-    if (status === "EXPIRING_SOON" || daysLeft <= 7) {
-      return (
-        <span className="inline-flex items-center gap-1 text-xs font-bold text-[#b12704] bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full animate-pulse">
-          <AlertTriangle className="w-3.5 h-3.5 text-[#e67a00]" /> Expiring in {daysLeft} Days
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex items-center gap-1 text-xs font-bold text-[#007600] bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
-        <ShieldCheck className="w-3.5 h-3.5 text-[#007600]" /> Active Coverage ({daysLeft} Days Left)
-      </span>
-    );
   };
 
   return (
     <AccountLayout>
       <div className="space-y-6">
-        {/* User Profile Hero Banner */}
+        {/* Hidden File Picker for Avatar Upload */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          onChange={handlePhotoSelect}
+          className="hidden"
+          aria-hidden="true"
+        />
+
+        {/* Global Feedback Banners */}
+        {avatarSuccess && (
+          <div className="p-3.5 bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-semibold rounded-2xl flex items-center gap-2.5 animate-in fade-in duration-200">
+            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+            <span>{avatarSuccess}</span>
+          </div>
+        )}
+        {avatarError && (
+          <div className="p-3.5 bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-semibold rounded-2xl flex items-center justify-between gap-2.5 animate-in fade-in duration-200">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
+              <span>{avatarError}</span>
+            </div>
+            <button
+              onClick={() => setAvatarError(null)}
+              className="p-1 hover:text-white cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
+        {/* 1. Dark Profile Header Card */}
         {currentUser ? (
-          <div className="bg-gradient-to-r from-[#131921] via-[#232f3e] to-[#131921] rounded-lg p-6 text-white shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-5">
-            <div className="flex items-start sm:items-center gap-4">
-              <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-[#febd69] to-[#f3a847] text-[#131921] flex items-center justify-center text-2xl font-black shadow-md shrink-0">
-                {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "U"}
+          <div className="bg-gradient-to-r from-[#0B1220] via-[#121B2E] to-[#0B1220] border border-[#1F2A44] rounded-2xl p-6 sm:p-7 text-white shadow-md flex flex-col lg:flex-row lg:items-center justify-between gap-6 transition-all duration-200">
+            {/* Left: Avatar with Camera Overlay + User Details */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
+              {/* Large Avatar with Upload Action */}
+              <div className="relative group shrink-0">
+                {currentUser.avatar ? (
+                  <img
+                    src={currentUser.avatar}
+                    alt={currentUser.name || "Customer"}
+                    className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-2 border-[#C9A66B] dark:border-[#D4B483] shadow-md"
+                  />
+                ) : (
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-tr from-[#C9A66B] to-[#E2C799] text-[#0B1220] flex items-center justify-center text-3xl sm:text-4xl font-extrabold shadow-md">
+                    {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "U"}
+                  </div>
+                )}
+
+                {/* Camera Overlay Button */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={avatarUploading}
+                  className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-[#C9A66B] hover:bg-[#B8914A] active:bg-[#A67C3D] text-[#FFFCFA] flex items-center justify-center shadow-md border-2 border-[#121B2E] transition-transform duration-200 hover:scale-110 cursor-pointer disabled:opacity-50"
+                  title="Upload profile picture (JPG, PNG, WEBP, max 2 MB)"
+                  aria-label="Upload profile picture"
+                >
+                  {avatarUploading ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Camera className="w-3.5 h-3.5" />
+                  )}
+                </button>
               </div>
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h1 className="text-2xl font-bold text-white tracking-tight">{currentUser.name}</h1>
-                  <button
-                    onClick={openEditProfile}
-                    className="p-1 text-gray-300 hover:text-[#febd69] hover:bg-white/10 rounded-full transition-colors cursor-pointer"
-                    title="Edit Personal Details"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                  </button>
+
+              {/* User Details: Name, Badge, Email, Phone, Address on separate lines */}
+              <div className="space-y-1.5 min-w-0">
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+                    {currentUser.name}
+                  </h1>
                   <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
                     {currentUser.role === "ADMIN" ? "👑 Administrator" : "✓ Verified Customer"}
                   </span>
+                  {currentUser.avatar && (
+                    <button
+                      type="button"
+                      onClick={handleRemovePhoto}
+                      className="text-[11px] text-slate-400 hover:text-red-400 underline underline-offset-2 transition-colors cursor-pointer"
+                    >
+                      Remove photo
+                    </button>
+                  )}
                 </div>
-                <div className="text-xs text-gray-300 flex flex-wrap items-center gap-x-4 gap-y-1">
-                  <span className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 text-[#febd69] shrink-0" /> {currentUser.email}</span>
-                  <span className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 text-[#febd69] shrink-0" /> {currentUser.phone}</span>
-                  <span className="flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-[#febd69] shrink-0" />
+
+                <div className="text-xs sm:text-sm text-slate-300 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Mail className="w-3.5 h-3.5 text-[#C9A66B] dark:text-[#D4B483] shrink-0" />
+                    <span className="truncate">{currentUser.email}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Phone className="w-3.5 h-3.5 text-[#C9A66B] dark:text-[#D4B483] shrink-0" />
+                    <span>{currentUser.phone || "No phone added"}</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <MapPin className="w-3.5 h-3.5 text-[#C9A66B] dark:text-[#D4B483] shrink-0 mt-0.5" />
                     {currentUser.address ? (
-                      <span className="max-w-[280px] truncate" title={currentUser.address}>{currentUser.address}</span>
+                      <span className="max-w-md line-clamp-1 text-slate-300" title={currentUser.address}>
+                        {currentUser.address}
+                      </span>
                     ) : (
                       <button
-                        onClick={openEditProfile}
-                        className="text-[#febd69] hover:underline cursor-pointer"
+                        onClick={openAddAddressModal}
+                        className="text-[#C9A66B] hover:underline cursor-pointer"
                       >
                         + Add Delivery Address
                       </button>
                     )}
-                  </span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-white/10">
+            {/* Right: Tidy Action Group */}
+            <div className="flex flex-wrap items-center gap-2.5 pt-4 lg:pt-0 border-t lg:border-t-0 border-[#1F2A44] shrink-0">
               <button
-                onClick={openEditProfile}
-                className="px-3.5 py-1.5 bg-[#febd69] hover:bg-[#f3a847] active:bg-[#e2932b] text-[#131921] text-xs font-bold rounded-md flex items-center gap-1.5 shadow-sm cursor-pointer transition-colors"
-                title="Edit Profile"
+                onClick={() => setIsEditingInfo(!isEditingInfo)}
+                className="px-4 py-2 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
               >
                 <Pencil className="w-3.5 h-3.5" />
-                <span>Edit Profile</span>
+                <span>{isEditingInfo ? "Close Edit" : "Edit Profile"}</span>
               </button>
 
-              {currentUser.role === "ADMIN" && (currentUser.email || "").toLowerCase() === "rrroyce20@gmail.com" && (
-                <Link
-                  href="/admin"
-                  className="px-3 py-1.5 bg-[#C9A66B] hover:bg-[#B8914A] active:bg-[#A67C3D] text-[#FFFCFA] text-xs font-bold rounded-md flex items-center gap-1.5 shadow"
-                >
-                  <ShieldCheck className="w-4 h-4" />
-                  <span>Admin Control</span>
-                </Link>
-              )}
               <Link
                 href="/"
-                className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold rounded-md border border-white/20 transition-colors"
+                className="px-4 py-2 bg-white/10 hover:bg-white/15 text-white text-xs font-semibold rounded-xl border border-white/20 transition-colors flex items-center gap-1.5"
               >
-                Shop Mobiles
+                <ShoppingBag className="w-3.5 h-3.5" />
+                <span>Shop Mobiles</span>
               </Link>
+
               <button
                 onClick={logout}
-                className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 active:bg-red-500/40 text-red-200 border border-red-500/30 text-xs font-semibold rounded-md flex items-center gap-1 cursor-pointer transition-colors"
+                className="px-3.5 py-2 bg-transparent hover:bg-white/5 text-slate-400 hover:text-red-400 text-xs font-medium rounded-xl border border-white/10 hover:border-red-500/30 transition-colors flex items-center gap-1.5 cursor-pointer"
               >
                 <LogOut className="w-3.5 h-3.5" />
                 <span>Sign Out</span>
@@ -327,473 +781,638 @@ export default function AccountPage() {
             </div>
           </div>
         ) : (
-          <div className="bg-white p-5 rounded-lg border border-gray-300 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <User className="w-8 h-8 text-gray-400" />
+          /* Guest Banner */
+          <div className="bg-card p-6 rounded-2xl border border-border flex flex-wrap items-center justify-between gap-4 shadow-sm">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-tile border border-border flex items-center justify-center text-muted shrink-0">
+                <User className="w-6 h-6" />
+              </div>
               <div>
-                <h2 className="font-bold text-sm text-[#0f1111]">You are browsing as Guest</h2>
-                <p className="text-xs text-gray-500">Sign in to view your orders, tracked packages, and warranty shields.</p>
+                <h2 className="font-bold text-base text-foreground">You are browsing as Guest</h2>
+                <p className="text-xs text-muted">Sign in to manage your personal info, delivery addresses, and account security.</p>
               </div>
             </div>
             <Link
               href="/login?redirect=/account"
-              className="px-4 py-2 btn-amazon-yellow text-xs font-bold rounded-md"
+              className="px-5 py-2.5 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] text-xs font-bold rounded-xl shadow-xs transition-all"
             >
               Sign In to Your Account
             </Link>
           </div>
         )}
 
-        {/* Title & Refresh row */}
-        <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
-          <div>
-            <h2 className="text-xl font-bold text-foreground">
-              {currentUser ? `${currentUser.name}'s Orders & Warranties` : "Your Orders & Warranties"}
-            </h2>
-            <p className="text-xs text-muted">
-              Registered IMEIs, 1-Year Device Shield warranty, and shipment tracking
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={loadOrders}
-              className="p-2 bg-tile hover:bg-tile/80 border border-border rounded-xl text-[#8C6226] dark:text-[#E5CBA2] text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-              <span>Refresh</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        {(() => {
-          const activeOrdersCount = orders.filter((o) => !isOrderCancelled(o.orderStatus)).length;
-          const cancelledOrdersCount = orders.filter((o) => isOrderCancelled(o.orderStatus)).length;
-          const filteredOrders = orders.filter((o) => {
-            if (activeOrderTab === "active") return !isOrderCancelled(o.orderStatus);
-            if (activeOrderTab === "cancelled") return isOrderCancelled(o.orderStatus);
-            return true;
-          });
-
-          return (
-            <>
-              <div className="border-b border-border flex gap-6 text-sm mb-6">
-                <button
-                  onClick={() => setActiveOrderTab("active")}
-                  className={`pb-2 text-xs md:text-sm font-semibold transition-colors cursor-pointer ${
-                    activeOrderTab === "active"
-                      ? "font-bold text-[#8C6226] dark:text-[#E5CBA2] border-b-2 border-[#C9A66B] dark:border-[#D4B483]"
-                      : "text-muted hover:text-foreground"
-                  }`}
-                >
-                  Confirmed & Active Orders ({activeOrdersCount})
-                </button>
-                <button
-                  onClick={() => setActiveOrderTab("cancelled")}
-                  className={`pb-2 text-xs md:text-sm font-semibold transition-colors cursor-pointer ${
-                    activeOrderTab === "cancelled"
-                      ? "font-bold text-[#8C6226] dark:text-[#E5CBA2] border-b-2 border-[#C9A66B] dark:border-[#D4B483]"
-                      : "text-muted hover:text-foreground"
-                  }`}
-                >
-                  Cancelled Orders ({cancelledOrdersCount})
-                </button>
-                <button
-                  onClick={() => setActiveOrderTab("all")}
-                  className={`pb-2 text-xs md:text-sm font-semibold transition-colors cursor-pointer ${
-                    activeOrderTab === "all"
-                      ? "font-bold text-[#8C6226] dark:text-[#E5CBA2] border-b-2 border-[#C9A66B] dark:border-[#D4B483]"
-                      : "text-muted hover:text-foreground"
-                  }`}
-                >
-                  Full Order History ({orders.length})
-                </button>
-              </div>
-
-              {/* Feature Banner */}
-              <div className="bg-card border border-border rounded-2xl p-4 mb-6 text-xs text-foreground flex items-center justify-between gap-3 shadow-sm">
+        {/* 2. Clean 2-Column Grid of Account Sections */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Card 1: Personal Information */}
+          <div className="bg-card border border-border rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between pb-4 border-b border-border mb-4">
                 <div className="flex items-center gap-2.5">
-                  <BellRing className="w-4 h-4 text-[#8C6226] dark:text-[#E5CBA2] shrink-0" />
-                  <span>
-                    <strong className="text-[#8C6226] dark:text-[#E5CBA2]">VN Mobiles Automated Warranty Protection:</strong> You will receive automated email alerts 6 months and 1 day before your hardware warranty expires.
-                  </span>
+                  <div className="w-9 h-9 rounded-xl bg-[#C9A66B]/15 dark:bg-[#D4B483]/15 text-[#8C6226] dark:text-[#E5CBA2] flex items-center justify-center font-bold">
+                    <User className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm sm:text-base font-bold text-foreground">Personal Information</h2>
+                    <p className="text-[11px] text-muted">Your registered identity and primary contact details</p>
+                  </div>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsEditingInfo(!isEditingInfo)}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg text-[#8C6226] dark:text-[#E5CBA2] hover:bg-tile transition-colors flex items-center gap-1 cursor-pointer"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  <span>{isEditingInfo ? "Cancel" : "Edit"}</span>
+                </button>
               </div>
 
-              {/* Orders List */}
-              {loading && orders.length === 0 ? (
-                <div className="py-20 text-center text-gray-600">
-                  <div className="w-8 h-8 border-3 border-[#e77600] border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                  <p className="text-xs">Loading your orders...</p>
+              {infoSuccess && (
+                <div className="mb-4 p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-medium rounded-xl flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>{infoSuccess}</span>
                 </div>
-              ) : ordersError ? (
-                <div className="bg-white border border-red-200 rounded-sm p-10 text-center text-red-600 space-y-3">
-                  <AlertCircle className="w-10 h-10 mx-auto text-red-500" />
-                  <h3 className="text-base font-bold text-red-900">Failed to load order history</h3>
-                  <p className="text-xs text-red-600 max-w-md mx-auto">{ordersError}</p>
+              )}
+              {infoError && (
+                <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs font-medium rounded-xl flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{infoError}</span>
+                </div>
+              )}
+
+              {isEditingInfo ? (
+                /* Inline Edit Form */
+                <form onSubmit={handleSavePersonalInfo} className="space-y-3.5">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-foreground uppercase tracking-wider mb-1">
+                      Full Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={infoName}
+                      onChange={(e) => setInfoName(e.target.value)}
+                      className="w-full px-3.5 py-2 bg-tile border border-border rounded-xl text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-[#C9A66B]/30"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-foreground uppercase tracking-wider mb-1">
+                      Email Address <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={infoEmail}
+                      onChange={(e) => setInfoEmail(e.target.value)}
+                      disabled={currentUser?.role === "ADMIN" && (currentUser?.email || "").toLowerCase() === "rrroyce20@gmail.com"}
+                      className="w-full px-3.5 py-2 bg-tile border border-border rounded-xl text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-[#C9A66B]/30 disabled:opacity-60"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-foreground uppercase tracking-wider mb-1">
+                      Mobile Number <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      maxLength={15}
+                      value={infoPhone}
+                      onChange={(e) => setInfoPhone(e.target.value.replace(/[^0-9]/g, ""))}
+                      className="w-full px-3.5 py-2 bg-tile border border-border rounded-xl text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-[#C9A66B]/30 font-mono"
+                    />
+                  </div>
+
+                  <div className="pt-2 flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingInfo(false)}
+                      disabled={infoSaving}
+                      className="px-3.5 py-1.5 text-xs font-semibold rounded-xl border border-border hover:bg-tile text-foreground cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={infoSaving}
+                      className="px-4 py-1.5 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] text-[#FFFCFA] text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
+                    >
+                      {infoSaving ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                      <span>Save Info</span>
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                /* Read-Only Overview */
+                <div className="space-y-3 text-xs">
+                  <div className="p-3 rounded-xl bg-tile border border-border/70 flex items-center justify-between">
+                    <div>
+                      <div className="text-[10px] text-muted uppercase font-semibold">Full Name</div>
+                      <div className="font-bold text-foreground text-sm mt-0.5">{currentUser?.name || "—"}</div>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-tile border border-border/70 flex items-center justify-between">
+                    <div>
+                      <div className="text-[10px] text-muted uppercase font-semibold">Email Address</div>
+                      <div className="font-bold text-foreground text-sm mt-0.5">{currentUser?.email || "—"}</div>
+                    </div>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/30">
+                      Verified
+                    </span>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-tile border border-border/70 flex items-center justify-between">
+                    <div>
+                      <div className="text-[10px] text-muted uppercase font-semibold">Mobile Phone</div>
+                      <div className="font-bold text-foreground text-sm mt-0.5 font-mono">{currentUser?.phone || "—"}</div>
+                    </div>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-tile text-muted font-semibold border border-border">
+                      PAN-India OTP
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Card 2: Delivery Addresses */}
+          <div className="bg-card border border-border rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between pb-4 border-b border-border mb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-[#C9A66B]/15 dark:bg-[#D4B483]/15 text-[#8C6226] dark:text-[#E5CBA2] flex items-center justify-center font-bold">
+                    <MapPin className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm sm:text-base font-bold text-foreground">Delivery Addresses</h2>
+                    <p className="text-[11px] text-muted">Addresses saved for fast 1-click mobile checkout</p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={openAddAddressModal}
+                  className="px-3.5 py-1.5 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] text-[#FFFCFA] text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add Address</span>
+                </button>
+              </div>
+
+              {addrSuccess && (
+                <div className="mb-4 p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-medium rounded-xl flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>{addrSuccess}</span>
+                </div>
+              )}
+
+              {/* Address List */}
+              {addresses.length === 0 ? (
+                <div className="py-8 text-center border-2 border-dashed border-border rounded-2xl space-y-2.5">
+                  <MapPin className="w-8 h-8 mx-auto text-muted opacity-40" />
+                  <p className="text-xs text-muted">No delivery address saved yet.</p>
                   <button
-                    onClick={() => loadOrders()}
-                    className="btn-amazon-yellow py-1.5 px-5 text-xs font-bold inline-flex items-center gap-2 cursor-pointer"
+                    onClick={openAddAddressModal}
+                    className="px-3.5 py-1.5 bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] text-xs font-semibold rounded-xl cursor-pointer"
                   >
-                    <RefreshCw className="w-3.5 h-3.5" /> Try Again
+                    Add Your First Address
                   </button>
                 </div>
-              ) : filteredOrders.length === 0 ? (
-                <div className="bg-card border border-border rounded-2xl p-12 text-center text-muted space-y-3 shadow-sm">
-                  <Smartphone className="w-12 h-12 mx-auto text-muted opacity-40" />
-                  <h3 className="text-lg font-bold text-foreground">
-                    {activeOrderTab === "cancelled"
-                      ? "No Cancelled Orders"
-                      : activeOrderTab === "active"
-                      ? "No Active Orders"
-                      : "No Orders Placed Yet"}
-                  </h3>
-                  <p className="text-xs text-muted max-w-md mx-auto">
-                    {activeOrderTab === "cancelled"
-                      ? "You have not cancelled any smartphone orders. All cancelled orders will be archived here."
-                      : activeOrderTab === "active"
-                      ? "You currently have no active orders in processing or transit."
-                      : "When you purchase a smartphone from VN Mobiles, you can track delivery and device warranty expiry here."}
-                  </p>
-                  {activeOrderTab !== "cancelled" && (
-                    <Link
-                      href="/"
-                      className="py-2.5 px-6 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] text-[#FFFCFA] text-xs font-bold rounded-xl inline-block transition-all shadow-xs"
-                    >
-                      Start Shopping
-                    </Link>
-                  )}
-                </div>
               ) : (
-                <div className="space-y-6">
-                  {filteredOrders.map((order) => {
-                    const orderIsCancelled = isOrderCancelled(order.orderStatus);
-                    const orderCanCancel = canOrderBeCancelled(order.orderStatus);
-
-                    return (
-                    <div key={order.id} className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
-                      {/* Order Card Header */}
-                      <div className="bg-tile border-b border-border px-5 py-3.5 flex flex-wrap items-center justify-between gap-4 text-xs text-muted">
-                        <div className="flex flex-wrap items-center gap-6">
-                          <div>
-                            <span className="block text-[10px] uppercase font-semibold text-muted">Order Placed</span>
-                            <span className="font-medium text-foreground">{formatDateOnly(order.createdAt)}</span>
-                          </div>
-                          <div>
-                            <span className="block text-[10px] uppercase font-semibold text-muted">Total</span>
-                            <span className="font-bold text-foreground">₹{order.totalAmount.toLocaleString("en-IN")}</span>
-                          </div>
-                          <div>
-                            <span className="block text-[10px] uppercase font-semibold text-muted">Ship To</span>
-                            <span className="text-[#8C6226] dark:text-[#E5CBA2] hover:underline cursor-pointer">{order.customerName}</span>
-                          </div>
-                          <div>
-                            <span className="block text-[10px] uppercase font-semibold text-muted">Verified Mobile</span>
-                            <span className="font-mono text-emerald-400 font-bold">{order.customerPhone}</span>
-                          </div>
-                        </div>
-
-                        <div className="text-right flex flex-col items-end gap-1.5">
-                          <div>
-                            <span className="block text-[10px] uppercase font-semibold text-muted">Order # {order.orderNumber}</span>
-                            <span className="text-[#8C6226] dark:text-[#E5CBA2] hover:underline cursor-pointer text-xs">View invoice</span>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            {!orderIsCancelled && (
-                              <Link
-                                href={`/track/${order.orderNumber}`}
-                                className="py-1 px-3 text-xs font-bold rounded-lg bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] text-[#FFFCFA] flex items-center gap-1 shadow-xs transition-colors"
-                              >
-                                <Truck className="w-3.5 h-3.5" />
-                                <span>Track Package</span>
-                              </Link>
-                            )}
-
-                            {orderIsCancelled ? (
-                              <span className="py-1 px-2.5 text-xs font-bold rounded-lg bg-red-500/10 text-red-500 dark:text-red-400 border border-red-500/20 flex items-center gap-1">
-                                <X className="w-3.5 h-3.5 text-red-500 dark:text-red-400" /> Cancelled
+                <div className="space-y-3">
+                  {addresses.map((addr) => (
+                    <div
+                      key={addr.id}
+                      className={`p-3.5 rounded-xl border transition-all ${
+                        addr.isDefault
+                          ? "border-[#C9A66B] dark:border-[#D4B483] bg-[#C9A66B]/5 dark:bg-[#D4B483]/5"
+                          : "border-border bg-tile/40 hover:border-border/80"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA]">
+                              {addr.label.toUpperCase()}
+                            </span>
+                            <span className="text-xs font-bold text-foreground">
+                              {addr.recipientName}
+                            </span>
+                            {addr.isDefault && (
+                              <span className="text-[10px] font-bold text-[#8C6226] dark:text-[#E5CBA2] bg-[#C9A66B]/15 px-2 py-0.5 rounded-full border border-[#C9A66B]/30">
+                                Default Delivery Address
                               </span>
-                            ) : orderCanCancel ? (
-                              <button
-                                onClick={() => {
-                                  setCancelModalOrder(order);
-                                  setCancelReason("Order created by mistake");
-                                }}
-                                className="py-1 px-2.5 text-xs font-semibold rounded-lg bg-[#C9A66B]/15 hover:bg-[#C9A66B]/25 text-[#8C6226] dark:text-[#E5CBA2] border border-[#C9A66B]/30 flex items-center gap-1 cursor-pointer transition-colors shadow-xs"
-                                title="Cancel this order and receive full refund"
-                              >
-                                <X className="w-3.5 h-3.5 text-[#8C6226] dark:text-[#E5CBA2]" />
-                                <span>Cancel Order</span>
-                              </button>
-                            ) : null}
+                            )}
                           </div>
+                          <p className="text-xs text-foreground leading-relaxed">
+                            {addr.street}, {addr.city}, {addr.state} - <span className="font-mono">{addr.pincode}</span>
+                          </p>
+                          <p className="text-[11px] text-muted">Phone: <span className="font-mono">{addr.phone}</span></p>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {!addr.isDefault && (
+                            <button
+                              type="button"
+                              onClick={() => handleSetDefaultAddress(addr.id)}
+                              className="text-[11px] font-semibold text-[#8C6226] dark:text-[#E5CBA2] hover:underline cursor-pointer px-1.5 py-1"
+                            >
+                              Set Default
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => openEditAddressModal(addr)}
+                            className="p-1.5 text-muted hover:text-foreground rounded-lg hover:bg-tile transition-colors cursor-pointer"
+                            title="Edit Address"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteAddress(addr.id)}
+                            className="p-1.5 text-muted hover:text-red-500 rounded-lg hover:bg-red-500/10 transition-colors cursor-pointer"
+                            title="Delete Address"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </div>
-
-                      {/* Cancelled Order Banner */}
-                      {orderIsCancelled && (
-                        <div className="bg-red-500/10 border-b border-red-500/20 px-5 py-3 text-xs text-red-700 dark:text-red-300 flex items-start gap-2.5">
-                          <div className="p-1 rounded-lg bg-red-600 text-white shrink-0 mt-0.5">
-                            <X className="w-3.5 h-3.5" />
-                          </div>
-                          <div>
-                            <div className="font-bold text-red-600 dark:text-red-400 text-sm">
-                              ORDER CANCELLED & REFUND PROCESSED
-                            </div>
-                            <p className="mt-0.5 text-red-700/90 dark:text-red-300/90 leading-relaxed font-sans">
-                              Your order for <strong className="text-foreground">{order.items?.map((i: any) => i.productName).filter(Boolean).join(", ") || "Smartphone"}</strong> has been cancelled and the amount of <strong className="text-red-600 dark:text-red-400">₹{order.totalAmount?.toLocaleString("en-IN")}</strong> will be refunded to your original payment method.
-                            </p>
-                          </div>
-                        </div>
-                      )}
-
-                {/* Admin / Support Alteration Alert Banner */}
-                {!orderIsCancelled && (order.adminNotes || order.orderStatus !== "CONFIRMED" || order.shippingCarrier) && (
-                  <div className="bg-tile border-b border-border px-5 py-3 text-xs text-foreground">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="p-1 rounded-lg bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA]">
-                          <BellRing className="w-3.5 h-3.5" />
-                        </span>
-                        <span className="font-bold text-[#8C6226] dark:text-[#E5CBA2] text-sm">
-                          Order Activity & Support Notice:
-                        </span>
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#C9A66B]/15 text-[#8C6226] dark:text-[#E5CBA2] border border-[#C9A66B]/30">
-                          Status: {order.orderStatus?.replace(/_/g, " ")}
-                        </span>
-                      </div>
-
-                      {order.shippingCarrier && order.trackingNumber && (
-                        <div className="flex items-center gap-1.5 font-mono text-xs bg-card px-2.5 py-1 rounded-lg border border-border text-foreground">
-                          <Truck className="w-3.5 h-3.5 text-[#C9A66B] dark:text-[#D4B483]" />
-                          <span><strong>{order.shippingCarrier}</strong> AWB: <strong>{order.trackingNumber}</strong></span>
-                        </div>
-                      )}
                     </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
 
-                    {order.adminNotes && (
-                      <div className="mt-2 text-xs text-foreground bg-card p-2.5 rounded-xl border border-border leading-relaxed font-sans">
-                        <strong className="text-[#8C6226] dark:text-[#E5CBA2] block mb-0.5">💬 Latest Update from Support Desk:</strong>
-                        <span>{order.adminNotes.split("|").pop()?.trim()}</span>
-                      </div>
-                    )}
+          {/* Card 3: Security */}
+          <div className="bg-card border border-border rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between pb-4 border-b border-border mb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-[#C9A66B]/15 dark:bg-[#D4B483]/15 text-[#8C6226] dark:text-[#E5CBA2] flex items-center justify-center font-bold">
+                    <ShieldCheck className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm sm:text-base font-bold text-foreground">Account Security</h2>
+                    <p className="text-[11px] text-muted">Update password & account credentials</p>
+                  </div>
+                </div>
+              </div>
 
-                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted pt-1.5 border-t border-border">
-                      <span>📍 Delivery Destination: <strong className="text-foreground">{order.address}, {order.city}, {order.state} - {order.pincode}</strong></span>
-                      <span className="text-[#8C6226] dark:text-[#E5CBA2] font-medium">🛡️ Protected by VN Shield Warranty</span>
+              {passwordSuccess && (
+                <div className="mb-4 p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-medium rounded-xl flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>{passwordSuccess}</span>
+                </div>
+              )}
+              {passwordError && (
+                <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs font-medium rounded-xl flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{passwordError}</span>
+                </div>
+              )}
+
+              {/* Change Password Form */}
+              <form onSubmit={handleChangePassword} className="space-y-3.5">
+                <div>
+                  <label className="block text-[11px] font-semibold text-foreground uppercase tracking-wider mb-1">
+                    Current Password <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showCurrentPassword ? "text" : "password"}
+                      required
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      placeholder="Enter current password"
+                      className="w-full px-3.5 pr-10 py-2 bg-tile border border-border rounded-xl text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-[#C9A66B]/30"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-foreground cursor-pointer"
+                    >
+                      {showCurrentPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-foreground uppercase tracking-wider mb-1">
+                      New Password <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showNewPassword ? "text" : "password"}
+                        required
+                        minLength={6}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="At least 6 chars"
+                        className="w-full px-3.5 pr-10 py-2 bg-tile border border-border rounded-xl text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-[#C9A66B]/30"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-foreground cursor-pointer"
+                      >
+                        {showNewPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
                     </div>
                   </div>
-                )}
 
-                {/* Items in Order */}
-                <div className="p-5 space-y-6 divide-y divide-border">
-                  {order.items?.map((item: any) => {
-                    const daysLeft = getDaysRemaining(item.warrantyExpiryDate);
-                    const isExpiringSoon = item.warrantyStatus === "EXPIRING_SOON" || (daysLeft <= 7 && daysLeft > 0);
-                    const isExpired = item.warrantyStatus === "EXPIRED" || daysLeft <= 0;
-
-                    return (
-                      <div key={item.id} className="pt-6 first:pt-0">
-                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                          {/* Item Info (5 cols) */}
-                          <div className="lg:col-span-5 flex gap-4">
-                            <div className="relative w-20 h-20 bg-tile border border-border p-1 shrink-0 rounded-xl">
-                              <Image src={item.productImageUrl} alt={item.productName} fill unoptimized className="object-contain" />
-                            </div>
-                            <div className="space-y-1 text-xs">
-                              <h4 className="font-bold text-sm text-foreground hover:text-[#8C6226] dark:hover:text-[#E5CBA2] cursor-pointer leading-snug transition-colors">
-                                {item.productName}
-                              </h4>
-                              <p className="text-muted">{item.selectedStorage} • {item.selectedColor}</p>
-                              <div className="font-mono text-xs text-muted bg-tile px-2 py-0.5 border border-border rounded-lg inline-block font-semibold">
-                                Registered IMEI: <strong className="text-foreground">{item.imeiNumber}</strong>
-                              </div>
-                              <div className="text-muted text-[11px] pt-1">
-                                Return window closed on {formatDateOnly(new Date(new Date(item.warrantyStartDate).getTime() + 15 * 86400000))}
-                              </div>
-                            </div>
-                          </div>
-
-                          {orderIsCancelled || item.warrantyStatus === "CANCELLED" ? (
-                            <div className="lg:col-span-7 bg-red-500/10 border border-red-500/20 p-3.5 rounded-xl space-y-1 text-xs">
-                              <div className="flex items-center gap-1.5 font-bold text-red-600 dark:text-red-400">
-                                <X className="w-4 h-4" />
-                                <span>Warranty Cancelled (Order Cancelled)</span>
-                              </div>
-                              <p className="text-[11px] text-red-700/90 dark:text-red-300 leading-relaxed">
-                                This device was part of order #{order.orderNumber} which was cancelled. Warranty coverage is cancelled and void.
-                              </p>
-                            </div>
-                          ) : (
-                            /* Warranty Status & Details (7 cols) */
-                            <div className="lg:col-span-7 bg-tile border border-border p-3.5 rounded-xl space-y-2 text-xs">
-                              <div className="flex justify-between items-center">
-                                <span className="font-bold text-foreground flex items-center gap-1">
-                                  <Award className="w-3.5 h-3.5 text-[#C9A66B] dark:text-[#D4B483]" />
-                                  Device Shield Warranty
-                                </span>
-                                {getStatusBadge(item.warrantyStatus, daysLeft)}
-                              </div>
-
-                              <div className="flex justify-between text-muted font-mono text-[11px]">
-                                <span>Valid until:</span>
-                                <strong className="text-foreground">{formatDateOnly(item.warrantyExpiryDate)}</strong>
-                              </div>
-
-                              {/* Progress bar */}
-                              <div className="w-full bg-border rounded-full h-1.5 overflow-hidden">
-                                <div
-                                  className={`h-full ${
-                                    isExpired
-                                      ? "bg-[#EF4444] w-full"
-                                      : isExpiringSoon
-                                      ? "bg-[#C9A66B] dark:bg-[#D4B483] w-3/4 animate-pulse"
-                                      : "bg-[#10B981] w-1/4"
-                                  }`}
-                                />
-                              </div>
-
-                              <p className="text-[11px] text-muted leading-tight">
-                                {isExpired
-                                  ? "Warranty coverage has expired. Hardware claim window closed."
-                                  : isExpiringSoon
-                                  ? "⚠️ Warranty is expiring soon. Reminder email dispatched to buyer."
-                                  : "Active coverage. Automated warranty alert emails sent 6 months & 1 day before expiry."}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
+                  <div>
+                    <label className="block text-[11px] font-semibold text-foreground uppercase tracking-wider mb-1">
+                      Confirm Password <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showConfirmPassword ? "text" : "password"}
+                        required
+                        minLength={6}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Re-enter password"
+                        className="w-full px-3.5 pr-10 py-2 bg-tile border border-border rounded-xl text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-[#C9A66B]/30"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-foreground cursor-pointer"
+                      >
+                        {showConfirmPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-            </>
-          );
-        })()}
 
-        {/* Danger Zone: Delete Account */}
-        {currentUser && currentUser.role !== "ADMIN" && (
-          <div className="bg-card rounded-2xl border border-red-500/30 p-5 shadow-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="space-y-1">
-                <h3 className="text-sm font-bold text-red-600 dark:text-red-400 flex items-center gap-1.5">
-                  <Trash2 className="w-4 h-4 text-red-500" /> Danger Zone: Delete Customer Account
-                </h3>
-                <p className="text-xs text-muted max-w-xl leading-relaxed">
-                  Permanently remove your personal profile, credentials, and saved wishlist. Historical order and warranty data will be preserved in an anonymized format to fulfill legal, tax, and warranty obligations.
-                </p>
+                <div className="pt-2 flex items-center justify-between">
+                  <span className="text-[11px] text-muted">Requires at least 6 characters</span>
+                  <button
+                    type="submit"
+                    disabled={passwordUpdating}
+                    className="px-4 py-2 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] text-[#FFFCFA] text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
+                  >
+                    {passwordUpdating ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Lock className="w-3.5 h-3.5" />}
+                    <span>Update Password</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* Account Deletion Callout at Bottom of Security Card */}
+            <div className="pt-4 mt-6 border-t border-border flex items-center justify-between">
+              <div>
+                <div className="text-xs font-bold text-foreground">Need to delete your account?</div>
+                <div className="text-[11px] text-muted">Permanently erase your orders, warranties & personal data</div>
               </div>
               <button
+                type="button"
                 onClick={() => setIsDeleteModalOpen(true)}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-xs font-bold rounded-xl shrink-0 flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-xs"
-                title="Delete Customer Account"
+                className="text-xs font-semibold text-red-500 hover:text-red-600 hover:underline cursor-pointer"
               >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Delete Account</span>
+                Delete Account
               </button>
             </div>
           </div>
-        )}
+
+          {/* Card 4: Account Summary */}
+          <div className="bg-card border border-border rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between pb-4 border-b border-border mb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-[#C9A66B]/15 dark:bg-[#D4B483]/15 text-[#8C6226] dark:text-[#E5CBA2] flex items-center justify-center font-bold">
+                    <Calendar className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm sm:text-base font-bold text-foreground">Account Summary</h2>
+                    <p className="text-[11px] text-muted">Overview of your VN Mobiles customer activity</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Metrics Grid */}
+              <div className="grid grid-cols-2 gap-3.5">
+                {/* Metric 1: Member Since */}
+                <div className="p-4 rounded-xl bg-tile border border-border/70 space-y-1">
+                  <div className="text-[11px] font-semibold text-muted flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-[#C9A66B]" />
+                    <span>Member Since</span>
+                  </div>
+                  <div className="text-base sm:text-lg font-bold text-foreground">
+                    {currentUser?.createdAt
+                      ? new Date(currentUser.createdAt).toLocaleDateString("en-IN", {
+                          month: "short",
+                          year: "numeric",
+                        })
+                      : "2026"}
+                  </div>
+                  <p className="text-[10px] text-muted">Authenticated buyer</p>
+                </div>
+
+                {/* Metric 2: Total Orders */}
+                <Link
+                  href="/orders"
+                  className="p-4 rounded-xl bg-tile border border-border/70 space-y-1 hover:border-[#C9A66B] transition-colors group block"
+                >
+                  <div className="text-[11px] font-semibold text-muted flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <Package className="w-3.5 h-3.5 text-[#C9A66B]" />
+                      <span>Total Orders</span>
+                    </span>
+                    <ArrowRight className="w-3 h-3 text-muted group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
+                  </div>
+                  <div className="text-base sm:text-lg font-bold text-foreground">
+                    {metricsLoading ? "—" : totalOrdersCount}
+                  </div>
+                  <p className="text-[10px] text-[#8C6226] dark:text-[#E5CBA2] font-semibold group-hover:underline">
+                    View order history →
+                  </p>
+                </Link>
+
+                {/* Metric 3: Active Warranties */}
+                <Link
+                  href="/account/warranties"
+                  className="p-4 rounded-xl bg-tile border border-border/70 space-y-1 hover:border-[#C9A66B] transition-colors group block"
+                >
+                  <div className="text-[11px] font-semibold text-muted flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                      <span>Active Shields</span>
+                    </span>
+                    <ArrowRight className="w-3 h-3 text-muted group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
+                  </div>
+                  <div className="text-base sm:text-lg font-bold text-foreground">
+                    {metricsLoading ? "—" : activeWarrantiesCount}
+                  </div>
+                  <p className="text-[10px] text-[#8C6226] dark:text-[#E5CBA2] font-semibold group-hover:underline">
+                    Manage warranties →
+                  </p>
+                </Link>
+
+                {/* Metric 4: Wishlist Items */}
+                <Link
+                  href="/account/wishlist"
+                  className="p-4 rounded-xl bg-tile border border-border/70 space-y-1 hover:border-[#C9A66B] transition-colors group block"
+                >
+                  <div className="text-[11px] font-semibold text-muted flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <Heart className="w-3.5 h-3.5 text-red-500" />
+                      <span>Wishlist</span>
+                    </span>
+                    <ArrowRight className="w-3 h-3 text-muted group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
+                  </div>
+                  <div className="text-base sm:text-lg font-bold text-foreground">
+                    {wishlistCount}
+                  </div>
+                  <p className="text-[10px] text-[#8C6226] dark:text-[#E5CBA2] font-semibold group-hover:underline">
+                    View saved phones →
+                  </p>
+                </Link>
+              </div>
+            </div>
+
+            {/* Quick Links Footer */}
+            <div className="pt-4 mt-6 border-t border-border flex items-center justify-between text-xs">
+              <span className="text-muted">Need help with an order?</span>
+              <Link href="/orders" className="font-semibold text-[#8C6226] dark:text-[#E5CBA2] hover:underline">
+                Go to Orders & Tracking
+              </Link>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Cancellation Confirmation Modal */}
-      {cancelModalOrder && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white rounded-lg shadow-2xl max-w-lg w-full overflow-hidden border border-gray-300">
+      {/* 3. Crop & Preview Modal */}
+      {cropModalOpen && rawImageSrc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-card border border-border rounded-2xl max-w-md w-full shadow-2xl overflow-hidden flex flex-col">
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-5 py-3.5 flex items-center justify-between">
-              <div className="flex items-center gap-2 font-bold text-sm">
-                <X className="w-5 h-5 bg-white/20 p-0.5 rounded-full" />
-                <span>Cancel Order #{cancelModalOrder.orderNumber}</span>
+            <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Camera className="w-4 h-4 text-[#C9A66B]" />
+                <h3 className="font-bold text-sm text-foreground">Crop Profile Picture</h3>
               </div>
               <button
-                onClick={() => setCancelModalOrder(null)}
-                className="text-white/80 hover:text-white p-1 rounded hover:bg-white/10 cursor-pointer"
+                type="button"
+                onClick={() => setCropModalOpen(false)}
+                className="p-1 rounded-lg text-muted hover:text-foreground hover:bg-tile transition-colors cursor-pointer"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Modal Body */}
-            <div className="p-5 space-y-4 text-xs text-gray-700">
-              <div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-900 leading-relaxed">
-                <p className="font-bold mb-1">ΓÜá∩╕Å Please confirm order cancellation:</p>
-                <p>
-                  Once cancelled, your order will be stopped immediately. A full refund of{" "}
-                  <strong className="text-red-700">Γé╣{cancelModalOrder.totalAmount?.toLocaleString("en-IN")}</strong>{" "}
-                  will be credited back, and reserved phone inventory will be returned to stock.
-                </p>
+            {/* Interactive Crop Viewport */}
+            <div className="p-5 flex flex-col items-center">
+              <p className="text-xs text-muted mb-3 text-center">
+                Drag to reposition or adjust zoom to fit your profile avatar.
+              </p>
+
+              <div
+                className="relative w-64 h-64 bg-slate-950 rounded-2xl overflow-hidden flex items-center justify-center cursor-move border border-border select-none"
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
+              >
+                <img
+                  ref={imageElementRef}
+                  src={rawImageSrc}
+                  alt="Crop preview"
+                  draggable={false}
+                  style={{
+                    transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                    transformOrigin: "center center",
+                    maxWidth: "none",
+                    transition: isDragging ? "none" : "transform 0.1s ease-out",
+                  }}
+                  className="pointer-events-none"
+                />
+
+                {/* Mask Overlay */}
+                <div
+                  className={`pointer-events-none absolute inset-0 border-4 border-[#C9A66B] ${
+                    cropShape === "circle" ? "rounded-full" : "rounded-2xl"
+                  } shadow-[0_0_0_9999px_rgba(0,0,0,0.65)]`}
+                />
               </div>
 
-              {/* Items Summary */}
-              <div className="border border-gray-200 rounded-md p-3 bg-gray-50 space-y-2">
-                <span className="font-bold text-[11px] uppercase text-gray-500 block">Items to be cancelled:</span>
-                {cancelModalOrder.items?.map((it: any) => (
-                  <div key={it.id} className="flex justify-between items-center text-xs">
-                    <span className="truncate pr-2 font-medium text-gray-900">
-                      {it.productName} ({it.selectedStorage || "Default"} ΓÇó {it.selectedColor || "Standard"}) ├ù {it.quantity || 1}
-                    </span>
-                    <span className="font-bold text-gray-900 shrink-0">Γé╣{it.price?.toLocaleString("en-IN")}</span>
+              {/* Controls: Zoom slider & Shape selector */}
+              <div className="w-full mt-4 space-y-3">
+                <div className="flex items-center gap-3">
+                  <ZoomOut className="w-4 h-4 text-muted shrink-0" />
+                  <input
+                    type="range"
+                    min="1"
+                    max="3"
+                    step="0.05"
+                    value={zoom}
+                    onChange={(e) => setZoom(parseFloat(e.target.value))}
+                    className="w-full accent-[#C9A66B] cursor-pointer"
+                  />
+                  <ZoomIn className="w-4 h-4 text-muted shrink-0" />
+                </div>
+
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted">Crop Shape:</span>
+                  <div className="flex items-center gap-1.5 bg-tile p-1 rounded-lg border border-border">
+                    <button
+                      type="button"
+                      onClick={() => setCropShape("circle")}
+                      className={`px-2.5 py-1 rounded-md font-semibold text-[11px] transition-colors cursor-pointer ${
+                        cropShape === "circle"
+                          ? "bg-[#C9A66B] text-[#FFFCFA]"
+                          : "text-muted hover:text-foreground"
+                      }`}
+                    >
+                      Circle
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCropShape("square")}
+                      className={`px-2.5 py-1 rounded-md font-semibold text-[11px] transition-colors cursor-pointer ${
+                        cropShape === "square"
+                          ? "bg-[#C9A66B] text-[#FFFCFA]"
+                          : "text-muted hover:text-foreground"
+                      }`}
+                    >
+                      Square
+                    </button>
                   </div>
-                ))}
-              </div>
-
-              {/* Cancellation Reason Selection */}
-              <div>
-                <label className="font-bold block text-gray-800 mb-1.5 text-xs">
-                  Reason for Cancellation: <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={cancelReason}
-                  onChange={(e) => setCancelReason(e.target.value)}
-                  className="w-full p-2.5 border border-gray-300 rounded-md bg-white text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500"
-                >
-                  <option value="Order created by mistake">Order created by mistake</option>
-                  <option value="Found cheaper price elsewhere">Found cheaper price elsewhere</option>
-                  <option value="Delivery date is too late / Need it sooner">Delivery date is too late / Need it sooner</option>
-                  <option value="Changed mind / No longer needed">Changed mind / No longer needed</option>
-                  <option value="Need to change shipping address or phone">Need to change shipping address or phone</option>
-                  <option value="Incorrect phone model / color / storage selected">Incorrect phone model / color / storage selected</option>
-                  <option value="Other reason">Other reason</option>
-                </select>
-              </div>
-
-              <div className="text-[11px] text-gray-500 leading-tight">
-                Γä╣∩╕Å An instant cancellation confirmation email will be dispatched to <strong>{cancelModalOrder.customerEmail || cancelModalOrder.email}</strong>.
+                </div>
               </div>
             </div>
 
             {/* Modal Footer */}
-            <div className="bg-gray-50 px-5 py-3 border-t border-gray-200 flex items-center justify-end gap-2.5">
+            <div className="px-5 py-3.5 bg-tile border-t border-border flex items-center justify-end gap-2.5">
               <button
                 type="button"
-                onClick={() => setCancelModalOrder(null)}
-                disabled={cancelling}
-                className="py-2 px-4 text-xs font-semibold rounded-md border border-[#C9A66B]/30 bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 text-[#8C6226] dark:text-[#E5CBA2] cursor-pointer"
+                onClick={() => setCropModalOpen(false)}
+                disabled={avatarUploading}
+                className="px-4 py-2 text-xs font-semibold rounded-xl border border-border bg-card hover:bg-tile text-foreground cursor-pointer transition-colors"
               >
-                Keep Order
+                Cancel
               </button>
               <button
                 type="button"
-                onClick={handleConfirmCancel}
-                disabled={cancelling}
-                className="py-2 px-4 text-xs font-bold rounded-md bg-red-600 hover:bg-red-700 active:bg-red-800 text-white shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
+                onClick={handleSaveCroppedPhoto}
+                disabled={avatarUploading}
+                className="px-5 py-2 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] active:bg-[#A67C3D] text-[#FFFCFA] text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
               >
-                {cancelling ? (
+                {avatarUploading ? (
                   <>
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    <span>Cancelling...</span>
+                    <span>Saving Photo...</span>
                   </>
                 ) : (
                   <>
-                    <X className="w-3.5 h-3.5" />
-                    <span>Confirm Order Cancellation</span>
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Save Photo</span>
                   </>
                 )}
               </button>
@@ -802,163 +1421,179 @@ export default function AccountPage() {
         </div>
       )}
 
-      {/* Edit Profile Modal */}
-      {isEditProfileOpen && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in"
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !editSaving) {
-              setIsEditProfileOpen(false);
-            }
-          }}
-        >
-          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full border border-gray-200 overflow-hidden text-gray-900 transition-all">
-            {/* Modal Header */}
-            <div className="bg-[#131921] px-5 py-4 text-white flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-full bg-[#febd69] text-[#131921] flex items-center justify-center font-bold">
-                  <Pencil className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-sm text-white leading-tight">Edit Profile Details</h3>
-                  <p className="text-[11px] text-gray-300">Update your name, email, phone number & delivery address</p>
-                </div>
+      {/* 4. Add / Edit Delivery Address Modal */}
+      {isAddressModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-card border border-border rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden flex flex-col">
+            <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-[#C9A66B]" />
+                <h3 className="font-bold text-sm text-foreground">
+                  {editingAddressId ? "Edit Delivery Address" : "Add New Delivery Address"}
+                </h3>
               </div>
               <button
                 type="button"
-                onClick={() => !editSaving && setIsEditProfileOpen(false)}
-                disabled={editSaving}
-                className="text-gray-400 hover:text-white p-1 rounded-md transition-colors cursor-pointer"
+                onClick={() => setIsAddressModalOpen(false)}
+                className="p-1 rounded-lg text-muted hover:text-foreground hover:bg-tile transition-colors cursor-pointer"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Modal Form */}
-            <form onSubmit={handleSaveProfile} className="p-5 space-y-4 text-xs">
-              {/* Alert Feedback */}
-              {editError && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-700 flex items-start gap-2 animate-fade-in">
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-600" />
-                  <span className="leading-tight">{editError}</span>
-                </div>
-              )}
-              {editSuccess && (
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-md text-emerald-800 flex items-center gap-2 animate-fade-in font-medium">
-                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
-                  <span>{editSuccess}</span>
+            <form onSubmit={handleSaveAddress} className="p-5 space-y-3.5 text-xs">
+              {addrError && (
+                <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{addrError}</span>
                 </div>
               )}
 
-              {/* Name Field */}
+              {/* Label Selector: Home, Work, Other */}
               <div>
-                <label className="block font-semibold text-gray-800 mb-1">
-                  Full Name <span className="text-red-500">*</span>
+                <label className="block text-[11px] font-semibold text-foreground uppercase tracking-wider mb-1.5">
+                  Address Type
                 </label>
-                <div className="relative">
-                  <User className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <div className="grid grid-cols-3 gap-2">
+                  {(["Home", "Work", "Other"] as const).map((lbl) => (
+                    <button
+                      key={lbl}
+                      type="button"
+                      onClick={() => setAddrLabel(lbl)}
+                      className={`py-2 text-xs font-semibold rounded-xl border text-center transition-colors cursor-pointer ${
+                        addrLabel === lbl
+                          ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] border-transparent font-bold shadow-xs"
+                          : "border-border text-foreground hover:bg-tile"
+                      }`}
+                    >
+                      {lbl}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Recipient Name & Phone */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-foreground uppercase tracking-wider mb-1">
+                    Recipient Name
+                  </label>
                   <input
                     type="text"
                     required
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    placeholder="Enter your full name"
-                    className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-md text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#C9A66B] focus:border-transparent transition-all"
+                    value={addrName}
+                    onChange={(e) => setAddrName(e.target.value)}
+                    placeholder="Full Name"
+                    className="w-full px-3.5 py-2 bg-tile border border-border rounded-xl text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-[#C9A66B]/30"
                   />
                 </div>
-              </div>
-
-              {/* Email Field */}
-              <div>
-                <label className="block font-semibold text-gray-800 mb-1">
-                  Email Address <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  <input
-                    type="email"
-                    required
-                    value={editEmail}
-                    onChange={(e) => setEditEmail(e.target.value)}
-                    placeholder="name@example.com"
-                    disabled={currentUser?.role === "ADMIN" && (currentUser?.email || "").toLowerCase() === "rrroyce20@gmail.com"}
-                    className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-md text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#C9A66B] focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed transition-all"
-                  />
-                </div>
-                <p className="text-[10px] text-gray-500 mt-1">Used for sign-in, order updates, and warranty protection certificates.</p>
-              </div>
-
-              {/* Phone Field */}
-              <div>
-                <label className="block font-semibold text-gray-800 mb-1">
-                  Phone Number <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <Phone className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <div>
+                  <label className="block text-[11px] font-semibold text-foreground uppercase tracking-wider mb-1">
+                    Contact Phone
+                  </label>
                   <input
                     type="tel"
                     required
-                    maxLength={15}
-                    value={editPhone}
-                    onChange={(e) => setEditPhone(e.target.value.replace(/[^0-9]/g, ""))}
+                    value={addrPhone}
+                    onChange={(e) => setAddrPhone(e.target.value.replace(/[^0-9]/g, ""))}
                     placeholder="10-digit mobile number"
-                    className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-md text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#C9A66B] focus:border-transparent transition-all font-mono"
+                    className="w-full px-3.5 py-2 bg-tile border border-border rounded-xl text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-[#C9A66B]/30 font-mono"
                   />
                 </div>
-                <p className="text-[10px] text-gray-500 mt-1">Used for delivery confirmation and courier OTP.</p>
               </div>
 
-              {/* Address Field */}
+              {/* Street Address */}
               <div>
-                <label className="block font-semibold text-gray-800 mb-1">
-                  Delivery Address
+                <label className="block text-[11px] font-semibold text-foreground uppercase tracking-wider mb-1">
+                  Street Address / Flat / Building <span className="text-red-500">*</span>
                 </label>
-                <div className="relative">
-                  <MapPin className="w-4 h-4 text-gray-400 absolute left-3 top-2.5 pointer-events-none" />
-                  <textarea
-                    rows={3}
-                    value={editAddress}
-                    onChange={(e) => setEditAddress(e.target.value)}
-                    placeholder="House/Flat no., Building, Street, Area, City, State, PIN code"
-                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#C9A66B] focus:border-transparent resize-none transition-all"
+                <textarea
+                  rows={2}
+                  required
+                  value={addrStreet}
+                  onChange={(e) => setAddrStreet(e.target.value)}
+                  placeholder="House/Flat No., Apartment, Street, Landmark"
+                  className="w-full px-3.5 py-2 bg-tile border border-border rounded-xl text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-[#C9A66B]/30 resize-none"
+                />
+              </div>
+
+              {/* City, State, PIN */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-foreground uppercase tracking-wider mb-1">
+                    City <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={addrCity}
+                    onChange={(e) => setAddrCity(e.target.value)}
+                    placeholder="e.g. Bengaluru"
+                    className="w-full px-3 py-2 bg-tile border border-border rounded-xl text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-[#C9A66B]/30"
                   />
                 </div>
-                <p className="text-[10px] text-gray-500 mt-1">Saved for fast, 1-click checkout on your next smartphone purchase.</p>
+                <div>
+                  <label className="block text-[11px] font-semibold text-foreground uppercase tracking-wider mb-1">
+                    State <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={addrState}
+                    onChange={(e) => setAddrState(e.target.value)}
+                    placeholder="e.g. Karnataka"
+                    className="w-full px-3 py-2 bg-tile border border-border rounded-xl text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-[#C9A66B]/30"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-foreground uppercase tracking-wider mb-1">
+                    PIN Code <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    value={addrPincode}
+                    onChange={(e) => setAddrPincode(e.target.value.replace(/[^0-9]/g, ""))}
+                    placeholder="6 digits"
+                    className="w-full px-3 py-2 bg-tile border border-border rounded-xl text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-[#C9A66B]/30 font-mono"
+                  />
+                </div>
               </div>
+
+              {/* Default Checkbox */}
+              <label className="flex items-center gap-2.5 pt-1 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={addrIsDefault}
+                  onChange={(e) => setAddrIsDefault(e.target.checked)}
+                  className="w-4 h-4 rounded text-[#C9A66B] accent-[#C9A66B] cursor-pointer"
+                />
+                <span className="text-xs font-medium text-foreground">Make this my default delivery address</span>
+              </label>
 
               {/* Modal Footer */}
-              <div className="pt-3 border-t border-gray-200 flex items-center justify-end gap-2.5">
+              <div className="pt-3 border-t border-border flex items-center justify-end gap-2.5">
                 <button
                   type="button"
-                  onClick={() => setIsEditProfileOpen(false)}
-                  disabled={editSaving}
-                  className="py-2 px-4 text-xs font-semibold rounded-md border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 cursor-pointer transition-colors"
+                  onClick={() => setIsAddressModalOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold rounded-xl border border-border bg-card hover:bg-tile text-foreground cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={editSaving}
-                  className="py-2 px-5 text-xs font-bold rounded-md bg-[#C9A66B] hover:bg-[#B8914A] active:bg-[#A67C3D] text-[#FFFCFA] shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
+                  className="px-5 py-2 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] active:bg-[#A67C3D] text-[#FFFCFA] text-xs font-bold rounded-xl shadow-xs cursor-pointer"
                 >
-                  {editSaving ? (
-                    <>
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      <span>Saving...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-3.5 h-3.5" />
-                      <span>Save Changes</span>
-                    </>
-                  )}
+                  {editingAddressId ? "Save Changes" : "Add Address"}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
-      {/* Self-Service Account Deletion Modal */}
+
+      {/* 5. Self-Service Account Deletion Modal */}
       {currentUser && (
         <DeleteAccountModal
           isOpen={isDeleteModalOpen}

@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS "User" (
   "email" TEXT UNIQUE NOT NULL,
   "phone" TEXT UNIQUE NOT NULL,
   "address" TEXT DEFAULT '',
+  "avatar" TEXT DEFAULT '',
   "password" TEXT NOT NULL,
   "role" TEXT NOT NULL DEFAULT 'USER',
   "emailVerified" BOOLEAN NOT NULL DEFAULT false,
