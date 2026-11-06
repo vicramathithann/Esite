@@ -80,6 +80,30 @@ export default function Navbar() {
   } = useApp();
 
   const [searchQuery, setSearchQuery] = useState("");
+  const headerRef = React.useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const updateHeaderOffset = () => {
+      if (headerRef.current) {
+        const height = headerRef.current.getBoundingClientRect().height;
+        document.documentElement.style.setProperty("--header-height", `${height}px`);
+        document.documentElement.style.setProperty("--header-offset", `${height + 16}px`);
+      }
+    };
+
+    updateHeaderOffset();
+
+    const ro = new ResizeObserver(updateHeaderOffset);
+    if (headerRef.current) {
+      ro.observe(headerRef.current);
+    }
+    window.addEventListener("resize", updateHeaderOffset);
+
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", updateHeaderOffset);
+    };
+  }, [siteSettings.showAnnouncement]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,7 +115,10 @@ export default function Navbar() {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full backdrop-blur-md bg-card/85 border-b border-border transition-all duration-200">
+    <header 
+      ref={headerRef}
+      className="sticky top-0 z-50 w-full backdrop-blur-md bg-card/85 border-b border-border transition-all duration-200"
+    >
       {/* Top Announcement Bar (Controllable by Admin) */}
       {siteSettings.showAnnouncement === "true" && (
         <div className="bg-[#C9A66B]/15 dark:bg-[#D4B483]/10 border-b border-[#C9A66B]/20 py-1.5 px-4 text-center text-[11px] font-semibold text-[#8C6226] dark:text-[#E5CBA2] flex items-center justify-center gap-1.5 transition-all">

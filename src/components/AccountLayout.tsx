@@ -258,13 +258,18 @@ export default function AccountLayout({
         <div className="flex flex-col lg:flex-row items-start gap-6 lg:gap-8">
           {/* Desktop Vertical Sidebar: Sticky (~260px or ~76px icon rail) */}
           <aside
-            className={`hidden lg:block shrink-0 sticky top-24 self-start transition-all duration-300 ${
+            style={{
+              position: "sticky",
+              top: "var(--header-offset, 124px)",
+              maxHeight: "calc(100vh - var(--header-offset, 124px) - 16px)",
+              alignSelf: "flex-start",
+            }}
+            className={`hidden lg:block shrink-0 sticky self-start overflow-y-auto scrollbar-thin bg-card border border-border rounded-2xl p-4 shadow-sm space-y-4 transition-all duration-300 ${
               isCollapsed ? "w-[76px]" : "w-[260px]"
             }`}
           >
-            <div className="bg-card border border-border rounded-2xl p-4 shadow-sm space-y-4">
-              {/* User Card at Top (Zara or Customer) */}
-              <div className="pb-4 border-b border-border">
+            {/* User Card at Top (Zara or Customer) */}
+            <div className="pb-4 border-b border-border">
                 {currentUser ? (
                   isCollapsed ? (
                     <div className="flex flex-col items-center gap-2" title={`${currentUser.name} (${currentUser.email})`}>
@@ -420,13 +425,12 @@ export default function AccountLayout({
                   {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
                 </button>
               </div>
-            </div>
           </aside>
 
           {/* Page Content / Product Area (Right) */}
-          <main className="flex-1 min-w-0 w-full">
+          <div className="flex-1 min-w-0 w-full">
             {children}
-          </main>
+          </div>
         </div>
       </div>
     </div>

@@ -30,6 +30,10 @@
 }
 
 :root {
+  /* Header & Sticky Layout Offsets */
+  --header-height: 108px;
+  --header-offset: calc(var(--header-height) + 16px);
+
   --background: #F5F5F7;
   --card: #FFFFFF;
   --tile: #F0F0F2;
