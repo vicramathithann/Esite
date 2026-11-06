@@ -60,7 +60,7 @@ export function renderOrderConfirmedEmail(
   // Note: Order ID stays strictly in the warranty PDF; never in the email text.
   const subject = `Your ${productName} order was placed successfully`;
   const heading = productName;
-  const preheader = `Thank you! Your order for ${productName} has been placed successfully. Your warranty certificate is attached as a PDF.`;
+  const preheader = "Official order receipt and manufacturer warranty certificate.";
 
   // Render the order details table (Product, Ordered on, Expected delivery, Payment, and optional rows)
   const table = renderOrderDetailsTable({

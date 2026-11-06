@@ -7,6 +7,7 @@ import {
   renderWarrantyActivationEmail,
 } from "./email-templates";
 import { generateWarrantyCertificatePdf, formatKolkataDate } from "./warranty-pdf";
+import { sendSharedMail } from "./email-sender";
 
 export type EmailFailureReason =
   | "MISSING_ENV"
@@ -130,28 +131,6 @@ function classifyMailerError(err: unknown): MailerError {
 export async function sendOtpEmail(to: string, code: string, req?: Request): Promise<{ messageId: string }> {
   const cleanTo = to.trim().toLowerCase();
   const cleanCode = code.trim();
-
-  let transporter: Transporter;
-  try {
-    transporter = createMailerTransport();
-  } catch (initErr) {
-    const error = classifyMailerError(initErr);
-    console.error(
-      JSON.stringify({
-        event: "MAILER_INIT_ERROR",
-        recipient: cleanTo,
-        reason: error.reason,
-        message: error.message,
-        code: error.code || null,
-        command: error.command || null,
-        response: error.response || null,
-        responseCode: error.responseCode || null,
-      })
-    );
-    throw error;
-  }
-
-  const senderAddress = env.GMAIL_USER;
   const siteUrl = getBaseUrl(req);
 
   const { subject, html, text: plainText } = renderOtpEmail(
@@ -164,37 +143,29 @@ export async function sendOtpEmail(to: string, code: string, req?: Request): Pro
     siteUrl
   );
 
-  const mailOptions = {
-    from: `"VN Mobiles" <${senderAddress}>`,
-    to: cleanTo,
+  const result = await sendSharedMail({
+    recipientEmail: cleanTo,
+    recipientName: cleanTo.split("@")[0] || "Valued Customer",
     subject,
     text: plainText,
     html,
-    headers: {
-      "X-Mailer": "VN Mobiles Verification Mailer",
-      "Auto-Submitted": "auto-generated",
-    },
-  };
+    emailType: "EMAIL_VERIFICATION",
+  });
 
-  try {
-    const info = await transporter.sendMail(mailOptions);
-    return { messageId: info.messageId };
-  } catch (err: unknown) {
-    const error = classifyMailerError(err);
+  if (!result.success) {
+    const error = classifyMailerError(new Error(result.error || "Failed to send OTP verification email"));
     console.error(
       JSON.stringify({
         event: "MAILER_SEND_ERROR",
         recipient: cleanTo,
         reason: error.reason,
         message: error.message,
-        code: error.code || null,
-        command: error.command || null,
-        response: error.response || null,
-        responseCode: error.responseCode || null,
       })
     );
     throw error;
   }
+
+  return { messageId: result.messageId || "" };
 }
 
 // ==============================================================================
@@ -605,180 +576,73 @@ export async function sendWarrantyEmail(
     siteUrl
   );
 
-  // 5. Create audit record in EmailNotification table (status: PENDING)
-  let notificationRecord: { id: string } | null = null;
-  try {
-    notificationRecord = await prisma.emailNotification.create({
-      data: {
-        userId: order.userId || null,
-        recipientEmail: cleanRecipientEmail,
-        recipientName: customerName,
-        emailType: "WARRANTY",
-        orderId: order.id || null,
-        productName: resolvedItems[0]?.productName || "Samsung Galaxy S24",
-        templateId: "WARRANTY_CERTIFICATE_V1",
-        subject,
-        contentSummary: plainText.slice(0, 500),
-        status: "PENDING",
-      },
-    });
-  } catch (dbErr) {
-    console.error("[WARRANTY EMAIL AUDIT] Failed to record pending notification:", dbErr);
-  }
-
-  // 6. Initialize Mailer Transporter
-  let transporter: Transporter;
-  try {
-    transporter = createMailerTransport();
-  } catch (initErr) {
-    const error = classifyMailerError(initErr);
-    console.error(
-      JSON.stringify({
-        event: "WARRANTY_EMAIL_INIT_ERROR",
-        orderNumber,
-        recipient: cleanRecipientEmail,
-        reason: error.reason,
-        message: error.message,
-        code: error.code || null,
-        command: error.command || null,
-        response: error.response || null,
-        responseCode: error.responseCode || null,
-      })
-    );
-
-    if (notificationRecord) {
-      try {
-        await prisma.emailNotification.update({
-          where: { id: notificationRecord.id },
-          data: { status: "FAILED", errorMessage: error.message },
-        });
-      } catch {}
-    }
-
-    return {
-      success: false,
-      status: "FAILED",
-      statusCode: 500,
-      message: error.message,
-      error: error.message,
-      notificationId: notificationRecord?.id,
-    };
-  }
-
-  // 7. Dispatch Email via Gmail SMTP
-  const senderAddress = env.GMAIL_USER;
-  const mailOptions = {
-    from: `"VN Mobiles" <${senderAddress}>`,
-    to: `"${customerName}" <${cleanRecipientEmail}>`,
-    replyTo: senderAddress,
+  // 5. Dispatch Email via Shared Single Send Function (enforces IST timestamp suffix, fresh Message-ID, and no In-Reply-To/References)
+  const sendResult = await sendSharedMail({
+    userId: order.userId || null,
+    recipientEmail: cleanRecipientEmail,
+    recipientName: customerName,
     subject,
     text: plainText,
     html,
-    headers: {
-      "X-Mailer": "VN Mobiles Warranty Service",
-      "Auto-Submitted": "auto-generated",
-    },
+    emailType: "WARRANTY",
+    orderId: order.id || null,
+    productName: resolvedItems[0]?.productName || "Samsung Galaxy S24",
+    templateId: "WARRANTY_CERTIFICATE_V1",
     attachments: pdfAttachment ? [pdfAttachment] : [],
-  };
+  });
 
-  try {
-    console.log(`[WARRANTY EMAIL] Dispatching warranty certificate for order #${orderNumber} to ${cleanRecipientEmail}`);
-    const info = await transporter.sendMail(mailOptions);
-    console.log(`[WARRANTY EMAIL SUCCESS] Delivered for order #${orderNumber}. MessageId: ${info.messageId}`);
-
-    // Update EmailNotification status: SENT
-    if (notificationRecord) {
-      try {
-        await prisma.emailNotification.update({
-          where: { id: notificationRecord.id },
-          data: {
-            status: "SENT",
-            sentAt: new Date(),
-          },
-        });
-      } catch (err) {
-        console.warn("[WARRANTY EMAIL AUDIT] Could not mark notification as SENT:", err);
-      }
-    }
-
-    // Update Order warrantyEmailSentAt & certificateEmailSent
-    if (order.id) {
-      try {
-        await prisma.order.update({
-          where: { id: order.id },
-          data: {
-            warrantyEmailSentAt: new Date(),
-            certificateEmailSent: true,
-          },
-        });
-      } catch (ordErr) {
-        try {
-          await prisma.order.update({
-            where: { id: order.id },
-            data: { warrantyEmailSentAt: new Date() },
-          });
-        } catch {}
-        console.warn("[WARRANTY EMAIL AUDIT] Could not update order warrantyEmailSentAt:", ordErr);
-      }
-    }
-
-    // Mark matching warranty rows as emailSent: true
-    for (const w of warranties) {
-      if (w.id) {
-        try {
-          await prisma.warranty.update({
-            where: { id: w.id },
-            data: { emailSent: true },
-          });
-        } catch {}
-      }
-    }
-
-    return {
-      success: true,
-      status: "SENT",
-      statusCode: 200,
-      message: "Warranty certificate delivered successfully via Gmail SMTP.",
-      notificationId: notificationRecord?.id,
-      messageId: info.messageId,
-    };
-  } catch (err: unknown) {
-    const error = classifyMailerError(err);
-    console.error(
-      JSON.stringify({
-        event: "WARRANTY_EMAIL_ERROR",
-        orderNumber,
-        recipient: cleanRecipientEmail,
-        reason: error.reason,
-        message: error.message,
-        code: error.code || null,
-        command: error.command || null,
-        response: error.response || null,
-        responseCode: error.responseCode || null,
-      })
-    );
-
-    if (notificationRecord) {
-      try {
-        await prisma.emailNotification.update({
-          where: { id: notificationRecord.id },
-          data: {
-            status: "FAILED",
-            errorMessage: error.message,
-          },
-        });
-      } catch {}
-    }
-
+  if (!sendResult.success) {
     return {
       success: false,
       status: "FAILED",
       statusCode: 500,
-      message: error.message,
-      error: error.message,
-      notificationId: notificationRecord?.id,
+      message: sendResult.message,
+      error: sendResult.error,
+      notificationId: sendResult.notificationId,
     };
   }
+
+  // Update Order warrantyEmailSentAt & certificateEmailSent
+  if (order.id) {
+    try {
+      await prisma.order.update({
+        where: { id: order.id },
+        data: {
+          warrantyEmailSentAt: new Date(),
+          certificateEmailSent: true,
+        },
+      });
+    } catch (ordErr) {
+      try {
+        await prisma.order.update({
+          where: { id: order.id },
+          data: { warrantyEmailSentAt: new Date() },
+        });
+      } catch {}
+      console.warn("[WARRANTY EMAIL AUDIT] Could not update order warrantyEmailSentAt:", ordErr);
+    }
+  }
+
+  // Mark matching warranty rows as emailSent: true
+  for (const w of warranties) {
+    if (w.id) {
+      try {
+        await prisma.warranty.update({
+          where: { id: w.id },
+          data: { emailSent: true },
+        });
+      } catch {}
+    }
+  }
+
+  return {
+    success: true,
+    status: "SENT",
+    statusCode: 200,
+    message: "Warranty certificate delivered successfully via Gmail SMTP.",
+    notificationId: sendResult.notificationId,
+    messageId: sendResult.messageId,
+  };
 }
 
 /**

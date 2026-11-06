@@ -96,7 +96,7 @@ export function renderPasswordResetLinkEmail(
   // 2. User Password Reset Email Template (sent when an admin initiates a reset for a customer in the Users table)
   const name = data.recipientName || "Valued Customer";
   const subject = "Reset your VN Mobiles password";
-  const preheader = "A password reset link has been sent for your VN Mobiles account.";
+  const preheader = "Follow the link inside to set a new password for your account.";
   const headline = "Reset your password.";
   const subheadline = "A password reset link has been sent for your VN Mobiles account.";
 

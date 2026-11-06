@@ -33,12 +33,25 @@ import { sendWarrantyEmail } from "./mailer";
  * Never hardcode or expose credentials to client-side code.
  */
 
+import {
+  sendSharedMail,
+  formatSubjectWithIstTime,
+  getIstTimeString,
+  generateFreshMessageId,
+} from "./email-sender";
+export {
+  sendSharedMail,
+  formatSubjectWithIstTime,
+  getIstTimeString,
+  generateFreshMessageId,
+};
+
 export interface SendEmailOptions {
   userId?: string | null;
   recipientName: string;
   recipientEmail: string;
   subject: string;
-  emailType: "EMAIL_VERIFICATION" | "ORDER_CONFIRMATION" | "ORDER_STATUS" | "WARRANTY_NOTIFICATION" | "WARRANTY_REMINDER_6M" | "WARRANTY_REMINDER_1D" | "LOGIN_OTP" | "PASSWORD_RESET" | "ACCOUNT_DELETION_OTP" | "ACCOUNT_DELETED";
+  emailType: "EMAIL_VERIFICATION" | "ORDER_CONFIRMATION" | "ORDER_STATUS" | "WARRANTY_NOTIFICATION" | "WARRANTY_REMINDER_6M" | "WARRANTY_REMINDER_1D" | "LOGIN_OTP" | "PASSWORD_RESET" | "ACCOUNT_DELETION_OTP" | "ACCOUNT_DELETED" | string;
   orderId?: string | null;
   productName?: string | null;
   templateId?: string;
@@ -58,6 +71,7 @@ export interface EmailSendResult {
   status: "SENT" | "FAILED";
   statusCode?: number;
   message: string;
+  messageId?: string;
   notificationId?: string;
   error?: string;
   rawError?: any;
@@ -267,191 +281,17 @@ export async function verifySmtpConnection(): Promise<{ success: boolean; messag
  * an audit entry in the EmailNotification table.
  */
 export async function sendGmailEmail(options: SendEmailOptions): Promise<EmailSendResult> {
-  const cleanRecipientEmail = options.recipientEmail.trim().toLowerCase();
-  const recipientName = options.recipientName.trim();
-  const { user: userEmail, pass: userPass } = getGmailCredentials();
-
-  // 1. Create initial audit record in DB with PENDING status
-  let notificationRecord: { id: string } | null = null;
-  try {
-    let validUserId: string | null = null;
-    if (options.userId) {
-      const userExists = await prisma.user.findUnique({
-        where: { id: options.userId },
-        select: { id: true },
-      });
-      if (userExists) {
-        validUserId = userExists.id;
-      }
-    }
-
-    notificationRecord = await prisma.emailNotification.create({
-      data: {
-        userId: validUserId,
-        recipientEmail: cleanRecipientEmail,
-        recipientName,
-        emailType: options.emailType,
-        orderId: options.orderId || null,
-        productName: options.productName || null,
-        templateId: options.templateId || null,
-        subject: options.subject,
-        contentSummary: options.contentSummary || options.subject,
-        status: "PENDING",
-      },
-    });
-  } catch (dbErr) {
-    console.error("[EMAIL AUDIT DB ERROR] Failed to record pending email:", dbErr);
-  }
-
-  // 2. Validate Gmail SMTP credentials
-  const transporter = getTransporter();
-  const envCheck = {
-    GMAIL_USER_DEFINED: Boolean(userEmail),
-    GMAIL_APP_PASSWORD_DEFINED: Boolean(userPass),
-    GMAIL_APP_PASSWORD_LENGTH: userPass ? userPass.length : 0,
-    NEXT_PUBLIC_APP_URL_DEFINED: Boolean(process.env.NEXT_PUBLIC_APP_URL),
-    NEXT_PUBLIC_SUPABASE_URL_DEFINED: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
-    SUPABASE_SERVICE_ROLE_KEY_DEFINED: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
-    NODE_ENV: process.env.NODE_ENV,
+  const result = await sendSharedMail(options);
+  return {
+    success: result.success,
+    status: result.status,
+    statusCode: result.statusCode,
+    message: result.message,
+    messageId: result.messageId,
+    notificationId: result.notificationId,
+    error: result.error,
+    rawError: result.rawError,
   };
-
-  if (!transporter || !userEmail || !userPass) {
-    const missing: string[] = [];
-    if (!userEmail) missing.push("GMAIL_USER");
-    if (!userPass) missing.push("GMAIL_APP_PASSWORD");
-    const errorMsg = `Gmail SMTP credentials (${missing.join(", ")}) are missing or empty in environment variables.`;
-    console.error(`[GMAIL SMTP ERROR] ${errorMsg}`, { missing, envCheck });
-
-    if (notificationRecord) {
-      await prisma.emailNotification.update({
-        where: { id: notificationRecord.id },
-        data: {
-          status: "FAILED",
-          errorMessage: errorMsg,
-        },
-      });
-    }
-
-    return {
-      success: false,
-      status: "FAILED",
-      statusCode: 500,
-      message: errorMsg,
-      error: errorMsg,
-      rawError: { code: "MISSING_CREDENTIALS", missing, envCheck },
-      notificationId: notificationRecord?.id,
-    };
-  }
-
-  // 3. Dispatch email via Nodemailer
-  try {
-    // Support custom sender / domain or fallback to authenticated Gmail account
-    const customFrom = process.env.EMAIL_FROM?.trim();
-    const fromAddress = customFrom || `"VN Mobiles" <${userEmail}>`;
-    const replyTo = process.env.EMAIL_REPLY_TO?.trim() || userEmail;
-
-    // Standard RFC deliverability headers - strictly NO artificial high-priority spam markers
-    const deliverabilityHeaders: Record<string, string> = {
-      "X-Mailer": "VN Mobiles Transactional Mailer",
-      "Auto-Submitted": "auto-generated",
-      "X-Auto-Response-Suppress": "All",
-    };
-
-    // RFC 8058 compliant List-Unsubscribe for recurring notification types
-    if (
-      options.emailType === "WARRANTY_REMINDER_6M" ||
-      options.emailType === "WARRANTY_REMINDER_1D" ||
-      options.emailType === "ORDER_STATUS"
-    ) {
-      const siteUrl = getAppUrl();
-      deliverabilityHeaders["List-Unsubscribe"] = `<mailto:${replyTo}?subject=Unsubscribe-Notification>, <${siteUrl}/account/profile>`;
-      deliverabilityHeaders["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click";
-    }
-
-    const mailOptions = {
-      from: fromAddress,
-      to: `"${recipientName}" <${cleanRecipientEmail}>`,
-      replyTo,
-      subject: options.subject,
-      text: options.text || options.contentSummary || options.subject,
-      html: options.html,
-      headers: deliverabilityHeaders,
-      attachments: options.attachments,
-    };
-
-    console.log(`[GMAIL SMTP] Dispatching ${options.emailType} to ${cleanRecipientEmail} via Gmail service`);
-    const info = (await transporter.sendMail(mailOptions)) as any;
-    console.log(`[GMAIL SMTP SUCCESS] Message sent. MessageId: ${info?.messageId || "N/A"}`);
-
-    if (notificationRecord) {
-      await prisma.emailNotification.update({
-        where: { id: notificationRecord.id },
-        data: {
-          status: "SENT",
-          sentAt: new Date(),
-        },
-      });
-    }
-
-    return {
-      success: true,
-      status: "SENT",
-      statusCode: 200,
-      message: "Email delivered successfully via Gmail SMTP.",
-      notificationId: notificationRecord?.id,
-    };
-  } catch (err: unknown) {
-    const errObj = (typeof err === "object" && err !== null) ? (err as Record<string, any>) : {};
-    const errorCode = errObj.code || (errObj.errno ? String(errObj.errno) : "PROVIDER_ERROR");
-    const errorResponse = errObj.response || "";
-    const errorCommand = errObj.command || "";
-    const errorResponseCode = errObj.responseCode || "";
-    const rawErrorMessage = err instanceof Error ? err.message : "Unknown error while sending email via Gmail SMTP.";
-    const detailedErrorMessage = `[${errorCode}] ${rawErrorMessage}${errorResponse ? ` (${errorResponse})` : ""}`;
-
-    console.error(
-      `[GMAIL SMTP ERROR] Delivery failed to ${cleanRecipientEmail}:\n` +
-      `  Message: ${rawErrorMessage}\n` +
-      `  Code: ${errorCode}\n` +
-      `  Command: ${errorCommand || "N/A"}\n` +
-      `  Response: ${errorResponse || "N/A"}\n` +
-      `  ResponseCode: ${errorResponseCode || "N/A"}\n` +
-      `  Environment Checks: ${JSON.stringify(envCheck)}\n` +
-      `  Full Nodemailer Error Object:`,
-      err
-    );
-
-    if (notificationRecord) {
-      try {
-        await prisma.emailNotification.update({
-          where: { id: notificationRecord.id },
-          data: {
-            status: "FAILED",
-            errorMessage: detailedErrorMessage,
-          },
-        });
-      } catch (logErr) {
-        console.error("[EMAIL AUDIT DB UPDATE ERROR]", logErr);
-      }
-    }
-
-    return {
-      success: false,
-      status: "FAILED",
-      statusCode: 500,
-      message: detailedErrorMessage,
-      error: detailedErrorMessage,
-      rawError: {
-        code: errorCode,
-        message: rawErrorMessage,
-        command: errorCommand,
-        response: errorResponse,
-        responseCode: errorResponseCode,
-        envCheck,
-      },
-      notificationId: notificationRecord?.id,
-    };
-  }
 }
 
 /**
