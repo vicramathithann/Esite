@@ -1530,7 +1530,7 @@ export default function AccountPage() {
                     required
                     value={addrCity}
                     onChange={(e) => setAddrCity(e.target.value)}
-                    placeholder="e.g. Bengaluru"
+                    placeholder="Madurai"
                     className="w-full px-3 py-2 bg-tile border border-border rounded-xl text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-[#C9A66B]/30"
                   />
                 </div>
@@ -1543,7 +1543,7 @@ export default function AccountPage() {
                     required
                     value={addrState}
                     onChange={(e) => setAddrState(e.target.value)}
-                    placeholder="e.g. Karnataka"
+                    placeholder="e.g. Tamil Nadu"
                     className="w-full px-3 py-2 bg-tile border border-border rounded-xl text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-[#C9A66B]/30"
                   />
                 </div>
@@ -1557,7 +1557,7 @@ export default function AccountPage() {
                     maxLength={6}
                     value={addrPincode}
                     onChange={(e) => setAddrPincode(e.target.value.replace(/[^0-9]/g, ""))}
-                    placeholder="6 digits"
+                    placeholder="e.g. 625001"
                     className="w-full px-3 py-2 bg-tile border border-border rounded-xl text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-[#C9A66B]/30 font-mono"
                   />
                 </div>

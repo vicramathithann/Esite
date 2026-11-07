@@ -713,7 +713,7 @@ export default function CheckoutPage() {
     <div className="min-h-screen pb-20 bg-background text-foreground">
       {/* Premium Minimalist Checkout Header */}
       <div className="bg-card/80 backdrop-blur-md border-b border-border py-3.5 px-4 sm:px-8 sticky top-0 z-30">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
+        <div className="max-w-[800px] mx-auto flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 group">
             <div className="w-7 h-7 rounded-full bg-foreground text-background flex items-center justify-center font-bold text-xs tracking-tight">
               VN
@@ -734,12 +734,9 @@ export default function CheckoutPage() {
         </div>
       </div>
 
-      {/* Main 2-Column Checkout Layout */}
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Left Column: 3 Steps (8 cols) */}
-          <div className="lg:col-span-8 space-y-5">
-            <form onSubmit={handleSubmitOrder} className="space-y-5">
+      {/* Centered Single-Column Checkout Layout */}
+      <div className="max-w-[800px] mx-auto px-4 py-8">
+        <form onSubmit={handleSubmitOrder} className="space-y-5">
               {/* Step 1: Delivery Address */}
               <div className="bg-card border border-border rounded-2xl p-6 space-y-5 shadow-xs">
                 <div className="flex items-center justify-between border-b border-border pb-3">
@@ -859,7 +856,7 @@ export default function CheckoutPage() {
                               ? "border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
                               : "border-border focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20"
                           }`}
-                          placeholder="e.g. Bengaluru"
+                          placeholder="Madurai"
                         />
                         {fieldErrors.city && (
                           <p className="text-[11px] text-red-500 font-medium flex items-center gap-1 mt-1 animate-in fade-in duration-150">
@@ -886,7 +883,7 @@ export default function CheckoutPage() {
                               ? "border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
                               : "border-border focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20"
                           }`}
-                          placeholder="e.g. Karnataka"
+                          placeholder="e.g. Tamil Nadu"
                         />
                         {fieldErrors.state && (
                           <p className="text-[11px] text-red-500 font-medium flex items-center gap-1 mt-1 animate-in fade-in duration-150">
@@ -915,7 +912,7 @@ export default function CheckoutPage() {
                               ? "border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
                               : "border-border focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20"
                           }`}
-                          placeholder="e.g. 560001"
+                          placeholder="e.g. 625001"
                         />
                         {fieldErrors.pincode && (
                           <p className="text-[11px] text-red-500 font-medium flex items-center gap-1 mt-1 animate-in fade-in duration-150">
@@ -1055,72 +1052,6 @@ export default function CheckoutPage() {
                 )}
               </button>
             </form>
-          </div>
-
-          {/* Right Column: Order Summary Box (4 cols) */}
-          <div className="lg:col-span-4">
-            <div className="bg-card border border-border rounded-2xl p-6 space-y-4 sticky top-24 shadow-xs text-xs">
-              <button
-                type="button"
-                onClick={handleSubmitOrder}
-                disabled={loading || hasOutOfStock}
-                className={`w-full py-3 px-4 text-xs font-semibold rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 ${
-                  hasOutOfStock || loading
-                    ? "bg-tile text-muted cursor-not-allowed border border-border"
-                    : "bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] cursor-pointer shadow-md"
-                }`}
-              >
-                {loading ? (
-                  <>
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#FFFCFA]" />
-                    <span>Processing...</span>
-                  </>
-                ) : hasOutOfStock ? (
-                  "Out of Stock"
-                ) : (
-                  "Place your order"
-                )}
-              </button>
-
-              <p className="text-[11px] text-muted text-center leading-tight">
-                By placing your order, you agree to VN Mobiles.in privacy notice and conditions of use.
-              </p>
-
-              <div className="border-t border-border pt-4 space-y-2 text-muted">
-                <h4 className="font-bold text-sm text-foreground mb-2">Order Summary</h4>
-                <div className="flex justify-between">
-                  <span>Items:</span>
-                  <span className="text-foreground font-medium">₹{cartTotal.toLocaleString("en-IN")}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Delivery:</span>
-                  <span className="text-emerald-500 font-semibold">FREE</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>1-Year Device Warranty:</span>
-                  <span className="text-emerald-500 font-semibold">FREE (Included)</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Pre-Expiry Warranty Alerts:</span>
-                  <span className="text-emerald-500 font-semibold">FREE (6M & 1D via Email)</span>
-                </div>
-                <div className="flex justify-between text-base font-bold text-foreground pt-3 border-t border-border">
-                  <span>Order Total:</span>
-                  <span className="text-accent">₹{cartTotal.toLocaleString("en-IN")}</span>
-                </div>
-              </div>
-
-              <div className="p-3.5 bg-tile border border-border rounded-xl text-[11px] text-muted space-y-1">
-                <span className="font-semibold flex items-center gap-1 text-accent">
-                  <ShieldCheck className="w-3.5 h-3.5" /> 100% Purchase Protection
-                </span>
-                <p>
-                  Genuine Indian brand warranty with unique IMEI database registration and automated email alerts 6 months & 1 day before expiry.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
