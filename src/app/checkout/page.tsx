@@ -106,7 +106,8 @@ export default function CheckoutPage() {
       return;
     }
 
-    if (!user.emailVerified) {
+    const isPrivileged = user.signupSource === "admin" || (user.role || "").toUpperCase() === "ADMIN";
+    if (!user.emailVerified && !isPrivileged) {
       router.replace(`/verify-email?email=${encodeURIComponent(user.email)}&redirect=/checkout`);
       return;
     }
@@ -279,7 +280,8 @@ export default function CheckoutPage() {
       return;
     }
 
-    if (!currentUser.emailVerified) {
+    const isPrivileged = currentUser.signupSource === "admin" || (currentUser.role || "").toUpperCase() === "ADMIN";
+    if (!currentUser.emailVerified && !isPrivileged) {
       alert("Please verify your email before placing an order.");
       router.push(`/verify-email?email=${encodeURIComponent(currentUser.email)}&redirect=/checkout`);
       return;

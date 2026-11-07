@@ -67,6 +67,14 @@ function mapRowFromDb(tableName: string, row: any): any {
     if ("operating_system" in row && !("operatingSystem" in row)) row.operatingSystem = row.operating_system;
     if ("created_at" in row && !("createdAt" in row)) row.createdAt = row.created_at;
   }
+  if (tableName === "User") {
+    if (!("signupSource" in row) || row.signupSource === undefined || row.signupSource === null) {
+      const isAdm =
+        (row.email || "").toLowerCase() === "rrroyce20@gmail.com" ||
+        (row.role || "").toUpperCase() === "ADMIN";
+      row.signupSource = isAdm ? "admin" : "self";
+    }
+  }
   return row;
 }
 
@@ -618,11 +626,23 @@ export class SupabaseModelDelegate {
       }
     }
 
-    const { data, error } = await client
+    let { data, error } = await client
       .from(this.tableName)
       .insert(insertData)
       .select()
       .single();
+
+    if (error && error.code === "42703" && "signupSource" in insertData) {
+      const fallbackData = { ...insertData };
+      delete fallbackData.signupSource;
+      const retry = await client
+        .from(this.tableName)
+        .insert(fallbackData)
+        .select()
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error) {
       logSupabaseError(this.tableName, "create", error);
@@ -709,7 +729,17 @@ export class SupabaseModelDelegate {
 
     let query = client.from(this.tableName).update(updateData);
     query = applyWhere(query, options.where, this.tableName);
-    const { data, error } = await query.select();
+    let { data, error } = await query.select();
+
+    if (error && error.code === "42703" && "signupSource" in updateData) {
+      const fallbackData = { ...updateData };
+      delete fallbackData.signupSource;
+      let retryQuery = client.from(this.tableName).update(fallbackData);
+      retryQuery = applyWhere(retryQuery, options.where, this.tableName);
+      const retry = await retryQuery.select();
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error) {
       logSupabaseError(this.tableName, "update", error);
@@ -748,7 +778,17 @@ export class SupabaseModelDelegate {
     const updateData = this.cleanData(options.data || {});
     let query = client.from(this.tableName).update(updateData);
     query = applyWhere(query, options.where, this.tableName);
-    const { data, error } = await query.select();
+    let { data, error } = await query.select();
+
+    if (error && error.code === "42703" && "signupSource" in updateData) {
+      const fallbackData = { ...updateData };
+      delete fallbackData.signupSource;
+      let retryQuery = client.from(this.tableName).update(fallbackData);
+      retryQuery = applyWhere(retryQuery, options.where, this.tableName);
+      const retry = await retryQuery.select();
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error) {
       logSupabaseError(this.tableName, "updateMany", error);

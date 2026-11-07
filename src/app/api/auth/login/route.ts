@@ -81,33 +81,47 @@ export async function POST(request: Request) {
       );
     }
 
-    // REAL EMAIL VERIFICATION GATE:
-    // Reject login if email is not verified
-    if (!user.emailVerified) {
-      logSecurityEvent("AUTH_LOGIN_FAILED", "WARN", {
-        ip: getClientIp(request),
-        route: "/api/auth/login",
-        method: "POST",
-        userId: user.id,
-        email: user.email,
-        details: { reason: "Email unverified" },
-      });
-      return NextResponse.json(
-        {
-          success: false,
-          requiresVerification: true,
-          email: user.email,
-          error: "Please verify your email address before logging in.",
-        },
-        { status: 403 }
-      );
-    }
-
     // Strict RBAC: Only rrroyce20@gmail.com can obtain ADMIN privileges
     const isActuallyAdmin =
       user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase() &&
       (user.role || "").toUpperCase() === "ADMIN";
     const effectiveRole = isActuallyAdmin ? "ADMIN" : "USER";
+
+    const userSignupSource = (user as any).signupSource;
+    const isAdminCreatedUser = userSignupSource === "admin" || isActuallyAdmin;
+
+    // LOGIN VERIFICATION CHECK:
+    // 1. If emailVerified = true -> proceed straight in
+    // 2. If user is admin-created (signupSource === 'admin') -> NEVER ask for OTP, proceed straight in
+    // 3. If emailVerified = false and signupSource = 'self' -> send to OTP verification
+    if (!user.emailVerified) {
+      if (isAdminCreatedUser) {
+        // Admin-created users skip OTP completely; ensure database record is verified
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { emailVerified: true },
+        }).catch(() => {});
+        user.emailVerified = true;
+      } else {
+        logSecurityEvent("AUTH_LOGIN_FAILED", "WARN", {
+          ip: getClientIp(request),
+          route: "/api/auth/login",
+          method: "POST",
+          userId: user.id,
+          email: user.email,
+          details: { reason: "Email unverified (self-registered user)" },
+        });
+        return NextResponse.json(
+          {
+            success: false,
+            requiresVerification: true,
+            email: user.email,
+            error: "Please verify your email address before logging in.",
+          },
+          { status: 403 }
+        );
+      }
+    }
 
     if (requiredRole && effectiveRole !== requiredRole) {
       logSecurityEvent("ACCESS_DENIED_FORBIDDEN", "WARN", {
@@ -143,6 +157,7 @@ export async function POST(request: Request) {
         phone: user.phone,
         role: effectiveRole,
         emailVerified: user.emailVerified,
+        signupSource: isAdminCreatedUser ? "admin" : "self",
         createdAt: user.createdAt,
         mustChangePassword: Boolean((user as any).mustChangePassword),
       },

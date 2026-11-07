@@ -76,6 +76,7 @@ export async function GET(request: Request) {
         phone: true,
         role: true,
         emailVerified: true,
+        signupSource: true,
       },
     });
 
@@ -189,6 +190,7 @@ export async function POST(request: Request) {
         phone: true,
         role: true,
         emailVerified: true,
+        signupSource: true,
       },
     });
 

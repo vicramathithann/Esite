@@ -127,6 +127,7 @@ export async function PATCH(request: Request) {
         address: true,
         role: true,
         emailVerified: true,
+        signupSource: true,
       },
     });
 

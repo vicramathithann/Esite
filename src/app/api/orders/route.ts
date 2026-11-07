@@ -113,8 +113,9 @@ export async function POST(request: Request) {
       );
     }
 
-    // Purchase Protection: Require verified email address
-    if (!validUser.emailVerified) {
+    // Purchase Protection: Require verified email address (Admin-created users skip OTP)
+    const isPrivileged = validUser.signupSource === "admin" || (validUser.role || "").toUpperCase() === "ADMIN";
+    if (!validUser.emailVerified && !isPrivileged) {
       return NextResponse.json(
         {
           success: false,

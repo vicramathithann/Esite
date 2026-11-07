@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS "User" (
   "password" TEXT NOT NULL,
   "role" TEXT NOT NULL DEFAULT 'USER',
   "emailVerified" BOOLEAN NOT NULL DEFAULT false,
+  "signupSource" TEXT NOT NULL DEFAULT 'self',
   "verificationToken" TEXT,
   "tokenExpires" TIMESTAMPTZ,
   "otpHash" TEXT,

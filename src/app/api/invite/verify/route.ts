@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -23,8 +24,14 @@ export async function GET(request: Request) {
       );
     }
 
-    const invitation = await prisma.invitation.findUnique({
-      where: { token },
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    const invitation = await prisma.invitation.findFirst({
+      where: {
+        OR: [
+          { token: tokenHash },
+          { token },
+        ],
+      },
     });
 
     if (!invitation) {

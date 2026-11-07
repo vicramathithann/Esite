@@ -337,6 +337,7 @@ export type AuthUser = {
   address?: string | null;
   role: string;
   emailVerified: boolean;
+  signupSource?: "self" | "admin" | null;
   createdAt: Date;
   avatar?: string | null;
 };
@@ -369,6 +370,7 @@ export async function getAuthenticatedUser(request?: Request): Promise<AuthUser 
       address: true,
       role: true,
       emailVerified: true,
+      signupSource: true,
       tokenExpires: true,
       createdAt: true,
     },
@@ -388,8 +390,13 @@ export async function getAuthenticatedUser(request?: Request): Promise<AuthUser 
     user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase() &&
     (user.role || "").toUpperCase() === "ADMIN";
 
+  const rawSignupSource = (user as any).signupSource || (isAuthorizedAdmin ? "admin" : "self");
+  const isEmailVerified = Boolean(user.emailVerified) || rawSignupSource === "admin" || isAuthorizedAdmin;
+
   return {
     ...user,
+    emailVerified: isEmailVerified,
+    signupSource: rawSignupSource as "self" | "admin",
     avatar: (user as any).avatar || null,
     role: isAuthorizedAdmin ? "ADMIN" : "USER",
   };
@@ -403,8 +410,36 @@ export async function requireAuth(request: Request): Promise<AuthUser | NextResp
   const user = await getAuthenticatedUser(request);
   if (!user) {
     return NextResponse.json(
-      { success: false, error: "Authentication required. Please sign in." },
+      { success: false, error: "Authentication required. Please sign in.", requiresAuth: true },
       { status: 401 }
+    );
+  }
+  return user;
+}
+
+/**
+ * Enforces that the incoming request is from a verified user.
+ * Admin-created users always skip OTP verification.
+ * Unverified self-signup users are rejected with 403 requiresVerification.
+ */
+export async function requireVerifiedUser(request: Request): Promise<AuthUser | NextResponse> {
+  const user = await getAuthenticatedUser(request);
+  if (!user) {
+    return NextResponse.json(
+      { success: false, error: "Authentication required. Please sign in.", requiresAuth: true },
+      { status: 401 }
+    );
+  }
+  const isPrivileged = user.signupSource === "admin" || (user.role || "").toUpperCase() === "ADMIN";
+  if (!user.emailVerified && !isPrivileged) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Email verification required. Please verify your email before proceeding.",
+        requiresVerification: true,
+        email: user.email,
+      },
+      { status: 403 }
     );
   }
   return user;
@@ -594,13 +629,14 @@ export async function ensureAdminUser() {
           password: hashedPassword,
           role: "ADMIN",
           emailVerified: true,
+          signupSource: "admin",
         },
       });
       console.log(`Administrator account initialized: ${adminEmail}`);
-    } else if (!existing.emailVerified || existing.role !== "ADMIN") {
+    } else if (!existing.emailVerified || existing.role !== "ADMIN" || (existing as any).signupSource !== "admin") {
       await prisma.user.update({
         where: { id: existing.id },
-        data: { emailVerified: true, role: "ADMIN" },
+        data: { emailVerified: true, role: "ADMIN", signupSource: "admin" },
       });
     }
   } catch (e) {

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, createSessionToken } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/rateLimit";
@@ -60,9 +61,16 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2. Validate token and invitation status in DB
-    const invitation = await prisma.invitation.findUnique({
-      where: { token: token.trim() },
+    // 2. Validate token and invitation status in DB (supports SHA-256 hashed and legacy plain tokens)
+    const cleanToken = token.trim();
+    const tokenHash = crypto.createHash("sha256").update(cleanToken).digest("hex");
+    const invitation = await prisma.invitation.findFirst({
+      where: {
+        OR: [
+          { token: tokenHash },
+          { token: cleanToken },
+        ],
+      },
     });
 
     if (!invitation) {
@@ -150,7 +158,7 @@ export async function POST(request: Request) {
 
     let newUser;
     if (existingUser && !existingUser.emailVerified) {
-      // Re-activate unverified user with strictly USER role
+      // Re-activate unverified user with strictly USER role and admin signupSource
       newUser = await prisma.user.update({
         where: { id: existingUser.id },
         data: {
@@ -158,6 +166,7 @@ export async function POST(request: Request) {
           password: hashedPassword,
           role: "USER", // STRICTLY USER!
           emailVerified: true,
+          signupSource: "admin",
           verificationToken: null,
           tokenExpires: null,
           otpHash: null,
@@ -165,7 +174,7 @@ export async function POST(request: Request) {
         },
       });
     } else {
-      // Create fresh user with strictly USER role
+      // Create fresh user with strictly USER role and admin signupSource
       newUser = await prisma.user.create({
         data: {
           name: cleanName,
@@ -174,16 +183,18 @@ export async function POST(request: Request) {
           password: hashedPassword,
           role: "USER", // STRICTLY USER!
           emailVerified: true,
+          signupSource: "admin",
         },
       });
     }
 
-    // 7. Mark invitation as ACCEPTED
+    // 7. Mark invitation as ACCEPTED and invalidate token (single-use enforcement)
     await prisma.invitation.update({
       where: { id: invitation.id },
       data: {
         status: "ACCEPTED",
         acceptedAt: new Date(),
+        token: `${tokenHash}:used:${Date.now()}`,
       },
     });
 

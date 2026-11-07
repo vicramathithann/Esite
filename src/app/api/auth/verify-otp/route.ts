@@ -170,11 +170,13 @@ export async function POST(request: Request) {
     }
 
     // 3. Mark user verified in PostgreSQL User table
+    const existingSource = (user as any).signupSource || "self";
     const updatedUser = await prisma.user.update({
       where: { id: user.id },
       data: {
         emailVerified: true,
         email_verified: true,
+        signupSource: existingSource,
         verificationToken: null,
         tokenExpires: null,
         otpHash: null,
@@ -188,6 +190,7 @@ export async function POST(request: Request) {
         phone: true,
         role: true,
         emailVerified: true,
+        signupSource: true,
       },
     });
 

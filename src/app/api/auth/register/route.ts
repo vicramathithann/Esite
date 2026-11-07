@@ -76,6 +76,7 @@ export async function POST(request: Request) {
           password: hashedPassword,
           phone: cleanPhone,
           emailVerified: false,
+          signupSource: "self",
           verificationToken,
           tokenExpires,
           otpHash: codeHash,
@@ -90,6 +91,7 @@ export async function POST(request: Request) {
           phone: true,
           role: true,
           emailVerified: true,
+          signupSource: true,
         },
       });
     } else {
@@ -101,6 +103,7 @@ export async function POST(request: Request) {
           password: hashedPassword,
           role: "USER",
           emailVerified: false,
+          signupSource: "self",
           verificationToken,
           tokenExpires,
           otpHash: codeHash,
@@ -115,6 +118,7 @@ export async function POST(request: Request) {
           phone: true,
           role: true,
           emailVerified: true,
+          signupSource: true,
         },
       });
     }

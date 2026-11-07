@@ -88,15 +88,16 @@ export async function POST(request: Request) {
       data: { status: "REVOKED" },
     });
 
-    // Generate 64-character secure random token
-    const token = crypto.randomBytes(32).toString("hex");
+    // Generate 64-character secure random token and compute SHA-256 hash for database storage
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
     const expiresInHours = 48; // Valid for 48 hours
     const expiresAt = new Date(Date.now() + expiresInHours * 60 * 60 * 1000);
 
     const invite = await prisma.invitation.create({
       data: {
         email: cleanEmail,
-        token,
+        token: tokenHash,
         role: "USER", // STRICTLY USER!
         status: "PENDING",
         invitedBy: admin.email,
@@ -104,9 +105,9 @@ export async function POST(request: Request) {
       },
     });
 
-    // Construct site URL and direct invite link
+    // Construct site URL and direct invite link using raw token
     const siteUrl = getAppUrl(request);
-    const inviteLink = `${siteUrl}/invite?token=${encodeURIComponent(token)}`;
+    const inviteLink = `${siteUrl}/invite?token=${encodeURIComponent(rawToken)}`;
 
     // Dispatch professional invitation email
     const emailResult = await sendUserInvitationEmail({
