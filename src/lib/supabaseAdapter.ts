@@ -632,7 +632,11 @@ export class SupabaseModelDelegate {
       .select()
       .single();
 
-    if (error && error.code === "42703" && "signupSource" in insertData) {
+    if (
+      error &&
+      (error.code === "42703" || error.code === "PGRST204" || error.message?.includes("signupSource")) &&
+      "signupSource" in insertData
+    ) {
       const fallbackData = { ...insertData };
       delete fallbackData.signupSource;
       const retry = await client
@@ -731,7 +735,11 @@ export class SupabaseModelDelegate {
     query = applyWhere(query, options.where, this.tableName);
     let { data, error } = await query.select();
 
-    if (error && error.code === "42703" && "signupSource" in updateData) {
+    if (
+      error &&
+      (error.code === "42703" || error.code === "PGRST204" || error.message?.includes("signupSource")) &&
+      "signupSource" in updateData
+    ) {
       const fallbackData = { ...updateData };
       delete fallbackData.signupSource;
       let retryQuery = client.from(this.tableName).update(fallbackData);
@@ -780,7 +788,11 @@ export class SupabaseModelDelegate {
     query = applyWhere(query, options.where, this.tableName);
     let { data, error } = await query.select();
 
-    if (error && error.code === "42703" && "signupSource" in updateData) {
+    if (
+      error &&
+      (error.code === "42703" || error.code === "PGRST204" || error.message?.includes("signupSource")) &&
+      "signupSource" in updateData
+    ) {
       const fallbackData = { ...updateData };
       delete fallbackData.signupSource;
       let retryQuery = client.from(this.tableName).update(fallbackData);

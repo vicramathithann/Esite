@@ -477,7 +477,7 @@ export async function sendUserVerificationEmail(
 export async function sendUserInvitationEmail(options: {
   recipientEmail: string;
   inviteLink: string;
-  invitedBy?: string;
+  role?: string;
   expiresInHours?: number;
 }): Promise<EmailSendResult> {
   const expiresInHours = options.expiresInHours || 48;
@@ -486,8 +486,8 @@ export async function sendUserInvitationEmail(options: {
     {
       inviteLink: options.inviteLink,
       recipientEmail: options.recipientEmail,
-      invitedByName: options.invitedBy,
-      expiresAtFormatted: `${expiresInHours} hours`,
+      role: options.role || "USER",
+      expiresAtFormatted: `Expires in ${expiresInHours} hours`,
     },
     siteUrl
   );

@@ -39,7 +39,7 @@ export async function GET(request: Request) {
         {
           success: false,
           valid: false,
-          error: "Invalid invitation link. Please verify the URL or ask the administrator for a new invite.",
+          error: "Invalid invitation link. Please ask for a new invite.",
         },
         { status: 404 }
       );
@@ -50,25 +50,25 @@ export async function GET(request: Request) {
         {
           success: false,
           valid: false,
-          error: "This invitation has been revoked by the administrator.",
+          error: "This invitation has been revoked. Please ask for a new invite.",
         },
         { status: 410 }
       );
     }
 
-    if (invitation.status === "ACCEPTED") {
+    if (invitation.status === "ACCEPTED" || invitation.acceptedAt || invitation.token?.includes(":used:")) {
       return NextResponse.json(
         {
           success: false,
           valid: false,
-          error: "This invitation has already been accepted and used to create an account.",
+          error: "This invitation link has already been used. Please sign in or ask for a new invite.",
         },
         { status: 410 }
       );
     }
 
     // Expiry check
-    if (new Date() > invitation.expiresAt || invitation.status === "EXPIRED") {
+    if (new Date() > new Date(invitation.expiresAt) || invitation.status === "EXPIRED") {
       if (invitation.status !== "EXPIRED") {
         await prisma.invitation.update({
           where: { id: invitation.id },
@@ -80,7 +80,7 @@ export async function GET(request: Request) {
         {
           success: false,
           valid: false,
-          error: "This invitation link has expired. Invitations are valid for 48 hours.",
+          error: "This invitation link has expired. Please ask for a new invite.",
         },
         { status: 410 }
       );

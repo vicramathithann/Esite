@@ -141,8 +141,8 @@ function InviteAcceptanceContent() {
       return;
     }
 
-    if (password.length < 6) {
-      setSubmitError("Password must be at least 6 characters long.");
+    if (password.length < 8) {
+      setSubmitError("Password must be at least 8 characters long.");
       return;
     }
 
@@ -168,7 +168,7 @@ function InviteAcceptanceContent() {
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        if (data.error === "This name is already taken") {
+        if (data.error === "This name is already taken" || data.error === "Username already taken") {
           setUsernameStatus("taken");
         }
         setSubmitError(data.error || "Failed to accept invitation. Please try again.");
@@ -330,7 +330,7 @@ function InviteAcceptanceContent() {
                   autoComplete="username"
                   required
                   className={`w-full pl-8 pr-10 py-2.5 text-xs bg-background border rounded-xl focus:outline-none transition-all ${
-                    usernameStatus === "taken" || submitError === "This name is already taken"
+                    usernameStatus === "taken" || submitError === "This name is already taken" || submitError === "Username already taken"
                       ? "border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20"
                       : usernameStatus === "available"
                       ? "border-emerald-500 focus:border-emerald-500 ring-1 ring-emerald-500/20"
@@ -344,16 +344,16 @@ function InviteAcceptanceContent() {
                   {usernameStatus === "available" && (
                     <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                   )}
-                  {(usernameStatus === "taken" || submitError === "This name is already taken") && (
+                  {(usernameStatus === "taken" || submitError === "This name is already taken" || submitError === "Username already taken") && (
                     <AlertCircle className="w-4 h-4 text-rose-500" />
                   )}
                 </div>
               </div>
 
               {/* Username feedback message */}
-              {(usernameStatus === "taken" || submitError === "This name is already taken") ? (
+              {(usernameStatus === "taken" || submitError === "This name is already taken" || submitError === "Username already taken") ? (
                 <p className="mt-1.5 text-[11px] font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1">
-                  <span>This name is already taken</span>
+                  <span>Username already taken</span>
                 </p>
               ) : usernameStatus === "available" ? (
                 <p className="mt-1.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
@@ -377,10 +377,10 @@ function InviteAcceptanceContent() {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 6 characters"
+                  placeholder="At least 8 characters"
                   autoComplete="new-password"
                   required
-                  minLength={6}
+                  minLength={8}
                   className="w-full pl-3.5 pr-10 py-2.5 text-xs bg-background border border-border rounded-xl focus:outline-none focus:border-[#C9A66B] transition-all"
                 />
                 <button
@@ -392,6 +392,9 @@ function InviteAcceptanceContent() {
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
+              <p className="mt-1 text-[10px] text-muted">
+                Must be at least 8 characters long.
+              </p>
             </div>
 
             {/* 3. Confirm Password */}
@@ -408,7 +411,7 @@ function InviteAcceptanceContent() {
                   placeholder="Re-enter your password"
                   autoComplete="new-password"
                   required
-                  minLength={6}
+                  minLength={8}
                   className={`w-full pl-3.5 pr-10 py-2.5 text-xs bg-background border rounded-xl focus:outline-none transition-all ${
                     confirmPassword && password !== confirmPassword
                       ? "border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20"

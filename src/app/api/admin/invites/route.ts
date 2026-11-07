@@ -109,11 +109,11 @@ export async function POST(request: Request) {
     const siteUrl = getAppUrl(request);
     const inviteLink = `${siteUrl}/invite?token=${encodeURIComponent(rawToken)}`;
 
-    // Dispatch professional invitation email
+    // Dispatch invitation email (strictly no admin identity exposed)
     const emailResult = await sendUserInvitationEmail({
       recipientEmail: cleanEmail,
       inviteLink,
-      invitedBy: admin.email,
+      role: invite.role,
       expiresInHours,
     });
 

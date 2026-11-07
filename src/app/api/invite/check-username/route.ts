@@ -30,7 +30,7 @@ export async function GET(request: Request) {
     if (isTaken) {
       return NextResponse.json({
         available: false,
-        error: "This name is already taken",
+        error: "Username already taken",
       });
     }
 

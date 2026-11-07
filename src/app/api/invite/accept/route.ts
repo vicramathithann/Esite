@@ -10,8 +10,9 @@ export const dynamic = "force-dynamic";
 /**
  * POST /api/invite/accept
  * Finalizes account creation for an invited user.
- * Strictly assigns role = "USER".
- * Enforces Instagram-style username uniqueness across all users in the database.
+ * Assigns role strictly from the invitation record.
+ * Sets emailVerified = true and signupSource = "admin".
+ * Enforces single-use token security (burns token ONLY after successful creation).
  */
 export async function POST(request: Request) {
   try {
@@ -22,20 +23,22 @@ export async function POST(request: Request) {
     });
     if (rateLimitError) return rateLimitError;
 
-    const body = await request.json();
+    const body = await request.json().catch(() => ({}));
     const { token, name, password, confirmPassword } = body;
 
     // 1. Validate required inputs
-    if (!token || typeof token !== "string") {
+    const cleanToken = (token || "").trim();
+    if (!cleanToken) {
       return NextResponse.json(
         { success: false, error: "Invitation token is required." },
         { status: 400 }
       );
     }
 
-    if (!name || typeof name !== "string" || !name.trim()) {
+    const cleanName = (name || "").trim();
+    if (!cleanName || cleanName.length < 2) {
       return NextResponse.json(
-        { success: false, error: "Please provide your name." },
+        { success: false, error: "Username must be at least 2 characters long." },
         { status: 400 }
       );
     }
@@ -47,9 +50,9 @@ export async function POST(request: Request) {
       );
     }
 
-    if (password.length < 6) {
+    if (password.length < 8) {
       return NextResponse.json(
-        { success: false, error: "Password must be at least 6 characters long." },
+        { success: false, error: "Password must be at least 8 characters long." },
         { status: 400 }
       );
     }
@@ -62,7 +65,6 @@ export async function POST(request: Request) {
     }
 
     // 2. Validate token and invitation status in DB (supports SHA-256 hashed and legacy plain tokens)
-    const cleanToken = token.trim();
     const tokenHash = crypto.createHash("sha256").update(cleanToken).digest("hex");
     const invitation = await prisma.invitation.findFirst({
       where: {
@@ -75,26 +77,26 @@ export async function POST(request: Request) {
 
     if (!invitation) {
       return NextResponse.json(
-        { success: false, error: "Invalid invitation link. Please ask the administrator for a new invite." },
+        { success: false, error: "Invalid invitation link. Please ask for a new invite." },
         { status: 404 }
       );
     }
 
     if (invitation.status === "REVOKED") {
       return NextResponse.json(
-        { success: false, error: "This invitation has been revoked by the administrator." },
+        { success: false, error: "This invitation has been revoked. Please ask for a new invite." },
         { status: 410 }
       );
     }
 
-    if (invitation.status === "ACCEPTED") {
+    if (invitation.status === "ACCEPTED" || invitation.acceptedAt || invitation.token?.includes(":used:")) {
       return NextResponse.json(
-        { success: false, error: "This invitation has already been accepted and used to create an account." },
+        { success: false, error: "This invitation link has already been used. Please sign in or ask for a new invite." },
         { status: 410 }
       );
     }
 
-    if (new Date() > invitation.expiresAt || invitation.status === "EXPIRED") {
+    if (new Date() > new Date(invitation.expiresAt) || invitation.status === "EXPIRED") {
       if (invitation.status !== "EXPIRED") {
         await prisma.invitation.update({
           where: { id: invitation.id },
@@ -102,93 +104,103 @@ export async function POST(request: Request) {
         }).catch(() => {});
       }
       return NextResponse.json(
-        { success: false, error: "This invitation link has expired. Invitations are valid for 48 hours." },
+        { success: false, error: "This invitation link has expired. Please ask for a new invite." },
         { status: 410 }
       );
     }
 
-    // 3. Username uniqueness rule (Instagram-style unique username)
-    // "The Name should work like Instagram username. It must be unique across the database.
-    // If the name already exists, show this error: 'This name is already taken'"
-    const cleanName = name.trim();
-    if (cleanName.length < 2) {
+    // 3. Email strictly comes from the invitation record, never from the form
+    const cleanEmail = invitation.email.toLowerCase().trim();
+    if (!cleanEmail) {
       return NextResponse.json(
-        { success: false, error: "Username must be at least 2 characters long." },
+        { success: false, error: "Invalid invitation: no email address is assigned to this invite." },
         { status: 400 }
       );
     }
 
-    // Check case-insensitively across existing users
+    // 4. Username uniqueness check across all users
     const allUsers = await prisma.user.findMany({
-      select: { id: true, name: true },
+      select: { id: true, name: true, email: true },
     });
 
     const isNameTaken = allUsers.some(
-      (u: { id: string; name: string | null }) => u.name && u.name.trim().toLowerCase() === cleanName.toLowerCase()
+      (u: { id: string; name: string | null; email: string }) =>
+        u.name &&
+        u.name.trim().toLowerCase() === cleanName.toLowerCase() &&
+        u.email.toLowerCase() !== cleanEmail
     );
 
     if (isNameTaken) {
       return NextResponse.json(
-        { success: false, error: "This name is already taken" },
+        { success: false, error: "Username already taken" },
         { status: 400 }
       );
     }
 
-    // 4. Verify recipient email
-    const cleanEmail = invitation.email.toLowerCase().trim();
+    // 5. Check if verified account already exists with this email
     const existingUser = await prisma.user.findUnique({
       where: { email: cleanEmail },
     });
 
     if (existingUser && existingUser.emailVerified) {
       return NextResponse.json(
-        { success: false, error: "An active account with this email already exists on VN Mobiles." },
+        { success: false, error: "Account already exists, please sign in" },
         { status: 409 }
       );
     }
 
-    // 5. Generate secure unique placeholder phone number if creating fresh user
-    let uniquePhone = `+91 ${Math.floor(6000000000 + Math.random() * 3999999999)}`;
-    while (await prisma.user.findUnique({ where: { phone: uniquePhone } })) {
+    // 6. Role assigned strictly from the invitation record (e.g. USER, ADMIN)
+    const userRole = (invitation.role || "USER").toUpperCase();
+
+    // 7. Generate safe unique placeholder phone number if creating fresh user
+    let uniquePhone = existingUser?.phone || `+91 ${Math.floor(6000000000 + Math.random() * 3999999999)}`;
+    while (
+      !existingUser &&
+      (await prisma.user.findUnique({ where: { phone: uniquePhone } }))
+    ) {
       uniquePhone = `+91 ${Math.floor(6000000000 + Math.random() * 3999999999)}`;
     }
 
-    // 6. Hash password
+    // 8. Hash password using PBKDF2/SHA-512 (100,000 iterations)
     const hashedPassword = hashPassword(password);
 
+    // 9. Create or update user record
+    // Admin-invited users must be created with emailVerified = true, signupSource = "admin", and role from invite
     let newUser;
     if (existingUser && !existingUser.emailVerified) {
-      // Re-activate unverified user with strictly USER role and admin signupSource
+      // Clean up / activate half-created unverified user record from earlier failed attempt
       newUser = await prisma.user.update({
         where: { id: existingUser.id },
         data: {
           name: cleanName,
           password: hashedPassword,
-          role: "USER", // STRICTLY USER!
+          role: userRole,
           emailVerified: true,
           signupSource: "admin",
           verificationToken: null,
           tokenExpires: null,
           otpHash: null,
           otpExpires: null,
+          otpAttempts: 0,
         },
       });
     } else {
-      // Create fresh user with strictly USER role and admin signupSource
+      // Create fresh user record with role from invite
       newUser = await prisma.user.create({
         data: {
           name: cleanName,
           email: cleanEmail,
           phone: uniquePhone,
           password: hashedPassword,
-          role: "USER", // STRICTLY USER!
+          role: userRole,
           emailVerified: true,
           signupSource: "admin",
         },
       });
     }
 
-    // 7. Mark invitation as ACCEPTED and invalidate token (single-use enforcement)
+    // 10. Mark invitation as ACCEPTED and invalidate token ONLY after user creation succeeds
+    // In the event of a user creation failure above, execution jumps to catch, so failed attempts DO NOT burn the token!
     await prisma.invitation.update({
       where: { id: invitation.id },
       data: {
@@ -198,8 +210,8 @@ export async function POST(request: Request) {
       },
     });
 
-    // 8. Create session cookie and log in the user immediately
-    const sessionToken = createSessionToken(newUser);
+    // 11. Create session cookie and log the user in immediately
+    const sessionToken = createSessionToken(newUser, userRole === "ADMIN" ? "admin" : "customer");
 
     logSecurityEvent("INVITATION_ACCEPTED", "INFO", {
       ip: getClientIp(request),
@@ -208,6 +220,7 @@ export async function POST(request: Request) {
       email: cleanEmail,
       details: {
         username: cleanName,
+        role: userRole,
         invitationId: invitation.id,
       },
     });
@@ -220,7 +233,9 @@ export async function POST(request: Request) {
         id: newUser.id,
         name: newUser.name,
         email: newUser.email,
-        role: "USER",
+        role: userRole,
+        emailVerified: true,
+        signupSource: "admin",
       },
     });
 
@@ -233,12 +248,35 @@ export async function POST(request: Request) {
     });
 
     return response;
-  } catch (error) {
-    console.error("Error accepting invitation:", error);
+  } catch (error: any) {
+    // Log the full detailed error server-side (never exposed to the client)
+    console.error("[INVITE_ACCEPT_ERROR] Unexpected error during invite acceptance:", {
+      message: error?.message,
+      code: error?.code,
+      details: error?.details,
+      hint: error?.hint,
+      stack: error?.stack,
+    });
+
+    // Detect unique conflict errors from database
+    const errText = `${error?.message || ""} ${error?.details || ""}`.toLowerCase();
+    if (errText.includes("user_email_key") || errText.includes("email")) {
+      return NextResponse.json(
+        { success: false, error: "Account already exists, please sign in" },
+        { status: 409 }
+      );
+    }
+    if (errText.includes("user_name_key") || errText.includes("name") || errText.includes("username")) {
+      return NextResponse.json(
+        { success: false, error: "Username already taken" },
+        { status: 400 }
+      );
+    }
+
+    // Clean, user-safe error message
     return NextResponse.json(
-      { success: false, error: "An unexpected error occurred while creating your account. Please try again." },
+      { success: false, error: "Unable to create your account at this moment. Please try again or contact support." },
       { status: 500 }
     );
   }
 }
-

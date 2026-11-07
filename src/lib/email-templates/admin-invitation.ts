@@ -7,7 +7,7 @@ import {
 export interface AdminInvitationData {
   inviteLink: string;
   recipientEmail: string;
-  invitedByName?: string;
+  role?: string;
   expiresAtFormatted?: string;
 }
 
@@ -21,61 +21,52 @@ export function renderAdminInvitationEmail(
   preheader: string;
 } {
   const cleanUrl = siteUrl.replace(/\/$/, "");
-  const invitedBy = data.invitedByName || "A Store Administrator";
-  const expiresAt = data.expiresAtFormatted || "7 days";
+  const expiresAt = data.expiresAtFormatted || "Expires in 48 hours";
+  const accessLabel = (data.role || "").toUpperCase() === "ADMIN" ? "Team Member" : "Member";
 
-  const subject = "You have been invited to join VN Mobiles";
-  const preheader = "Accept your invitation to join the administrator team.";
+  const subject = "You're invited to join VN Mobiles";
+  const preheader = "You've been invited to join VN Mobiles. Set up your account and get started.";
 
   const contentHtml = `
     <p style="margin:0 0 20px 0;font-size:14px;line-height:1.6;color:#475569;">
-      Hello,<br>
-      <strong style="color:#0F172A;">${escapeHtml(invitedBy)}</strong> has invited you to join the <strong>VN Mobiles Store Administration Portal</strong> as an authorized team member.
+      You've been invited to join VN Mobiles. Click the button below to set up your account and get started.
     </p>
 
-    <!-- Invitation Details Card -->
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;margin:20px 0;font-size:13px;">
-      <tr>
-        <td style="padding:14px 18px;border-bottom:1px solid #E2E8F0;color:#64748B;width:38%;">Assigned Email</td>
-        <td style="padding:14px 18px;border-bottom:1px solid #E2E8F0;color:#0F172A;font-weight:700;">${escapeHtml(data.recipientEmail)}</td>
-      </tr>
-      <tr>
-        <td style="padding:14px 18px;border-bottom:1px solid #E2E8F0;color:#64748B;">Invited By</td>
-        <td style="padding:14px 18px;border-bottom:1px solid #E2E8F0;color:#0F172A;font-weight:600;">${escapeHtml(invitedBy)}</td>
-      </tr>
-      <tr>
-        <td style="padding:14px 18px;border-bottom:1px solid #E2E8F0;color:#64748B;">Security Policy</td>
-        <td style="padding:14px 18px;border-bottom:1px solid #E2E8F0;color:#0F172A;">Single-use invitation token</td>
-      </tr>
-      <tr>
-        <td style="padding:14px 18px;color:#64748B;">Link Expiration</td>
-        <td style="padding:14px 18px;color:#0F172A;font-weight:600;">Valid for ${escapeHtml(expiresAt)}</td>
-      </tr>
+    <!-- Invitation Details Table -->
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#F8FAFC;border:1px solid #E2E8F0;border-top:2px solid #C9A66B;border-radius:10px;margin:20px 0;font-size:13px;border-collapse:separate;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+      <tbody>
+        <tr>
+          <td style="padding:14px 18px;border-bottom:1px solid #E2E8F0;color:#64748B;font-weight:600;width:38%;">Invited email</td>
+          <td style="padding:14px 18px;border-bottom:1px solid #E2E8F0;color:#0F172A;font-weight:700;">${escapeHtml(data.recipientEmail)}</td>
+        </tr>
+        <tr>
+          <td style="padding:14px 18px;border-bottom:1px solid #E2E8F0;color:#64748B;font-weight:600;">Access</td>
+          <td style="padding:14px 18px;border-bottom:1px solid #E2E8F0;color:#0F172A;font-weight:600;">${escapeHtml(accessLabel)}</td>
+        </tr>
+        <tr>
+          <td style="padding:14px 18px;color:#64748B;font-weight:600;">Link validity</td>
+          <td style="padding:14px 18px;color:#0F172A;font-weight:600;">${escapeHtml(expiresAt)}</td>
+        </tr>
+      </tbody>
     </table>
 
-    <div style="background-color:#FFFFFF;border:1px solid #E2E8F0;border-radius:8px;padding:16px 20px;margin:20px 0;font-size:13px;line-height:1.6;color:#475569;">
-      <strong style="color:#0F172A;">Next steps:</strong> Click the button below to accept your invitation, verify your credentials, and configure your password to access the store administration desk.
-    </div>
-
-    <div style="margin:24px 0 0 0;padding-top:16px;border-top:1px solid #E2E8F0;font-size:12px;color:#64748B;line-height:1.5;">
-      If the button above does not work, copy and paste this link into your browser:<br>
-      <a href="${escapeHtml(data.inviteLink)}" style="color:#C9A66B;word-break:break-all;text-decoration:underline;">${escapeHtml(data.inviteLink)}</a>
-    </div>
+    <p style="margin:20px 0 0 0;font-size:12px;line-height:1.5;color:#64748B;">
+      If you weren't expecting this invitation, you can safely ignore this email.
+    </p>
   `;
 
   const html = renderEmailLayout({
     preheader,
     badge: {
-      text: "ADMIN INVITATION",
+      text: "INVITATION",
       bg: "#FEF3C7",
       color: "#92400E",
       border: "#FDE68A",
     },
-    headline: "You are invited.",
-    subheadline: "Join the VN Mobiles store administration team.",
+    headline: "You're invited.",
     contentHtml,
     cta: {
-      label: "Accept Invitation & Register",
+      label: "Accept Invitation",
       url: data.inviteLink,
     },
     siteUrl: cleanUrl,
@@ -86,22 +77,18 @@ export function renderAdminInvitationEmail(
     "",
     "Hello,",
     "",
-    `${invitedBy} has invited you to join the VN Mobiles Store Administration Portal.`,
-    "",
-    "INVITATION DETAILS:",
-    `- Assigned Email: ${data.recipientEmail}`,
-    `- Invited By: ${invitedBy}`,
-    `- Link Expiration: ${expiresAt}`,
-    "- Security Policy: Single-use invitation link",
-    "",
-    "To accept your invitation and configure your account, open this link:",
+    "You've been invited to join VN Mobiles. Click the link below to set up your account and get started:",
     data.inviteLink,
     "",
-    "If you did not expect this invitation, please ignore this email or contact support@vnmobiles.in.",
+    "INVITATION DETAILS:",
+    `- Invited email: ${data.recipientEmail}`,
+    `- Access: ${accessLabel}`,
+    `- Link validity: ${expiresAt}`,
+    "",
+    "If you weren't expecting this invitation, you can safely ignore this email.",
     "",
     renderPlainFooter(cleanUrl),
   ].join("\n");
 
   return { subject, html, text, preheader };
 }
-

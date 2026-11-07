@@ -354,10 +354,10 @@ export default function EmailPreviewPage() {
         title: "Admin Team Member Invitation",
         rendered: renderAdminInvitationEmail(
           {
-            inviteLink: `${siteUrl}/admin/accept-invite?token=sample_invite_token_88219`,
-            recipientEmail: "new.admin@vnmobiles.in",
-            invitedByName: "Senior Store Administrator",
-            expiresAtFormatted: "48 hours",
+            inviteLink: `${siteUrl}/invite?token=sample_invite_token_88219`,
+            recipientEmail: "new.member@vnmobiles.in",
+            role: "MEMBER",
+            expiresAtFormatted: "Expires in 48 hours",
           },
           siteUrl
         ),
