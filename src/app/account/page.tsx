@@ -16,8 +16,6 @@ import {
   CheckCircle2,
   AlertCircle,
   RefreshCw,
-  LogOut,
-  ShoppingBag,
   Package,
   Heart,
   Calendar,
@@ -46,7 +44,7 @@ interface DeliveryAddress {
 }
 
 export default function AccountPage() {
-  const { currentUser, logout, login, wishlistCount } = useApp();
+  const { currentUser, login, wishlistCount } = useApp();
 
   // Avatar states
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -673,8 +671,8 @@ export default function AccountPage() {
 
         {/* 1. Dark Profile Header Card */}
         {currentUser ? (
-          <div className="bg-gradient-to-r from-[#0B1220] via-[#121B2E] to-[#0B1220] border border-[#1F2A44] rounded-2xl p-6 sm:p-7 text-white shadow-md flex flex-col lg:flex-row lg:items-center justify-between gap-6 transition-all duration-200">
-            {/* Left: Avatar with Camera Overlay + User Details */}
+          <div className="bg-gradient-to-r from-[#0B1220] via-[#121B2E] to-[#0B1220] border border-[#1F2A44] rounded-2xl p-6 sm:p-7 text-white shadow-md transition-all duration-200">
+            {/* Avatar with Camera Overlay + User Details */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
               {/* Large Avatar with Upload Action */}
               <div className="relative group shrink-0">
@@ -707,15 +705,17 @@ export default function AccountPage() {
                 </button>
               </div>
 
-              {/* User Details: Name, Badge, Email, Phone, Address on separate lines */}
+              {/* User Details: Name, Administrator Badge (if admin), Email, Phone, Address */}
               <div className="space-y-1.5 min-w-0">
                 <div className="flex items-center gap-2.5 flex-wrap">
                   <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
                     {currentUser.name}
                   </h1>
-                  <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
-                    {currentUser.role === "ADMIN" ? "👑 Administrator" : "✓ Verified Customer"}
-                  </span>
+                  {currentUser.role === "ADMIN" && (
+                    <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
+                      👑 Administrator
+                    </span>
+                  )}
                   {currentUser.avatar && (
                     <button
                       type="button"
@@ -753,33 +753,6 @@ export default function AccountPage() {
                   </div>
                 </div>
               </div>
-            </div>
-
-            {/* Right: Tidy Action Group */}
-            <div className="flex flex-wrap items-center gap-2.5 pt-4 lg:pt-0 border-t lg:border-t-0 border-[#1F2A44] shrink-0">
-              <button
-                onClick={handleToggleEditInfo}
-                className="px-4 py-2 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
-              >
-                <Pencil className="w-3.5 h-3.5" />
-                <span>{isEditingInfo ? "Close Edit" : "Edit Profile"}</span>
-              </button>
-
-              <Link
-                href="/"
-                className="px-4 py-2 bg-white/10 hover:bg-white/15 text-white text-xs font-semibold rounded-xl border border-white/20 transition-colors flex items-center gap-1.5"
-              >
-                <ShoppingBag className="w-3.5 h-3.5" />
-                <span>Shop Mobiles</span>
-              </Link>
-
-              <button
-                onClick={logout}
-                className="px-3.5 py-2 bg-transparent hover:bg-white/5 text-slate-400 hover:text-red-400 text-xs font-medium rounded-xl border border-white/10 hover:border-red-500/30 transition-colors flex items-center gap-1.5 cursor-pointer"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span>Sign Out</span>
-              </button>
             </div>
           </div>
         ) : (

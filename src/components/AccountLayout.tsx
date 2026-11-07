@@ -146,9 +146,6 @@ export default function AccountLayout({
                       <div className="text-sm font-bold text-foreground truncate">
                         {currentUser.name || "Customer"}
                       </div>
-                      <div className="text-xs text-muted truncate">
-                        {currentUser.email}
-                      </div>
                     </div>
                   </div>
                 ) : (
@@ -280,7 +277,7 @@ export default function AccountLayout({
             <div className="pb-4 border-b border-border">
                 {currentUser ? (
                   isCollapsed ? (
-                    <div className="flex flex-col items-center gap-2" title={`${currentUser.name} (${currentUser.email})`}>
+                    <div className="flex flex-col items-center gap-2" title={currentUser.name || "Customer"}>
                       {currentUser.avatar ? (
                         <img
                           src={currentUser.avatar}
@@ -307,11 +304,8 @@ export default function AccountLayout({
                         </div>
                       )}
                       <div className="min-w-0 flex-1">
-                        <div className="text-xs font-bold text-foreground truncate">
-                          {currentUser.name || "Customer Account"}
-                        </div>
-                        <div className="text-[11px] text-muted truncate">
-                          {currentUser.email || "customer@vnmobiles.in"}
+                        <div className="text-sm font-bold text-foreground truncate">
+                          {currentUser.name || "Customer"}
                         </div>
                       </div>
                     </div>
