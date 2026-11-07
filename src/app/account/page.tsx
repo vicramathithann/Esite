@@ -121,24 +121,51 @@ export default function AccountPage() {
   // Self-Service Account Deletion Modal State
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
+  // Helper to parse saved address string formatted as "Street, City, State - PIN"
+  const parseAddressString = (rawAddress: string) => {
+    if (!rawAddress) return { street: "", city: "", state: "", pincode: "" };
+    const pinMatch = rawAddress.match(/-\s*([1-9][0-9]{5})$/);
+    const pincode = pinMatch ? pinMatch[1] : "";
+    const withoutPin = pinMatch ? rawAddress.slice(0, pinMatch.index).trim().replace(/,\s*$/, "") : rawAddress.trim();
+    const segments = withoutPin.split(",").map((s) => s.trim()).filter(Boolean);
+
+    let state = "";
+    let city = "";
+    let street = withoutPin;
+
+    if (segments.length >= 3) {
+      state = segments[segments.length - 1];
+      city = segments[segments.length - 2];
+      street = segments.slice(0, segments.length - 2).join(", ");
+    } else if (segments.length === 2) {
+      city = segments[segments.length - 1];
+      street = segments[0];
+    }
+
+    return { street, city, state, pincode };
+  };
+
   // Computed displayed addresses list (derives default from currentUser if list is empty)
   const displayedAddresses: DeliveryAddress[] =
     addresses.length > 0
       ? addresses
-      : currentUser?.address
-      ? [
-          {
-            id: "addr-default-1",
-            label: "Home",
-            recipientName: currentUser.name || "Customer",
-            phone: currentUser.phone || "",
-            street: currentUser.address,
-            city: "Bengaluru",
-            state: "Karnataka",
-            pincode: "560001",
-            isDefault: true,
-          },
-        ]
+      : currentUser?.address?.trim()
+      ? (() => {
+          const parsed = parseAddressString(currentUser.address);
+          return [
+            {
+              id: "addr-default-1",
+              label: "Home",
+              recipientName: currentUser.name || "Customer",
+              phone: currentUser.phone || "",
+              street: parsed.street || currentUser.address,
+              city: parsed.city,
+              state: parsed.state,
+              pincode: parsed.pincode,
+              isDefault: true,
+            },
+          ];
+        })()
       : [];
 
   const handleToggleEditInfo = () => {

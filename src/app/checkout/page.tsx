@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -14,26 +14,80 @@ import {
   AlertCircle,
   ShieldCheck,
   Mail,
-  X
+  X,
+  Pencil,
+  MapPin,
+  Check
 } from "lucide-react";
 import { formatINR } from "@/lib/formatters";
 import confetti from "canvas-confetti";
 
+interface SavedDeliveryAddress {
+  street: string;
+  city: string;
+  state: string;
+  pincode: string;
+}
+
 export default function CheckoutPage() {
   const router = useRouter();
-  const { currentUser, cart, cartTotal, clearCart } = useApp();
+  const { currentUser, cart, cartTotal, clearCart, login } = useApp();
 
   const [authChecking, setAuthChecking] = useState(true);
 
+  // Address Form State - Empty by default, no hardcoded dummy data!
   const [formData, setFormData] = useState({
     customerName: "",
     customerEmail: "",
-    address: "Flat 402, Skyline Tech Park, Outer Ring Road",
-    city: "Bengaluru",
-    pincode: "560103",
-    state: "Karnataka",
+    address: "",
+    city: "",
+    state: "",
+    pincode: "",
     paymentMethod: "Amazon Pay UPI",
   });
+
+  // Validation errors state
+  const [fieldErrors, setFieldErrors] = useState<{
+    address?: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
+  }>({});
+
+  // Saved Profile Address detection & toggle
+  const [savedDeliveryAddress, setSavedDeliveryAddress] = useState<SavedDeliveryAddress | null>(null);
+  const [isUsingSavedAddress, setIsUsingSavedAddress] = useState<boolean>(false);
+
+  // Idempotency key per checkout session to prevent duplicate orders from fast double-clicks
+  const idempotencyKeyRef = useRef<string>(
+    typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `idemp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+  );
+
+  // Helper to parse stored address string formatted as "Street, City, State - PIN"
+  const parseSavedAddress = (rawAddress: string): SavedDeliveryAddress | null => {
+    if (!rawAddress || !rawAddress.trim()) return null;
+    const pinMatch = rawAddress.match(/-\s*([1-9][0-9]{5})$/);
+    const pincode = pinMatch ? pinMatch[1] : "";
+    const withoutPin = pinMatch ? rawAddress.slice(0, pinMatch.index).trim().replace(/,\s*$/, "") : rawAddress.trim();
+    const segments = withoutPin.split(",").map((s) => s.trim()).filter(Boolean);
+
+    let state = "";
+    let city = "";
+    let street = withoutPin;
+
+    if (segments.length >= 3) {
+      state = segments[segments.length - 1];
+      city = segments[segments.length - 2];
+      street = segments.slice(0, segments.length - 2).join(", ");
+    } else if (segments.length === 2) {
+      city = segments[segments.length - 1];
+      street = segments[0];
+    }
+
+    return { street, city, state, pincode };
+  };
 
   // Auth Protection: Require authenticated and email-verified user
   useEffect(() => {
@@ -60,7 +114,7 @@ export default function CheckoutPage() {
     setAuthChecking(false);
   }, [currentUser, router]);
 
-  // Pre-fill user data if logged in
+  // Pre-fill user data & detect saved delivery address
   useEffect(() => {
     if (currentUser) {
       setFormData((prev) => ({
@@ -68,8 +122,113 @@ export default function CheckoutPage() {
         customerName: currentUser.name || prev.customerName,
         customerEmail: currentUser.email || prev.customerEmail,
       }));
+
+      // Check for saved addresses in localStorage first
+      let resolvedAddr: SavedDeliveryAddress | null = null;
+      try {
+        const localAddressesStr = localStorage.getItem(`vn_user_addresses_${currentUser.id}`);
+        if (localAddressesStr) {
+          const parsedList = JSON.parse(localAddressesStr);
+          if (Array.isArray(parsedList) && parsedList.length > 0) {
+            const defaultAddr = parsedList.find((a: any) => a.isDefault) || parsedList[0];
+            if (defaultAddr && defaultAddr.street) {
+              resolvedAddr = {
+                street: defaultAddr.street,
+                city: defaultAddr.city || "",
+                state: defaultAddr.state || "",
+                pincode: defaultAddr.pincode || "",
+              };
+            }
+          }
+        }
+      } catch {}
+
+      // Fall back to currentUser.address from profile if not in localStorage
+      if (!resolvedAddr && currentUser.address && currentUser.address.trim()) {
+        const parsed = parseSavedAddress(currentUser.address);
+        if (parsed && (parsed.street || parsed.city)) {
+          resolvedAddr = parsed;
+        }
+      }
+
+      if (resolvedAddr && (resolvedAddr.street || resolvedAddr.pincode)) {
+        setFormData((prev) => ({
+          ...prev,
+          address: resolvedAddr!.street,
+          city: resolvedAddr!.city,
+          state: resolvedAddr!.state,
+          pincode: resolvedAddr!.pincode,
+        }));
+        setSavedDeliveryAddress(resolvedAddr);
+        setIsUsingSavedAddress(true);
+      } else {
+        setSavedDeliveryAddress(null);
+        setIsUsingSavedAddress(false);
+      }
     }
   }, [currentUser]);
+
+  // Dynamic field update and instant error clearing
+  const handleAddressFieldChange = (
+    field: "address" | "city" | "state" | "pincode",
+    value: string
+  ) => {
+    let cleanValue = value;
+    if (field === "pincode") {
+      cleanValue = value.replace(/[^0-9]/g, "").slice(0, 6);
+    }
+
+    setFormData((prev) => ({ ...prev, [field]: cleanValue }));
+
+    // Dynamically clear error once the field becomes valid
+    if (fieldErrors[field]) {
+      const nextErrors = { ...fieldErrors };
+      if (field === "address" && cleanValue.trim()) {
+        delete nextErrors.address;
+      } else if (field === "city" && cleanValue.trim()) {
+        delete nextErrors.city;
+      } else if (field === "state" && cleanValue.trim()) {
+        delete nextErrors.state;
+      } else if (field === "pincode") {
+        const trimmedPin = cleanValue.trim();
+        if (trimmedPin && /^[1-9][0-9]{5}$/.test(trimmedPin)) {
+          delete nextErrors.pincode;
+        }
+      }
+      setFieldErrors(nextErrors);
+    }
+  };
+
+  // Full form validator
+  const validateForm = (data: typeof formData) => {
+    const errors: {
+      address?: string;
+      city?: string;
+      state?: string;
+      pincode?: string;
+    } = {};
+
+    if (!data.address || !data.address.trim()) {
+      errors.address = "Please enter your street address";
+    }
+
+    if (!data.city || !data.city.trim()) {
+      errors.city = "Please enter your city";
+    }
+
+    if (!data.state || !data.state.trim()) {
+      errors.state = "Please enter your state";
+    }
+
+    const cleanPin = (data.pincode || "").trim();
+    if (!cleanPin) {
+      errors.pincode = "Please enter your PIN code";
+    } else if (!/^[1-9][0-9]{5}$/.test(cleanPin)) {
+      errors.pincode = "Enter a valid 6-digit PIN code";
+    }
+
+    return errors;
+  };
 
   const [loading, setLoading] = useState(false);
   const [orderComplete, setOrderComplete] = useState<any>(null);
@@ -134,27 +293,55 @@ export default function CheckoutPage() {
       return;
     }
 
-    if (!formData.address || !formData.city || !formData.pincode) {
-      alert("Please fill in your delivery address (Street Address, City, and Pincode).");
+    // Step 2 Validation: Check all 4 required delivery address fields
+    const validationErrors = validateForm(formData);
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors(validationErrors);
+      // Ensure the editable form is open
+      setIsUsingSavedAddress(false);
+
+      // Focus and scroll to first invalid field
+      const fieldOrder: Array<"address" | "city" | "state" | "pincode"> = [
+        "address",
+        "city",
+        "state",
+        "pincode",
+      ];
+      const firstInvalidField = fieldOrder.find((k) => validationErrors[k]);
+      if (firstInvalidField) {
+        setTimeout(() => {
+          const el = document.getElementById(`checkout-${firstInvalidField}`);
+          if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "center" });
+            el.focus();
+          }
+        }, 50);
+      }
       return;
     }
 
     try {
+      // Instant UI response: disable button & show spinner immediately
       setLoading(true);
+
       const res = await fetch("/api/orders", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": idempotencyKeyRef.current,
+        },
         body: JSON.stringify({
           customerName: currentUser.name || formData.customerName || "Customer",
           customerPhone: currentUser.phone || "",
           customerEmail: currentUser.email || formData.customerEmail,
-          address: formData.address,
-          city: formData.city,
-          pincode: formData.pincode,
-          state: formData.state,
+          address: formData.address.trim(),
+          city: formData.city.trim(),
+          pincode: formData.pincode.trim(),
+          state: formData.state.trim(),
           totalAmount: cartTotal,
           paymentMethod: formData.paymentMethod,
           userId: currentUser.id,
+          idempotencyKey: idempotencyKeyRef.current,
           items: cart.map((i) => ({
             productId: i.productId,
             productName: i.name,
@@ -183,8 +370,47 @@ export default function CheckoutPage() {
 
       const data = await res.json();
       if (data.success) {
+        // Automatically save address to profile context & local storage so it syncs immediately
+        if (data.savedAddress && currentUser) {
+          const updatedUser = {
+            ...currentUser,
+            address: data.savedAddress.fullAddress,
+          };
+          try {
+            login(updatedUser);
+          } catch {}
+
+          try {
+            const existingStr = localStorage.getItem(`vn_user_addresses_${currentUser.id}`);
+            const existingList = existingStr ? JSON.parse(existingStr) : [];
+            const newEntry = {
+              id: `addr-${Date.now()}`,
+              label: "Home" as const,
+              recipientName: currentUser.name || "Customer",
+              phone: currentUser.phone || "",
+              street: data.savedAddress.address,
+              city: data.savedAddress.city,
+              state: data.savedAddress.state,
+              pincode: data.savedAddress.pincode,
+              isDefault: true,
+            };
+            const updatedAddresses = [
+              newEntry,
+              ...existingList
+                .filter((a: any) => a.id !== newEntry.id)
+                .map((a: any) => ({ ...a, isDefault: false })),
+            ];
+            localStorage.setItem(
+              `vn_user_addresses_${currentUser.id}`,
+              JSON.stringify(updatedAddresses)
+            );
+          } catch {}
+        }
+
+        // Navigate / switch to order success view immediately
         setOrderComplete(data);
         clearCart();
+        window.scrollTo({ top: 0, behavior: "smooth" });
 
         confetti({
           particleCount: 120,
@@ -526,57 +752,203 @@ export default function CheckoutPage() {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                  {/* Full Name: Read-Only from Profile */}
-                  <div className="sm:col-span-2 space-y-1.5">
-                    <label className="font-semibold text-foreground flex items-center justify-between">
-                      <span className="flex items-center gap-1.5">
-                        <Lock className="w-3.5 h-3.5 text-[#C9A66B] dark:text-[#D4B483]" /> Full Name
-                      </span>
-                      <span className="text-[10px] text-muted">From profile (Read-only)</span>
-                    </label>
-                    <input
-                      type="text"
-                      readOnly
-                      value={currentUser?.name || formData.customerName}
-                      className="w-full bg-tile/70 border border-border text-foreground font-medium rounded-xl px-3.5 py-2.5 text-sm cursor-not-allowed select-none opacity-90 focus:outline-none"
-                    />
-                  </div>
+                {/* If user has a saved address and is not editing: show saved address preview */}
+                {isUsingSavedAddress && savedDeliveryAddress ? (
+                  <div className="space-y-4 text-xs">
+                    {/* Full Name: Read-Only from Profile */}
+                    <div className="space-y-1.5">
+                      <label className="font-semibold text-foreground flex items-center justify-between">
+                        <span className="flex items-center gap-1.5">
+                          <Lock className="w-3.5 h-3.5 text-[#C9A66B] dark:text-[#D4B483]" /> Full Name
+                        </span>
+                        <span className="text-[10px] text-muted">From profile (Read-only)</span>
+                      </label>
+                      <input
+                        type="text"
+                        readOnly
+                        value={currentUser?.name || formData.customerName}
+                        className="w-full bg-tile/70 border border-border text-foreground font-medium rounded-xl px-3.5 py-2.5 text-sm cursor-not-allowed select-none opacity-90 focus:outline-none"
+                      />
+                    </div>
 
-                  <div className="sm:col-span-2 space-y-1.5">
-                    <label className="font-semibold text-foreground">Street Address <span className="text-red-500">*</span></label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.address}
-                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                      className="w-full bg-tile border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20 transition-all placeholder:text-muted"
-                      placeholder="Flat, House no., Building, Company, Apartment"
-                    />
-                  </div>
+                    <div className="p-4 rounded-xl bg-tile/60 border border-[#C9A66B]/30 dark:border-[#D4B483]/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <MapPin className="w-4 h-4 text-[#C9A66B] dark:text-[#D4B483] shrink-0" />
+                          <span className="font-bold text-sm text-foreground">Saved Delivery Address</span>
+                          <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-[#C9A66B]/15 text-[#8C6226] dark:text-[#E5CBA2] border border-[#C9A66B]/30">
+                            Default
+                          </span>
+                        </div>
+                        <p className="text-foreground text-xs leading-relaxed pl-6">
+                          {formData.address}, {formData.city}, {formData.state} - <span className="font-mono font-semibold">{formData.pincode}</span>
+                        </p>
+                      </div>
 
-                  <div className="space-y-1.5">
-                    <label className="font-semibold text-foreground">City <span className="text-red-500">*</span></label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.city}
-                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                      className="w-full bg-tile border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20 transition-all placeholder:text-muted"
-                    />
+                      <button
+                        type="button"
+                        onClick={() => setIsUsingSavedAddress(false)}
+                        className="self-start sm:self-auto px-3.5 py-2 bg-tile hover:bg-tile/80 border border-border hover:border-[#C9A66B] text-foreground text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+                      >
+                        <Pencil className="w-3.5 h-3.5 text-[#C9A66B] dark:text-[#D4B483]" />
+                        <span>Use a different address / Edit</span>
+                      </button>
+                    </div>
                   </div>
+                ) : (
+                  /* Editable Address Form with 4 Required Fields & Dynamic Validation */
+                  <div className="space-y-4 text-xs">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Full Name: Read-Only from Profile */}
+                      <div className="sm:col-span-2 space-y-1.5">
+                        <label className="font-semibold text-foreground flex items-center justify-between">
+                          <span className="flex items-center gap-1.5">
+                            <Lock className="w-3.5 h-3.5 text-[#C9A66B] dark:text-[#D4B483]" /> Full Name
+                          </span>
+                          <span className="text-[10px] text-muted">From profile (Read-only)</span>
+                        </label>
+                        <input
+                          type="text"
+                          readOnly
+                          value={currentUser?.name || formData.customerName}
+                          className="w-full bg-tile/70 border border-border text-foreground font-medium rounded-xl px-3.5 py-2.5 text-sm cursor-not-allowed select-none opacity-90 focus:outline-none"
+                        />
+                      </div>
 
-                  <div className="space-y-1.5">
-                    <label className="font-semibold text-foreground">Pincode <span className="text-red-500">*</span></label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.pincode}
-                      onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
-                      className="w-full bg-tile border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm font-mono focus:outline-none focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20 transition-all placeholder:text-muted"
-                    />
+                      {/* Street Address / Flat / Building */}
+                      <div className="sm:col-span-2 space-y-1.5">
+                        <label className="font-semibold text-foreground flex items-center gap-1">
+                          Street Address / Flat / Building <span className="text-red-500 font-bold">*</span>
+                        </label>
+                        <input
+                          id="checkout-address"
+                          name="address"
+                          type="text"
+                          autoComplete="street-address"
+                          value={formData.address}
+                          onChange={(e) => handleAddressFieldChange("address", e.target.value)}
+                          className={`w-full bg-tile border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none transition-all placeholder:text-muted ${
+                            fieldErrors.address
+                              ? "border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
+                              : "border-border focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20"
+                          }`}
+                          placeholder="Flat, House no., Building, Company, Apartment"
+                        />
+                        {fieldErrors.address && (
+                          <p className="text-[11px] text-red-500 font-medium flex items-center gap-1 mt-1 animate-in fade-in duration-150">
+                            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                            <span>{fieldErrors.address}</span>
+                          </p>
+                        )}
+                      </div>
+
+                      {/* City */}
+                      <div className="space-y-1.5">
+                        <label className="font-semibold text-foreground flex items-center gap-1">
+                          City <span className="text-red-500 font-bold">*</span>
+                        </label>
+                        <input
+                          id="checkout-city"
+                          name="city"
+                          type="text"
+                          autoComplete="address-level2"
+                          value={formData.city}
+                          onChange={(e) => handleAddressFieldChange("city", e.target.value)}
+                          className={`w-full bg-tile border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none transition-all placeholder:text-muted ${
+                            fieldErrors.city
+                              ? "border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
+                              : "border-border focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20"
+                          }`}
+                          placeholder="e.g. Bengaluru"
+                        />
+                        {fieldErrors.city && (
+                          <p className="text-[11px] text-red-500 font-medium flex items-center gap-1 mt-1 animate-in fade-in duration-150">
+                            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                            <span>{fieldErrors.city}</span>
+                          </p>
+                        )}
+                      </div>
+
+                      {/* State */}
+                      <div className="space-y-1.5">
+                        <label className="font-semibold text-foreground flex items-center gap-1">
+                          State <span className="text-red-500 font-bold">*</span>
+                        </label>
+                        <input
+                          id="checkout-state"
+                          name="state"
+                          type="text"
+                          autoComplete="address-level1"
+                          value={formData.state}
+                          onChange={(e) => handleAddressFieldChange("state", e.target.value)}
+                          className={`w-full bg-tile border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none transition-all placeholder:text-muted ${
+                            fieldErrors.state
+                              ? "border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
+                              : "border-border focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20"
+                          }`}
+                          placeholder="e.g. Karnataka"
+                        />
+                        {fieldErrors.state && (
+                          <p className="text-[11px] text-red-500 font-medium flex items-center gap-1 mt-1 animate-in fade-in duration-150">
+                            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                            <span>{fieldErrors.state}</span>
+                          </p>
+                        )}
+                      </div>
+
+                      {/* PIN Code */}
+                      <div className="space-y-1.5 sm:col-span-2">
+                        <label className="font-semibold text-foreground flex items-center gap-1">
+                          PIN Code <span className="text-red-500 font-bold">*</span>
+                        </label>
+                        <input
+                          id="checkout-pincode"
+                          name="pincode"
+                          type="text"
+                          autoComplete="postal-code"
+                          inputMode="numeric"
+                          maxLength={6}
+                          value={formData.pincode}
+                          onChange={(e) => handleAddressFieldChange("pincode", e.target.value)}
+                          className={`w-full bg-tile border text-foreground rounded-xl px-3.5 py-2.5 text-sm font-mono focus:outline-none transition-all placeholder:text-muted ${
+                            fieldErrors.pincode
+                              ? "border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
+                              : "border-border focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20"
+                          }`}
+                          placeholder="e.g. 560001"
+                        />
+                        {fieldErrors.pincode && (
+                          <p className="text-[11px] text-red-500 font-medium flex items-center gap-1 mt-1 animate-in fade-in duration-150">
+                            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                            <span>{fieldErrors.pincode}</span>
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {savedDeliveryAddress && (
+                      <div className="pt-2 flex items-center justify-between border-t border-border">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData((prev) => ({
+                              ...prev,
+                              address: savedDeliveryAddress.street,
+                              city: savedDeliveryAddress.city,
+                              state: savedDeliveryAddress.state,
+                              pincode: savedDeliveryAddress.pincode,
+                            }));
+                            setFieldErrors({});
+                            setIsUsingSavedAddress(true);
+                          }}
+                          className="text-xs text-[#8C6226] dark:text-[#E5CBA2] hover:underline font-medium cursor-pointer"
+                        >
+                          ← Cancel and keep saved address
+                        </button>
+                      </div>
+                    )}
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Step 2: Payment Method */}
@@ -665,17 +1037,22 @@ export default function CheckoutPage() {
               <button
                 type="submit"
                 disabled={loading || hasOutOfStock}
-                className={`w-full py-3.5 px-6 text-sm font-semibold rounded-xl shadow-xs transition-all ${
-                  hasOutOfStock
+                className={`w-full py-3.5 px-6 text-sm font-semibold rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 ${
+                  hasOutOfStock || loading
                     ? "bg-tile text-muted cursor-not-allowed border border-border"
                     : "bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] cursor-pointer shadow-md"
                 }`}
               >
-                {hasOutOfStock 
-                  ? "Cannot Place Order (Items Out of Stock)" 
-                  : loading 
-                  ? "Registering Warranty & Placing Order..." 
-                  : `Place your order and pay (₹${cartTotal.toLocaleString("en-IN")})`}
+                {loading ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin text-[#FFFCFA]" />
+                    <span>Placing your order...</span>
+                  </>
+                ) : hasOutOfStock ? (
+                  "Cannot Place Order (Items Out of Stock)"
+                ) : (
+                  `Place your order and pay (₹${cartTotal.toLocaleString("en-IN")})`
+                )}
               </button>
             </form>
           </div>
@@ -687,13 +1064,22 @@ export default function CheckoutPage() {
                 type="button"
                 onClick={handleSubmitOrder}
                 disabled={loading || hasOutOfStock}
-                className={`w-full py-3 px-4 text-xs font-semibold rounded-xl shadow-xs transition-all ${
-                  hasOutOfStock
+                className={`w-full py-3 px-4 text-xs font-semibold rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 ${
+                  hasOutOfStock || loading
                     ? "bg-tile text-muted cursor-not-allowed border border-border"
                     : "bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] cursor-pointer shadow-md"
                 }`}
               >
-                {hasOutOfStock ? "Out of Stock" : loading ? "Processing..." : "Place your order"}
+                {loading ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#FFFCFA]" />
+                    <span>Processing...</span>
+                  </>
+                ) : hasOutOfStock ? (
+                  "Out of Stock"
+                ) : (
+                  "Place your order"
+                )}
               </button>
 
               <p className="text-[11px] text-muted text-center leading-tight">

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendOrderConfirmationEmail } from "@/lib/email";
 import { sendWarrantyEmail } from "@/lib/mailer";
@@ -128,8 +128,77 @@ export async function POST(request: Request) {
 
     const validUserId = validUser.id;
 
-    // 3. Strict Backend Product, Stock, and Price Validation
-    // OWASP A06 & A08: Server-side pricing enforcement - never trust client item.price or totalAmount!
+    // 3. Strict Server-Side Delivery Address Validation
+    const cleanAddress = (address || "").trim();
+    const cleanCity = (city || "").trim();
+    const cleanState = (state || "").trim();
+    const cleanPincode = (pincode || "").trim();
+
+    if (!cleanAddress) {
+      return NextResponse.json(
+        { success: false, error: "Please enter your street address." },
+        { status: 400 }
+      );
+    }
+    if (!cleanCity) {
+      return NextResponse.json(
+        { success: false, error: "Please enter your city." },
+        { status: 400 }
+      );
+    }
+    if (!cleanState) {
+      return NextResponse.json(
+        { success: false, error: "Please enter your state." },
+        { status: 400 }
+      );
+    }
+    if (!cleanPincode) {
+      return NextResponse.json(
+        { success: false, error: "Please enter your PIN code." },
+        { status: 400 }
+      );
+    }
+    if (!/^[1-9][0-9]{5}$/.test(cleanPincode)) {
+      return NextResponse.json(
+        { success: false, error: "Enter a valid 6-digit PIN code (cannot start with 0)." },
+        { status: 400 }
+      );
+    }
+
+    // 4. Idempotency Check: Prevent duplicate orders from fast double-clicks
+    const idempotencyKey =
+      request.headers.get("x-idempotency-key") ||
+      request.headers.get("idempotency-key") ||
+      body.idempotencyKey ||
+      null;
+
+    if (idempotencyKey && typeof idempotencyKey === "string") {
+      const existingOrder = await prisma.order.findFirst({
+        where: {
+          userId: validUserId,
+          adminNotes: `IDEMPOTENCY:${idempotencyKey.slice(0, 64)}`,
+        },
+        include: { items: true },
+      });
+      if (existingOrder) {
+        return NextResponse.json({
+          success: true,
+          order: existingOrder,
+          idempotentReplay: true,
+          message: "Order already placed.",
+        });
+      }
+    }
+
+    // 5. Parallel Product Lookups (Single Batch Query instead of sequential loop)
+    const productIds: string[] = Array.from(
+      new Set(items.map((i: any) => i.productId).filter(Boolean))
+    );
+    const dbProducts = await prisma.mobileProduct.findMany({
+      where: { id: { in: productIds } },
+    });
+    const productMap = new Map(dbProducts.map((p: any) => [p.id, p]));
+
     let computedBackendTotal = 0;
     const validatedProductsMap = new Map<string, { product: any; unitPrice: number; qty: number }>();
 
@@ -143,9 +212,7 @@ export async function POST(request: Request) {
         );
       }
 
-      const product = await prisma.mobileProduct.findUnique({
-        where: { id: item.productId },
-      });
+      const product = productMap.get(item.productId);
 
       if (!product) {
         return NextResponse.json(
@@ -164,9 +231,10 @@ export async function POST(request: Request) {
         );
       }
 
-      const unitPrice = product.discountPrice && product.discountPrice > 0
-        ? product.discountPrice
-        : product.basePrice;
+      const unitPrice =
+        product.discountPrice && product.discountPrice > 0
+          ? product.discountPrice
+          : product.basePrice;
 
       computedBackendTotal += unitPrice * qty;
       validatedProductsMap.set(item.productId, { product, unitPrice, qty });
@@ -177,7 +245,7 @@ export async function POST(request: Request) {
     const orderNumber = `ORD${Math.floor(10000 + Math.random() * 90000)}`;
     const now = new Date();
 
-    // 4. Prepare Order Items & IMEI numbers with verified server pricing
+    // 6. Prepare Order Items & IMEI numbers with verified server pricing
     const orderItemsCreateData: any[] = [];
 
     for (const item of items) {
@@ -186,7 +254,7 @@ export async function POST(request: Request) {
       const unitPrice = validated?.unitPrice || 0;
       const qty = validated?.qty || 1;
 
-      // Authoritative real product model name from database: product.name or `${product.brand} ${product.model}`
+      // Authoritative real product model name from database
       let realModelName = prod?.name || "";
       if (!realModelName && prod?.brand && prod?.model) {
         realModelName = `${prod.brand} ${prod.model}`;
@@ -200,7 +268,9 @@ export async function POST(request: Request) {
         realModelName.toLowerCase().includes("flagship smartphone") ||
         realModelName.toLowerCase().includes("mobile smartphone")
       ) {
-        realModelName = (prod?.brand && prod?.model) ? `${prod.brand} ${prod.model}` : (prod?.name || "Samsung Galaxy S24");
+        realModelName = (prod?.brand && prod?.model)
+          ? `${prod.brand} ${prod.model}`
+          : (prod?.name || "Samsung Galaxy S24");
       }
 
       const pName = realModelName;
@@ -212,13 +282,15 @@ export async function POST(request: Request) {
       const expiry = new Date(now);
       expiry.setFullYear(expiry.getFullYear() + Math.max(1, Math.round(months / 12)));
 
-      const colorStr = typeof item.selectedColor === "object" && item.selectedColor !== null
-        ? item.selectedColor.name
-        : (item.selectedColor || "Standard");
+      const colorStr =
+        typeof item.selectedColor === "object" && item.selectedColor !== null
+          ? item.selectedColor.name
+          : (item.selectedColor || "Standard");
 
-      const storageStr = typeof item.selectedStorage === "object" && item.selectedStorage !== null
-        ? item.selectedStorage.size
-        : (item.selectedStorage || "Standard");
+      const storageStr =
+        typeof item.selectedStorage === "object" && item.selectedStorage !== null
+          ? item.selectedStorage.size
+          : (item.selectedStorage || "Standard");
 
       orderItemsCreateData.push({
         productId: item.productId,
@@ -237,29 +309,27 @@ export async function POST(request: Request) {
       });
     }
 
-    // 5. Atomic Database Transaction: Deduct stock and create order records together
-    // Guarantees zero stock leaks or inconsistent records under high concurrency
+    // 7. Atomic Database Transaction: Deduct stock, create order, create warranties, and update profile
+    const fullDeliveryAddress = `${cleanAddress}, ${cleanCity}, ${cleanState} - ${cleanPincode}`;
+
     const { order, createdWarranties } = await prisma.$transaction(async (tx: any) => {
-      // 5a. Deduct stock
-      for (const item of items) {
-        if (item.productId) {
+      // 7a. Deduct stock in parallel
+      await Promise.all(
+        items.map((item: any) => {
           const qty = Math.max(1, parseInt(String(item.quantity || 1), 10));
-          const prod = await tx.mobileProduct.findUnique({ where: { id: item.productId } });
-          if (!prod || prod.stock < qty) {
-            throw new Error(`Insufficient stock for product ${item.productId}`);
-          }
-          const updatedStock = prod.stock - qty;
-          await tx.mobileProduct.update({
+          const prod = productMap.get(item.productId);
+          const updatedStock = ((prod?.stock || 0) - qty);
+          return tx.mobileProduct.update({
             where: { id: item.productId },
             data: {
               stock: updatedStock,
               inStock: updatedStock > 0,
             },
           });
-        }
-      }
+        })
+      );
 
-      // 5b. Create Order in Database
+      // 7b. Create Order in Database
       const newOrder = await tx.order.create({
         data: {
           orderNumber,
@@ -268,12 +338,13 @@ export async function POST(request: Request) {
           customerPhone: customerPhone ? customerPhone.trim() : "",
           phoneVerified: true,
           customerEmail: cleanCustomerEmail,
-          address: address || "Standard Delivery Address",
-          city: city || "City",
-          pincode: pincode || "000000",
-          state: state || "State",
+          address: cleanAddress,
+          city: cleanCity,
+          pincode: cleanPincode,
+          state: cleanState,
           totalAmount: orderTotal,
           paymentMethod: paymentMethod || "Online Payment",
+          adminNotes: idempotencyKey ? `IDEMPOTENCY:${idempotencyKey.slice(0, 64)}` : null,
           paymentStatus:
             paymentMethod &&
             (paymentMethod.toUpperCase().includes("COD") ||
@@ -301,30 +372,41 @@ export async function POST(request: Request) {
         },
       });
 
-      // 5c. Register Mobile Product Warranties
-      const warranties = [];
-      for (let i = 0; i < newOrder.items.length; i++) {
-        const orderItem = newOrder.items[i];
-        const warrantyNumber = `WRT-${newOrder.orderNumber}-${i + 1}`;
-        const warranty = await tx.warranty.create({
+      // 7c. Register Mobile Product Warranties in parallel
+      const warranties = await Promise.all(
+        newOrder.items.map((orderItem: any, i: number) => {
+          const warrantyNumber = `WRT-${newOrder.orderNumber}-${i + 1}`;
+          return tx.warranty.create({
+            data: {
+              warrantyNumber,
+              orderId: newOrder.id,
+              orderItemId: orderItem.id,
+              userId: validUserId,
+              customerName: customerName.trim(),
+              customerEmail: cleanCustomerEmail,
+              productName: orderItem.productName,
+              imeiNumber: orderItem.imeiNumber,
+              purchaseDate: now,
+              warrantyDuration: `${Math.round((orderItem.warrantyMonths || 12) / 12)} Year`,
+              warrantyStartDate: now,
+              warrantyExpiryDate: orderItem.warrantyExpiryDate,
+              warrantyStatus: "ACTIVE",
+              emailSent: false,
+            },
+          });
+        })
+      );
+
+      // 7d. Automatically save address to user's profile inside the same transaction
+      try {
+        await tx.user.update({
+          where: { id: validUserId },
           data: {
-            warrantyNumber,
-            orderId: newOrder.id,
-            orderItemId: orderItem.id,
-            userId: validUserId,
-            customerName: customerName.trim(),
-            customerEmail: cleanCustomerEmail,
-            productName: orderItem.productName,
-            imeiNumber: orderItem.imeiNumber,
-            purchaseDate: now,
-            warrantyDuration: `${Math.round((orderItem.warrantyMonths || 12) / 12)} Year`,
-            warrantyStartDate: now,
-            warrantyExpiryDate: orderItem.warrantyExpiryDate,
-            warrantyStatus: "ACTIVE",
-            emailSent: false,
+            address: fullDeliveryAddress,
           },
         });
-        warranties.push(warranty);
+      } catch (profileErr) {
+        console.warn("[CHECKOUT] Could not update profile address in transaction:", profileErr);
       }
 
       return { order: newOrder, createdWarranties: warranties };
@@ -341,27 +423,39 @@ export async function POST(request: Request) {
       },
     });
 
-    // 6. Automatic First Email: Dispatch ONE official order confirmation email with attached PDF certificate
-    let emailResult = null;
-    try {
-      const itemsForEmail =
-        order.items && order.items.length > 0 ? order.items : orderItemsCreateData;
-      emailResult = await sendWarrantyEmail(
-        order,
-        itemsForEmail,
-        createdWarranties || [],
-        request,
-        { force: true }
-      );
-    } catch (mailErr) {
-      console.error("[AUTOMATIC EMAIL WARNING] Could not send order/warranty certificate email:", mailErr);
-    }
+    // 8. Non-blocking Asynchronous Background Work:
+    // Move email and PDF certificate generation OUT of the critical HTTP response path!
+    // The client gets an instant response, while Next.js / Vercel runs after() in the background.
+    after(async () => {
+      try {
+        const itemsForEmail =
+          order.items && order.items.length > 0 ? order.items : orderItemsCreateData;
+        await sendWarrantyEmail(
+          order,
+          itemsForEmail,
+          createdWarranties || [],
+          request,
+          { force: true }
+        );
+        console.log(`[ORDER DISPATCH] Order #${order.orderNumber} warranty confirmation sent in background.`);
+      } catch (mailErr) {
+        console.error("[AUTOMATIC EMAIL WARNING] Could not send background order/warranty certificate email:", mailErr);
+      }
+    });
 
+    // 9. Instant HTTP Response:
+    // Returns immediately without waiting for PDF synthesis or SMTP network round-trips!
     return NextResponse.json({
       success: true,
       order,
       warranties: createdWarranties,
-      emailStatus: emailResult?.status || "LOGGED",
+      savedAddress: {
+        address: cleanAddress,
+        city: cleanCity,
+        state: cleanState,
+        pincode: cleanPincode,
+        fullAddress: fullDeliveryAddress,
+      },
       message: `Order placed successfully! Confirmation email with warranty certificate dispatched to ${cleanCustomerEmail}.`,
     });
   } catch (error) {

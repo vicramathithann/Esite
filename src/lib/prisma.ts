@@ -13,9 +13,8 @@ const globalForDb = globalThis as unknown as {
 export const prisma: SupabaseDatabaseClient =
   globalForDb.prisma ?? createSupabasePrismaClient();
 
-if (process.env.NODE_ENV !== "production") {
-  globalForDb.prisma = prisma;
-}
+// Cache on global in all environments (including production serverless warm containers)
+globalForDb.prisma = prisma;
 
 export default prisma;
 export type { SupabaseDatabaseClient };

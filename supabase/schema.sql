@@ -111,6 +111,12 @@ CREATE TABLE IF NOT EXISTS "Order" (
   "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Indexes for Fast Order Lookups & Performance
+CREATE INDEX IF NOT EXISTS "idx_order_user_id" ON "Order"("userId");
+CREATE INDEX IF NOT EXISTS "idx_order_customer_email" ON "Order"("customerEmail");
+CREATE INDEX IF NOT EXISTS "idx_order_order_number" ON "Order"("orderNumber");
+CREATE INDEX IF NOT EXISTS "idx_order_created_at" ON "Order"("createdAt");
+
 -- 5. OrderItem Table
 CREATE TABLE IF NOT EXISTS "OrderItem" (
   "id" TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::text,
@@ -130,6 +136,9 @@ CREATE TABLE IF NOT EXISTS "OrderItem" (
   "warrantyStatus" TEXT NOT NULL DEFAULT 'ACTIVE'
 );
 
+CREATE INDEX IF NOT EXISTS "idx_order_item_order_id" ON "OrderItem"("orderId");
+CREATE INDEX IF NOT EXISTS "idx_order_item_product_id" ON "OrderItem"("productId");
+
 -- 6. OrderStatusHistory Table
 CREATE TABLE IF NOT EXISTS "OrderStatusHistory" (
   "id" TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::text,
@@ -140,6 +149,7 @@ CREATE TABLE IF NOT EXISTS "OrderStatusHistory" (
   "note" TEXT,
   "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
 
 -- 7. Warranty Table
 CREATE TABLE IF NOT EXISTS "Warranty" (
@@ -164,6 +174,11 @@ CREATE TABLE IF NOT EXISTS "Warranty" (
   "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE INDEX IF NOT EXISTS "idx_warranty_order_id" ON "Warranty"("orderId");
+CREATE INDEX IF NOT EXISTS "idx_warranty_user_id" ON "Warranty"("userId");
+CREATE INDEX IF NOT EXISTS "idx_warranty_imei" ON "Warranty"("imeiNumber");
+CREATE INDEX IF NOT EXISTS "idx_warranty_number" ON "Warranty"("warrantyNumber");
+
 -- 8. EmailNotification Table
 CREATE TABLE IF NOT EXISTS "EmailNotification" (
   "id" TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::text,
@@ -182,6 +197,7 @@ CREATE TABLE IF NOT EXISTS "EmailNotification" (
   "sentAt" TIMESTAMPTZ,
   "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
 
 -- 9. Wishlist Table
 CREATE TABLE IF NOT EXISTS "Wishlist" (
@@ -202,6 +218,7 @@ CREATE TABLE IF NOT EXISTS "Review" (
   "comment" TEXT NOT NULL,
   "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
 
 -- 11. SiteSetting Table
 CREATE TABLE IF NOT EXISTS "SiteSetting" (
@@ -1565,6 +1582,7 @@ CREATE TABLE IF NOT EXISTS "AdminPasswordResetToken" (
   "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+
 CREATE INDEX IF NOT EXISTS "idx_admin_pw_reset_user_id" ON "AdminPasswordResetToken"("userId");
 CREATE INDEX IF NOT EXISTS "idx_admin_pw_reset_token_hash" ON "AdminPasswordResetToken"("tokenHash");
 CREATE INDEX IF NOT EXISTS "idx_admin_pw_reset_expires_at" ON "AdminPasswordResetToken"("expiresAt");
@@ -1586,6 +1604,7 @@ CREATE TABLE IF NOT EXISTS "AdminSecurityAudit" (
   "userAgent" TEXT,
   "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
 
 CREATE INDEX IF NOT EXISTS "idx_admin_security_audit_user_id" ON "AdminSecurityAudit"("userId");
 CREATE INDEX IF NOT EXISTS "idx_admin_security_audit_created_at" ON "AdminSecurityAudit"("createdAt");
@@ -1619,6 +1638,7 @@ CREATE TABLE IF NOT EXISTS "UserPasswordResetToken" (
   "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+
 CREATE INDEX IF NOT EXISTS "idx_user_pw_reset_user_id" ON "UserPasswordResetToken"("userId");
 CREATE INDEX IF NOT EXISTS "idx_user_pw_reset_token_hash" ON "UserPasswordResetToken"("tokenHash");
 CREATE INDEX IF NOT EXISTS "idx_user_pw_reset_expires_at" ON "UserPasswordResetToken"("expiresAt");
@@ -1643,6 +1663,7 @@ CREATE TABLE IF NOT EXISTS "UserAuditLog" (
   "userAgent" TEXT,
   "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
 
 CREATE INDEX IF NOT EXISTS "idx_user_audit_log_target_user" ON "UserAuditLog"("targetUserId");
 CREATE INDEX IF NOT EXISTS "idx_user_audit_log_admin_email" ON "UserAuditLog"("adminEmail");
