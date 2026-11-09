@@ -1,35 +1,17 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { 
-  ArrowUp, 
-  Check, 
-  Mail, 
-  Sparkles
-} from "lucide-react";
+import { ArrowUp } from "lucide-react";
 
 export default function Footer() {
   const pathname = usePathname();
 
-  // Completely exclude Storefront footer and newsletter subscription from all Admin routes
+  // Completely exclude Storefront footer from all Admin routes
   if (pathname?.startsWith("/admin")) {
     return null;
   }
-
-  const [email, setEmail] = useState("");
-  const [subscribed, setSubscribed] = useState(false);
-
-  const handleSubscribe = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (email.trim()) {
-      setSubscribed(true);
-      setTimeout(() => {
-        setEmail("");
-      }, 3000);
-    }
-  };
 
   const scrollToTop = () => {
     if (typeof window !== "undefined") {
@@ -38,63 +20,8 @@ export default function Footer() {
   };
 
   return (
-    <footer className="w-full bg-background border-t border-border pt-16 sm:pt-20 pb-12 text-foreground transition-colors duration-200">
+    <footer className="w-full bg-background border-t border-border pt-12 sm:pt-14 pb-12 text-foreground transition-colors duration-200">
       <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8">
-        
-        {/* Newsletter Section: Premium Clean Tech Card */}
-        <div className="bg-card border border-border rounded-[20px] p-6 sm:p-10 mb-14 sm:mb-16 shadow-xs relative overflow-hidden">
-          {/* Subtle Ambient Backlight */}
-          <div 
-            className="absolute -right-20 -top-20 w-80 h-80 rounded-full bg-accent/10 blur-3xl pointer-events-none" 
-          />
-
-          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-            <div className="lg:col-span-7 space-y-2">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent/10 text-accent text-xs font-semibold">
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Stay Connected</span>
-              </div>
-              <h3 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-                Get the latest tech drops & exclusive deals.
-              </h3>
-              <p className="text-sm sm:text-base text-muted font-normal max-w-xl">
-                Subscribe for early access to flagship launches, exchange valuation bonuses, and pre-expiry warranty reminder alerts.
-              </p>
-            </div>
-
-            <div className="lg:col-span-5">
-              {subscribed ? (
-                <div className="flex items-center gap-3 p-4 rounded-full bg-accent/10 border border-accent/20 text-accent text-sm font-medium animate-fade-in">
-                  <div className="w-6 h-6 rounded-full bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] flex items-center justify-center shrink-0">
-                    <Check className="w-3.5 h-3.5" />
-                  </div>
-                  <span>Thank you! You are subscribed to flagship alerts.</span>
-                </div>
-              ) : (
-                <form onSubmit={handleSubscribe} className="flex flex-col sm:flex-row gap-2.5">
-                  <div className="relative flex-1">
-                    <Mail className="w-4 h-4 text-muted absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    <input
-                      type="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="Enter your email address"
-                      className="w-full pl-11 pr-4 py-3 bg-tile hover:bg-tile/80 focus:bg-card text-sm text-foreground placeholder:text-muted rounded-full border border-border focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20 focus:outline-none transition-all duration-200"
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    className="px-6 py-3 rounded-full bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] text-sm font-semibold transition-all duration-200 shadow-sm shrink-0 flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    Subscribe
-                  </button>
-                </form>
-              )}
-            </div>
-          </div>
-        </div>
-
         {/* 4 Columns Links Section */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 lg:gap-12 pb-12 border-b border-border text-xs">
           
