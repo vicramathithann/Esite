@@ -13,6 +13,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { formatINR } from "@/lib/formatters";
+import NumberInput from "@/components/NumberInput";
 
 export default function AdminInventoryPage() {
   const [items, setItems] = useState<any[]>([]);
@@ -230,7 +231,7 @@ export default function AdminInventoryPage() {
                             >
                               <Minus className="w-3 h-3" />
                             </button>
-                            <input
+                            <NumberInput
                               type="number"
                               min="0"
                               value={editedStock}

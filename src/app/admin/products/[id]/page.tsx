@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Save, AlertCircle, CheckCircle2 } from "lucide-react";
+import NumberInput from "@/components/NumberInput";
 
 export default function AdminEditProductPage() {
   const params = useParams();
@@ -218,7 +219,7 @@ export default function AdminEditProductPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-muted mb-1.5">Base Price (₹)</label>
-                <input
+                <NumberInput
                   type="number"
                   min="0"
                   value={formData.basePrice ?? ""}
@@ -230,7 +231,7 @@ export default function AdminEditProductPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-muted mb-1.5">Original Price (₹)</label>
-                <input
+                <NumberInput
                   type="number"
                   min="0"
                   value={formData.originalPrice ?? ""}
@@ -241,7 +242,7 @@ export default function AdminEditProductPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-muted mb-1.5">Available Stock</label>
-                <input
+                <NumberInput
                   type="number"
                   min="0"
                   value={formData.stock ?? ""}

@@ -306,6 +306,18 @@ input[type="submit"]:disabled {
   transform: none !important;
 }
 
+/* Hide number input spinner arrows across browsers */
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 /* Clean Tech Card */
 .card-tech {
   background-color: var(--card);

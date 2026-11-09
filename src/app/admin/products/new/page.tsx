@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Save } from "lucide-react";
+import NumberInput from "@/components/NumberInput";
 
 const FAMOUS_BRANDS = [
   "Apple",
@@ -147,8 +148,9 @@ export default function AdminNewProductPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-muted mb-1.5">Base Price (₹)</label>
-                <input
+                <NumberInput
                   type="number"
+                  min="0"
                   value={formData.basePrice}
                   onChange={(e) => setFormData({ ...formData, basePrice: parseInt(e.target.value, 10) || 0 })}
                   className="w-full px-4 py-2.5 bg-tile border border-border rounded-xl text-foreground text-xs focus:outline-none focus:border-[#C9A66B]"
@@ -158,8 +160,9 @@ export default function AdminNewProductPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-muted mb-1.5">Initial Stock Quantity</label>
-                <input
+                <NumberInput
                   type="number"
+                  min="0"
                   value={formData.stock}
                   onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value, 10) || 0 })}
                   className="w-full px-4 py-2.5 bg-tile border border-border rounded-xl text-foreground text-xs focus:outline-none focus:border-[#C9A66B]"
