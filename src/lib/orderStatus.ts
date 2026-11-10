@@ -59,16 +59,16 @@ export function getOrderStatusDisplay(status?: string | null): {
 
 export function normalizeAdminOrderStatus(status?: string | null): string {
   if (!status) return "Order Confirmed";
-  if (isOrderCancelled(status)) return "Cancelled";
   const s = status.trim().toUpperCase();
+  if (s === "REFUND_INITIATED" || s === "REFUND INITIATED") return "Refund Initiated";
+  if (s === "REFUNDED") return "Refunded";
+  if (isOrderCancelled(status)) return "Cancelled";
   if (s === "CONFIRMED" || s === "ORDER CONFIRMED") return "Order Confirmed";
   if (s === "PROCESSING") return "Processing";
   if (s === "PACKED") return "Packed";
   if (s === "SHIPPED") return "Shipped";
   if (s === "OUT_FOR_DELIVERY" || s === "OUT FOR DELIVERY") return "Out for Delivery";
   if (s === "DELIVERED") return "Delivered";
-  if (s === "REFUND_INITIATED" || s === "REFUND INITIATED") return "Refund Initiated";
-  if (s === "REFUNDED") return "Refunded";
   return status;
 }
 
