@@ -255,6 +255,20 @@ export function getStatusStyle(status?: string | null): {
   }
 }
 
+/**
+ * Escapes values for CSV and neutralizes CSV Formula Injection (DDE attacks).
+ * Any cell starting with =, +, -, @, \t, or \r is prefixed with a single quote.
+ */
+export function sanitizeForCSV(value: unknown): string {
+  if (value === null || value === undefined) return '""';
+  let str = String(value);
+  // Neutralize spreadsheet formula injection characters
+  if (/^[\s]*[=+\-@\t\r]/.test(str)) {
+    str = `'${str}`;
+  }
+  return `"${str.replace(/"/g, '""')}"`;
+}
+
 export function exportOrdersToCSV(orders: any[], filenamePrefix = "vn-mobiles-orders") {
   if (!orders || orders.length === 0) {
     alert("No orders to export.");
@@ -279,33 +293,27 @@ export function exportOrdersToCSV(orders: any[], filenamePrefix = "vn-mobiles-or
     "PIN Code",
   ];
 
-  const escapeCSV = (value: any): string => {
-    if (value === null || value === undefined) return '""';
-    const str = String(value).replace(/"/g, '""');
-    return `"${str}"`;
-  };
-
   const rows = orders.map((o) => {
     const itemsSummary = (o.items || [])
       .map((i: any) => `${i.productName} (Qty: ${i.quantity || 1}, ${formatINR(i.price || 0)})`)
       .join(" | ");
 
     return [
-      escapeCSV(o.orderNumber || o.id),
-      escapeCSV(formatDateOnly(o.createdAt)),
-      escapeCSV(o.customerName || ""),
-      escapeCSV(o.customerEmail || ""),
-      escapeCSV(o.customerPhone || ""),
-      escapeCSV(itemsSummary),
-      escapeCSV(getOrderDeviceCount(o)),
-      escapeCSV(o.totalAmount || 0),
-      escapeCSV(o.paymentMethod || ""),
-      escapeCSV(o.paymentStatus || ""),
-      escapeCSV(normalizeAdminOrderStatus(o.orderStatus)),
-      escapeCSV(o.address || ""),
-      escapeCSV(o.city || ""),
-      escapeCSV(o.state || ""),
-      escapeCSV(o.pincode || ""),
+      sanitizeForCSV(o.orderNumber || o.id),
+      sanitizeForCSV(formatDateOnly(o.createdAt)),
+      sanitizeForCSV(o.customerName || ""),
+      sanitizeForCSV(o.customerEmail || ""),
+      sanitizeForCSV(o.customerPhone || ""),
+      sanitizeForCSV(itemsSummary),
+      sanitizeForCSV(getOrderDeviceCount(o)),
+      sanitizeForCSV(o.totalAmount || 0),
+      sanitizeForCSV(o.paymentMethod || ""),
+      sanitizeForCSV(o.paymentStatus || ""),
+      sanitizeForCSV(normalizeAdminOrderStatus(o.orderStatus)),
+      sanitizeForCSV(o.address || ""),
+      sanitizeForCSV(o.city || ""),
+      sanitizeForCSV(o.state || ""),
+      sanitizeForCSV(o.pincode || ""),
     ].join(",");
   });
 

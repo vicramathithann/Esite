@@ -32,6 +32,23 @@ export function maskEmail(email: string): string {
   return `${prefix}*****@${domain}`;
 }
 
+/**
+ * Sanitizes input text for pdf-lib standard WinAnsi encoding.
+ * Strips unencodable characters, null bytes, and non-printable control codes.
+ */
+export function sanitizePdfText(input: unknown): string {
+  if (input === null || input === undefined) return "";
+  const str = String(input);
+  const normalized = str
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2013\u2014]/g, "-")
+    .replace(/\u2026/g, "...");
+
+  // WinAnsi supported range: \x20-\x7E and common extended Latin \xA0-\xFF
+  return normalized.replace(/[^\x20-\x7E\xA0-\xFF]/g, " ").trim();
+}
+
 export function formatKolkataDate(dateInput: string | Date | number | undefined | null): string {
   if (!dateInput) return "N/A";
   try {
@@ -347,7 +364,7 @@ export async function generateWarrantyCertificatePdf(
       font: fontBold,
       color: rgb(0.788, 0.651, 0.420),
     });
-    page.drawText(device.productName || "Samsung Galaxy S24", {
+    page.drawText(sanitizePdfText(device.productName || "Samsung Galaxy S24"), {
       x: innerX + 10,
       y: currentY + 7,
       size: 12,
@@ -355,7 +372,7 @@ export async function generateWarrantyCertificatePdf(
       color: rgb(0.067, 0.094, 0.153),
     });
 
-    const brandText = `Brand: ${device.productBrand || "VN Mobiles"}`;
+    const brandText = `Brand: ${sanitizePdfText(device.productBrand || "VN Mobiles")}`;
     const brandWidth = fontBold.widthOfTextAtSize(brandText, 8.5);
     page.drawText(brandText, {
       x: innerX + innerW - 10 - brandWidth,
@@ -366,7 +383,7 @@ export async function generateWarrantyCertificatePdf(
     });
 
     if (device.variantInfo) {
-      const variantText = `Variant: ${device.variantInfo}`;
+      const variantText = `Variant: ${sanitizePdfText(device.variantInfo)}`;
       const variantWidth = fontRegular.widthOfTextAtSize(variantText, 8);
       page.drawText(variantText, {
         x: innerX + innerW - 10 - variantWidth,
@@ -476,7 +493,7 @@ export async function generateWarrantyCertificatePdf(
       });
 
       // Value text
-      page.drawText(row.value, {
+      page.drawText(sanitizePdfText(row.value), {
         x: innerX + col1W + 8,
         y: rY + 4,
         size: 8,
@@ -659,7 +676,7 @@ export async function generateWarrantyCertificatePdf(
       font: fontBold,
       color: rgb(0.067, 0.094, 0.153),
     });
-    page.drawText(options.customerName || "Valued Customer", {
+    page.drawText(sanitizePdfText(options.customerName || "Valued Customer"), {
       x: innerX + 88,
       y: currentY,
       size: 8,
@@ -667,7 +684,7 @@ export async function generateWarrantyCertificatePdf(
       color: rgb(0.067, 0.094, 0.153),
     });
 
-    const accountText = `Account: ${maskEmail(options.customerEmail)}`;
+    const accountText = `Account: ${sanitizePdfText(maskEmail(options.customerEmail))}`;
     const accountWidth = fontRegular.widthOfTextAtSize(accountText, 8);
     page.drawText(accountText, {
       x: innerX + innerW - accountWidth,
