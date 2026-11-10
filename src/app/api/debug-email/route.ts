@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import crypto from "node:crypto";
 import { checkEnvStatus, getMissingServerEnvVars, env, getBaseUrl } from "@/lib/env";
 import { createMailerTransport, sendOtpEmail } from "@/lib/mailer";
 
@@ -7,25 +8,41 @@ export const runtime = "nodejs";
 export const maxDuration = 30;
 
 /**
- * Temporary diagnostic route to verify environment variables and live Gmail SMTP handshake.
- *
- * Usage:
- * - GET /api/debug-email?key=vn_debug_2026
- *   (or your custom process.env.DEBUG_KEY)
- *
- * Optional live test send:
- * - GET /api/debug-email?key=vn_debug_2026&to=your-email@example.com
+ * Diagnostic route to verify environment variables and live Gmail SMTP handshake.
+ * Disabled by default in production.
  */
 export async function GET(request: Request) {
+  // Fail closed in production unless explicitly enabled via environment variable
+  if (process.env.NODE_ENV === "production" && process.env.ENABLE_DEBUG_ROUTES !== "true") {
+    return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+  }
+
   const { searchParams } = new URL(request.url);
   const key = searchParams.get("key");
-  const expectedKey = process.env.DEBUG_KEY || "vn_debug_2026";
+  const expectedKey = process.env.DEBUG_KEY;
 
-  if (!key || key !== expectedKey) {
+  if (!expectedKey || !key) {
     return NextResponse.json(
       {
         success: false,
-        error: `Unauthorized: Missing or invalid secret key parameter. Usage: /api/debug-email?key=${expectedKey}`,
+        error: "Unauthorized: Missing authentication key.",
+      },
+      { status: 401 }
+    );
+  }
+
+  // Constant-time comparison to prevent timing leaks
+  const keyBuffer = Buffer.from(key);
+  const expectedBuffer = Buffer.from(expectedKey);
+  const isMatch =
+    keyBuffer.length === expectedBuffer.length &&
+    crypto.timingSafeEqual(keyBuffer, expectedBuffer);
+
+  if (!isMatch) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Unauthorized: Invalid key.",
       },
       { status: 401 }
     );

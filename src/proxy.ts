@@ -52,6 +52,25 @@ export function proxy(request: NextRequest) {
   }
 
   // =========================================================================
+  // 1b. Internal Email Preview Routes (Restricted to Administrators)
+  // =========================================================================
+  if (pathname === "/email-preview" || pathname.startsWith("/email-preview/")) {
+    const adminToken = request.cookies.get(ADMIN_COOKIE_NAME)?.value;
+    const tokenCheck = inspectSessionToken(adminToken);
+
+    if (!tokenCheck.valid || tokenCheck.scope === "customer") {
+      const notFoundUrl = new URL("/_not-found", request.url);
+      const res = NextResponse.rewrite(notFoundUrl, { status: 404 });
+      res.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+      return res;
+    }
+
+    const res = NextResponse.next();
+    res.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+    return res;
+  }
+
+  // =========================================================================
   // 2. All /api/admin API Routes & Bare /api/admin Path
   // =========================================================================
   if (pathname === "/api/admin" || pathname.startsWith("/api/admin/")) {
@@ -93,6 +112,13 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin", "/admin/:path*", "/api/admin", "/api/admin/:path*"],
+  matcher: [
+    "/admin",
+    "/admin/:path*",
+    "/api/admin",
+    "/api/admin/:path*",
+    "/email-preview",
+    "/email-preview/:path*",
+  ],
 };
 

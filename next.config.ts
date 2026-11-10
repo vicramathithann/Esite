@@ -27,6 +27,7 @@ const nextConfig: NextConfig = {
     ],
   },
   poweredByHeader: false,
+  productionBrowserSourceMaps: false,
   async headers() {
     return [
       {
