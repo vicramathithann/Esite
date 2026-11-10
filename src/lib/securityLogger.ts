@@ -63,6 +63,14 @@ const REDACTED_KEYS = new Set([
   "secret",
   "cardnumber",
   "cvv",
+  "apikey",
+  "app_password",
+  "privatekey",
+  "refreshtoken",
+  "credential",
+  "ssn",
+  "pan",
+  "aadhaar",
 ]);
 
 /**
