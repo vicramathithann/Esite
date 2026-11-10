@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAuth, verifyPassword, hashPassword } from "@/lib/auth";
+import { requireAuth, verifyPassword, hashPassword, validatePasswordStrength } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(request: Request) {
@@ -20,16 +20,20 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!newPassword || typeof newPassword !== "string" || newPassword.length < 6) {
+    if (newPassword !== confirmPassword) {
       return NextResponse.json(
-        { success: false, error: "New password must be at least 6 characters long." },
+        { success: false, error: "New password and confirmation do not match." },
         { status: 400 }
       );
     }
 
-    if (newPassword !== confirmPassword) {
+    const strengthCheck = validatePasswordStrength(newPassword, {
+      email: authUser.email,
+      name: authUser.name,
+    });
+    if (!strengthCheck.valid) {
       return NextResponse.json(
-        { success: false, error: "New password and confirmation do not match." },
+        { success: false, error: strengthCheck.error },
         { status: 400 }
       );
     }

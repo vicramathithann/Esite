@@ -4,7 +4,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { sendOtpEmail, EmailFailureReason } from "@/lib/mailer";
-import { hashPassword } from "@/lib/auth";
+import { hashPassword, validatePasswordStrength } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +14,7 @@ export const maxDuration = 30;
 const registerSchema = z.object({
   name: z.string().min(1, "Name is required").trim(),
   email: z.string().email("Invalid email format").trim().toLowerCase(),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
   phone: z.string().optional(),
   confirmPassword: z.string().optional(),
 });
@@ -40,6 +40,15 @@ export async function POST(request: Request) {
     if (confirmPassword !== undefined && password !== confirmPassword) {
       return NextResponse.json(
         { success: false, error: "Passwords do not match. Please verify your confirm password." },
+        { status: 400 }
+      );
+    }
+
+    // Enforce password complexity and dictionary check
+    const strengthCheck = validatePasswordStrength(password, { email: cleanEmail, name });
+    if (!strengthCheck.valid) {
+      return NextResponse.json(
+        { success: false, error: strengthCheck.error },
         { status: 400 }
       );
     }

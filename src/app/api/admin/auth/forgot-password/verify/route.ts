@@ -9,6 +9,7 @@ import {
   createSessionToken,
   ADMIN_COOKIE_NAME,
   getSessionCookieOptions,
+  validatePasswordStrength,
 } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/rateLimit";
 import { logSecurityEvent, getClientIp } from "@/lib/securityLogger";
@@ -159,6 +160,15 @@ export async function POST(request: Request) {
     }
 
     const { token: rawToken, newPassword } = parseResult.data;
+
+    const strengthCheck = validatePasswordStrength(newPassword);
+    if (!strengthCheck.valid) {
+      return NextResponse.json(
+        { success: false, error: strengthCheck.error },
+        { status: 400 }
+      );
+    }
+
     const tokenHash = crypto.createHash("sha256").update(rawToken.trim()).digest("hex");
 
     // Look up token in AdminPasswordResetToken table

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { requireAdmin, hashPassword, ADMIN_EMAIL } from "@/lib/auth";
+import { requireAdmin, hashPassword, ADMIN_EMAIL, validatePasswordStrength } from "@/lib/auth";
 import { sendAdminPasswordResetLinkEmail } from "@/lib/email";
 import { getAppUrl } from "@/lib/appUrl";
 import { logSecurityEvent, getClientIp } from "@/lib/securityLogger";
@@ -146,10 +146,22 @@ export async function POST(
     // ACTION 1: Set Temporary Password
     // =========================================================================
     if (action === "SET_TEMP_PASSWORD") {
-      const finalPassword =
-        typeof newPassword === "string" && newPassword.trim().length >= 6
-          ? newPassword.trim()
-          : generateStrongTemporaryPassword();
+      let finalPassword = "";
+      if (typeof newPassword === "string" && newPassword.trim()) {
+        const strengthCheck = validatePasswordStrength(newPassword.trim(), {
+          email: user.email,
+          name: user.name,
+        });
+        if (!strengthCheck.valid) {
+          return NextResponse.json(
+            { success: false, error: strengthCheck.error },
+            { status: 400 }
+          );
+        }
+        finalPassword = newPassword.trim();
+      } else {
+        finalPassword = generateStrongTemporaryPassword();
+      }
 
       // Hash password using PBKDF2/SHA-512 (100,000 iterations). Plaintext is NEVER stored in database.
       const hashedPassword = hashPassword(finalPassword);

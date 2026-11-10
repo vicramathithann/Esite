@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
-import { hashPassword, createSessionToken } from "@/lib/auth";
+import { hashPassword, createSessionToken, validatePasswordStrength } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/rateLimit";
 import { logSecurityEvent, getClientIp } from "@/lib/securityLogger";
 
@@ -50,16 +50,17 @@ export async function POST(request: Request) {
       );
     }
 
-    if (password.length < 8) {
+    if (confirmPassword !== undefined && password !== confirmPassword) {
       return NextResponse.json(
-        { success: false, error: "Password must be at least 8 characters long." },
+        { success: false, error: "Passwords do not match. Please verify your confirm password." },
         { status: 400 }
       );
     }
 
-    if (confirmPassword !== undefined && password !== confirmPassword) {
+    const strengthCheck = validatePasswordStrength(password, { name: cleanName });
+    if (!strengthCheck.valid) {
       return NextResponse.json(
-        { success: false, error: "Passwords do not match. Please verify your confirm password." },
+        { success: false, error: strengthCheck.error },
         { status: 400 }
       );
     }

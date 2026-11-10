@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
-import { hashPassword, verifyOtp, createSessionToken, ADMIN_EMAIL } from "@/lib/auth";
+import { hashPassword, verifyOtp, createSessionToken, ADMIN_EMAIL, validatePasswordStrength } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/rateLimit";
 import { logSecurityEvent, getClientIp } from "@/lib/securityLogger";
 
@@ -103,16 +103,17 @@ export async function POST(request: Request) {
       );
     }
 
-    if (newPassword.length < 6) {
+    if (newPassword !== confirmPassword) {
       return NextResponse.json(
-        { success: false, error: "Password must be at least 6 characters long." },
+        { success: false, error: "Passwords do not match. Please verify and re-enter." },
         { status: 400 }
       );
     }
 
-    if (newPassword !== confirmPassword) {
+    const strengthCheck = validatePasswordStrength(newPassword, { email });
+    if (!strengthCheck.valid) {
       return NextResponse.json(
-        { success: false, error: "Passwords do not match. Please verify and re-enter." },
+        { success: false, error: strengthCheck.error },
         { status: 400 }
       );
     }
