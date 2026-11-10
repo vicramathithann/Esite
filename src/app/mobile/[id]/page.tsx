@@ -74,11 +74,22 @@ export default function MobileDetailPage({
   };
 
   useEffect(() => {
-    async function fetchProduct() {
+    let isMounted = true;
+
+    async function fetchProduct(showLoading = false) {
+      if (showLoading && !product) {
+        setLoading(true);
+      }
       try {
-        const res = await fetch(`/api/products/${resolvedParams.id}`);
+        const res = await fetch(`/api/products/${resolvedParams.id}?t=${Date.now()}`, {
+          cache: "no-store",
+          headers: {
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache",
+          },
+        });
         const data = await res.json();
-        if (data.success && data.product) {
+        if (isMounted && data.success && data.product) {
           setProduct(data.product);
           setSelectedImage(data.product.imageUrl);
           if (data.product.colors && data.product.colors.length > 0) {
@@ -94,10 +105,32 @@ export default function MobileDetailPage({
       } catch (err) {
         console.error("Failed to fetch product:", err);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     }
-    fetchProduct();
+
+    fetchProduct(true);
+
+    const handleFocus = () => {
+      fetchProduct(false);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        fetchProduct(false);
+      }
+    };
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, [resolvedParams.id]);
 
   if (loading) {

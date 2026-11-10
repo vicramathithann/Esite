@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import MobileImage from "@/components/MobileImage";
 import { MobileProductData, ProductColor, StorageOption } from "@/lib/types";
@@ -46,6 +46,16 @@ function MobileCardComponent({ product }: MobileCardProps) {
   const [selectedColor, setSelectedColor] = useState<ProductColor>(
     safeColorsList[0]
   );
+
+  // Sync selected storage and color whenever product details are updated
+  useEffect(() => {
+    if (safeStorageList[0]) {
+      setSelectedStorage(safeStorageList[0]);
+    }
+    if (safeColorsList[0]) {
+      setSelectedColor(safeColorsList[0]);
+    }
+  }, [product.basePrice, product.storageOptions, product.colors, product.imageUrl]);
 
   const [isAdded, setIsAdded] = useState(false);
   const [outOfStockAlert, setOutOfStockAlert] = useState(false);

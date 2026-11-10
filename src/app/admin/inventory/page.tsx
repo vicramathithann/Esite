@@ -22,7 +22,7 @@ export default function AdminInventoryPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [stockEdits, setStockEdits] = useState<Record<string, number>>({});
+  const [stockEdits, setStockEdits] = useState<Record<string, string | number>>({});
 
   const loadInventory = async () => {
     try {
@@ -58,15 +58,19 @@ export default function AdminInventoryPage() {
   }, [statusFilter, categoryFilter]);
 
   const handleStockChange = (id: string, delta: number) => {
-    setStockEdits((prev) => ({
-      ...prev,
-      [id]: Math.max(0, (prev[id] ?? 0) + delta),
-    }));
+    setStockEdits((prev) => {
+      const cur = parseInt(String(prev[id] ?? 0), 10) || 0;
+      return {
+        ...prev,
+        [id]: Math.max(0, cur + delta),
+      };
+    });
   };
 
   const handleSaveStock = async (id: string) => {
-    const newStock = stockEdits[id];
-    if (newStock === undefined) return;
+    const rawStock = stockEdits[id];
+    if (rawStock === undefined || String(rawStock).trim() === "") return;
+    const newStock = Math.max(0, parseInt(String(rawStock), 10) || 0);
 
     try {
       setUpdatingId(id);
@@ -232,13 +236,11 @@ export default function AdminInventoryPage() {
                               <Minus className="w-3 h-3" />
                             </button>
                             <NumberInput
-                              type="number"
-                              min="0"
                               value={editedStock}
                               onChange={(e) =>
                                 setStockEdits((prev) => ({
                                   ...prev,
-                                  [item.id]: Math.max(0, parseInt(e.target.value, 10) || 0),
+                                  [item.id]: e.target.value,
                                 }))
                               }
                               className="w-14 text-center py-1 bg-tile border border-border rounded-lg text-foreground font-mono text-xs focus:outline-none focus:border-[#C9A66B]"

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { revalidateProducts } from "@/lib/revalidate";
 
 export async function GET(request: Request) {
   try {
@@ -94,7 +95,9 @@ export async function GET(request: Request) {
       { success: true, count: parsed.length, products: parsed },
       {
         headers: {
-          "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+          "Pragma": "no-cache",
+          "Expires": "0",
         },
       }
     );
@@ -147,7 +150,7 @@ export async function POST(request: Request) {
       variants,
     } = body;
 
-    if (!name || !brand || !basePrice) {
+    if (!name || !brand || basePrice === undefined || basePrice === null || String(basePrice).trim() === "") {
       return NextResponse.json(
         { success: false, error: "Name, brand, and base price are required." },
         { status: 400 }
@@ -155,8 +158,39 @@ export async function POST(request: Request) {
     }
 
     const priceNum = parseInt(String(basePrice), 10);
-    const origPriceNum = originalPrice ? parseInt(String(originalPrice), 10) : Math.round(priceNum * 1.15);
-    const stockNum = stock !== undefined ? parseInt(String(stock), 10) : 20;
+    if (isNaN(priceNum) || priceNum <= 0) {
+      return NextResponse.json(
+        { success: false, error: "Base Price must be a valid number greater than 0." },
+        { status: 400 }
+      );
+    }
+
+    if (stock === undefined || stock === null || String(stock).trim() === "") {
+      return NextResponse.json(
+        { success: false, error: "Available stock is required." },
+        { status: 400 }
+      );
+    }
+
+    const stockNum = parseInt(String(stock), 10);
+    if (isNaN(stockNum) || stockNum < 0) {
+      return NextResponse.json(
+        { success: false, error: "Stock must be a valid non-negative integer." },
+        { status: 400 }
+      );
+    }
+
+    let origPriceNum = priceNum;
+    if (originalPrice !== undefined && originalPrice !== null && String(originalPrice).trim() !== "") {
+      const parsedOrig = parseInt(String(originalPrice), 10);
+      if (isNaN(parsedOrig) || parsedOrig < priceNum) {
+        return NextResponse.json(
+          { success: false, error: "Original Price must be greater than or equal to Base Price." },
+          { status: 400 }
+        );
+      }
+      origPriceNum = parsedOrig;
+    }
 
     const product = await prisma.mobileProduct.create({
       data: {
@@ -211,6 +245,9 @@ export async function POST(request: Request) {
         });
       }
     }
+
+    // Invalidate server and static page caches immediately
+    revalidateProducts(product.id);
 
     return NextResponse.json({
       success: true,

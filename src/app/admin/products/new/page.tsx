@@ -28,16 +28,17 @@ const FAMOUS_BRANDS = [
 export default function AdminNewProductPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [formData, setFormData] = useState({
     name: "",
     brand: "Apple",
     model: "",
     category: "SMARTPHONE",
-    basePrice: 69999,
-    discountPrice: 64999,
-    originalPrice: 79999,
-    stock: 25,
+    basePrice: "",
+    discountPrice: "",
+    originalPrice: "",
+    stock: "",
     imageUrl: "https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=800&auto=format&fit=crop&q=80",
     ram: "12GB",
     display: "6.7\" Super Retina XDR OLED 120Hz",
@@ -50,7 +51,7 @@ export default function AdminNewProductPage() {
     batteryCapacity: "4685 mAh",
     os: "iOS 18",
     network5G: "5G Sub-6 & mmWave",
-    warrantyMonths: 12,
+    warrantyMonths: "12",
     isFeatured: false,
     tagline: "The Ultimate Pro Smartphone",
     colors: [
@@ -67,14 +68,66 @@ export default function AdminNewProductPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrors({});
+
+    // Validate fields before conversion
+    const newErrors: Record<string, string> = {};
+    const basePriceStr = String(formData.basePrice || "").trim();
+    const stockStr = String(formData.stock || "").trim();
+    const origPriceStr = String(formData.originalPrice || "").trim();
+
+    if (!basePriceStr) {
+      newErrors.basePrice = "Enter a valid price";
+    } else {
+      const bp = parseInt(basePriceStr, 10);
+      if (isNaN(bp) || bp <= 0) {
+        newErrors.basePrice = "Base Price must be greater than 0";
+      }
+    }
+
+    if (stockStr === "") {
+      newErrors.stock = "Enter available stock";
+    } else {
+      const st = parseInt(stockStr, 10);
+      if (isNaN(st) || st < 0) {
+        newErrors.stock = "Stock cannot be negative";
+      }
+    }
+
+    if (origPriceStr !== "" && basePriceStr !== "") {
+      const bp = parseInt(basePriceStr, 10);
+      const op = parseInt(origPriceStr, 10);
+      if (!isNaN(bp) && !isNaN(op) && op < bp) {
+        newErrors.originalPrice = "Original Price must be greater than or equal to Base Price";
+      }
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
     setLoading(true);
+
+    const priceNum = parseInt(basePriceStr, 10);
+    const stockNum = parseInt(stockStr, 10);
+    const origNum = origPriceStr !== "" ? parseInt(origPriceStr, 10) : priceNum;
+
+    const payload = {
+      ...formData,
+      basePrice: priceNum,
+      originalPrice: origNum,
+      stock: stockNum,
+      discountPrice: formData.discountPrice ? parseInt(formData.discountPrice, 10) : null,
+      warrantyMonths: formData.warrantyMonths ? parseInt(formData.warrantyMonths, 10) : 12,
+    };
 
     try {
       const res = await fetch("/api/products", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -147,27 +200,58 @@ export default function AdminNewProductPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-muted mb-1.5">Base Price (₹)</label>
+                <label className="block text-xs font-semibold text-muted mb-1.5">
+                  Base Price (₹) <span className="text-red-500">*</span>
+                </label>
                 <NumberInput
-                  type="number"
-                  min="0"
                   value={formData.basePrice}
-                  onChange={(e) => setFormData({ ...formData, basePrice: parseInt(e.target.value, 10) || 0 })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, basePrice: e.target.value });
+                    if (errors.basePrice) setErrors((prev) => ({ ...prev, basePrice: "" }));
+                  }}
+                  placeholder="Enter base price"
+                  hasError={Boolean(errors.basePrice)}
                   className="w-full px-4 py-2.5 bg-tile border border-border rounded-xl text-foreground text-xs focus:outline-none focus:border-[#C9A66B]"
-                  required
                 />
+                {errors.basePrice && (
+                  <p className="mt-1 text-xs text-red-500 font-medium">{errors.basePrice}</p>
+                )}
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-muted mb-1.5">Initial Stock Quantity</label>
+                <label className="block text-xs font-semibold text-muted mb-1.5">Original Price (₹)</label>
                 <NumberInput
-                  type="number"
-                  min="0"
-                  value={formData.stock}
-                  onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value, 10) || 0 })}
+                  value={formData.originalPrice}
+                  onChange={(e) => {
+                    setFormData({ ...formData, originalPrice: e.target.value });
+                    if (errors.originalPrice) setErrors((prev) => ({ ...prev, originalPrice: "" }));
+                  }}
+                  placeholder="Enter original price (optional)"
+                  hasError={Boolean(errors.originalPrice)}
                   className="w-full px-4 py-2.5 bg-tile border border-border rounded-xl text-foreground text-xs focus:outline-none focus:border-[#C9A66B]"
-                  required
                 />
+                {errors.originalPrice && (
+                  <p className="mt-1 text-xs text-red-500 font-medium">{errors.originalPrice}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-muted mb-1.5">
+                  Initial Stock Quantity <span className="text-red-500">*</span>
+                </label>
+                <NumberInput
+                  value={formData.stock}
+                  onChange={(e) => {
+                    setFormData({ ...formData, stock: e.target.value });
+                    if (errors.stock) setErrors((prev) => ({ ...prev, stock: "" }));
+                  }}
+                  placeholder="Enter stock quantity"
+                  hasError={Boolean(errors.stock)}
+                  className="w-full px-4 py-2.5 bg-tile border border-border rounded-xl text-foreground text-xs focus:outline-none focus:border-[#C9A66B]"
+                />
+                {errors.stock && (
+                  <p className="mt-1 text-xs text-red-500 font-medium">{errors.stock}</p>
+                )}
               </div>
 
               <div className="sm:col-span-2">

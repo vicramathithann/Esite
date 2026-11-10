@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { revalidateProducts } from "@/lib/revalidate";
 
 export async function GET(
   _request: Request,
@@ -34,7 +35,9 @@ export async function GET(
       { success: true, product: parsed },
       {
         headers: {
-          "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+          "Pragma": "no-cache",
+          "Expires": "0",
         },
       }
     );
@@ -109,14 +112,40 @@ export async function PATCH(
 
     // 2. Pricing fields
     if (body.basePrice !== undefined) {
-      const priceNum = parseInt(String(body.basePrice), 10);
-      if (isNaN(priceNum) || priceNum < 0) {
+      if (body.basePrice === null || String(body.basePrice).trim() === "") {
         return NextResponse.json(
-          { success: false, error: "Base Price must be a valid non-negative number." },
+          { success: false, error: "Base Price is required." },
+          { status: 400 }
+        );
+      }
+      const priceNum = parseInt(String(body.basePrice), 10);
+      if (isNaN(priceNum) || priceNum <= 0) {
+        return NextResponse.json(
+          { success: false, error: "Base Price must be a valid number greater than 0." },
           { status: 400 }
         );
       }
       updateData.basePrice = priceNum;
+
+      // Keep default storageOption aligned with basePrice if not explicitly passed
+      if (body.storageOptions === undefined && existing.storageOptions) {
+        try {
+          const currentStorage = JSON.parse(existing.storageOptions);
+          if (Array.isArray(currentStorage) && currentStorage.length > 0) {
+            const oldBase = existing.basePrice || currentStorage[0].price;
+            const delta = priceNum - oldBase;
+            const updatedStorage = currentStorage.map((opt: any, idx: number) => {
+              if (idx === 0 || opt.price === oldBase) {
+                return { ...opt, price: priceNum };
+              }
+              return { ...opt, price: Math.max(0, (opt.price || 0) + delta) };
+            });
+            updateData.storageOptions = JSON.stringify(updatedStorage);
+          }
+        } catch {
+          // ignore parsing error
+        }
+      }
     }
 
     if (body.discountPrice !== undefined) {
@@ -129,16 +158,29 @@ export async function PATCH(
     }
 
     if (body.originalPrice !== undefined) {
-      if (body.originalPrice === null || body.originalPrice === "" || isNaN(Number(body.originalPrice))) {
+      if (body.originalPrice === null || String(body.originalPrice).trim() === "") {
         updateData.originalPrice = updateData.basePrice ?? existing.basePrice;
       } else {
         const origNum = parseInt(String(body.originalPrice), 10);
-        updateData.originalPrice = isNaN(origNum) ? (updateData.basePrice ?? existing.basePrice) : origNum;
+        const effectiveBasePrice = (updateData.basePrice as number) ?? existing.basePrice;
+        if (isNaN(origNum) || origNum < effectiveBasePrice) {
+          return NextResponse.json(
+            { success: false, error: "Original Price must be greater than or equal to Base Price." },
+            { status: 400 }
+          );
+        }
+        updateData.originalPrice = origNum;
       }
     }
 
     // 3. Stock & Visibility
     if (body.stock !== undefined) {
+      if (body.stock === null || String(body.stock).trim() === "") {
+        return NextResponse.json(
+          { success: false, error: "Available stock is required." },
+          { status: 400 }
+        );
+      }
       const stockInt = parseInt(String(body.stock), 10);
       if (isNaN(stockInt) || stockInt < 0) {
         return NextResponse.json(
@@ -218,6 +260,9 @@ export async function PATCH(
       console.warn("Non-fatal sync warning for Mobile table:", syncErr);
     }
 
+    // Invalidate server and static page caches immediately
+    revalidateProducts(id);
+
     return NextResponse.json({
       success: true,
       product: updated,
@@ -261,6 +306,9 @@ export async function DELETE(
     } catch (e) {
       console.warn("Non-fatal sync delete warning for Mobile table:", e);
     }
+
+    // Invalidate server and static page caches immediately
+    revalidateProducts(id);
 
     return NextResponse.json({
       success: true,

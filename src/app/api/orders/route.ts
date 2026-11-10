@@ -4,6 +4,7 @@ import { sendOrderConfirmationEmail } from "@/lib/email";
 import { sendWarrantyEmail } from "@/lib/mailer";
 import { getAuthenticatedUser } from "@/lib/auth";
 import { logSecurityEvent, getClientIp } from "@/lib/securityLogger";
+import { revalidateProducts } from "@/lib/revalidate";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -423,6 +424,12 @@ export async function POST(request: Request) {
         itemCount: order.items.length,
       },
     });
+
+    try {
+      items.forEach((it: any) => {
+        if (it?.productId) revalidateProducts(it.productId);
+      });
+    } catch {}
 
     // 8. Non-blocking Asynchronous Background Work:
     // Move email and PDF certificate generation OUT of the critical HTTP response path!

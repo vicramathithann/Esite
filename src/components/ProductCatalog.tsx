@@ -119,6 +119,10 @@ export interface ProductCatalogProps {
 
 let globalCatalogCache: MobileProductData[] | null = null;
 
+export function invalidateCatalogCache() {
+  globalCatalogCache = null;
+}
+
 export function getCachedProduct(id: string): MobileProductData | undefined {
   if (globalCatalogCache) {
     const found = globalCatalogCache.find((p) => p.id === id);
@@ -234,31 +238,61 @@ export default function ProductCatalog({
     }
   }, [urlCategory]);
 
-  // Fetch products from database API
+  // Fetch products from database API with window focus and tab visibility refresh
   useEffect(() => {
-    async function fetchProducts() {
-      if (!globalCatalogCache) {
+    let isMounted = true;
+
+    async function fetchProducts(showLoadingIndicator = false) {
+      if (showLoadingIndicator && !globalCatalogCache) {
         setLoading(true);
       }
       try {
-        const res = await fetch("/api/products");
+        const res = await fetch(`/api/products?t=${Date.now()}`, {
+          cache: "no-store",
+          headers: {
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache",
+          },
+        });
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         const data = await res.json();
-        if (data.success && Array.isArray(data.products) && data.products.length > 0) {
+        if (isMounted && data.success && Array.isArray(data.products) && data.products.length > 0) {
           globalCatalogCache = data.products;
           setProducts(data.products);
-        } else if (!globalCatalogCache) {
+        } else if (isMounted && !globalCatalogCache) {
           setProducts(DEFAULT_PRODUCTS);
         }
       } catch {
-        if (!globalCatalogCache) {
+        if (isMounted && !globalCatalogCache) {
           setProducts(DEFAULT_PRODUCTS);
         }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     }
-    fetchProducts();
+
+    fetchProducts(true);
+
+    const handleFocus = () => {
+      fetchProducts(false);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        fetchProducts(false);
+      }
+    };
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, []);
 
   const handleBrandSelect = (brand: string) => {

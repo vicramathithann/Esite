@@ -14,6 +14,7 @@ export default function AdminEditProductPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState<any | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [statusMessage, setStatusMessage] = useState<{
     type: "success" | "error";
     text: string;
@@ -31,7 +32,13 @@ export default function AdminEditProductPage() {
         });
         const data = await res.json();
         if (data.success && data.product) {
-          setFormData(data.product);
+          setFormData({
+            ...data.product,
+            basePrice: data.product.basePrice !== undefined && data.product.basePrice !== null ? String(data.product.basePrice) : "",
+            originalPrice: data.product.originalPrice !== undefined && data.product.originalPrice !== null ? String(data.product.originalPrice) : "",
+            discountPrice: data.product.discountPrice !== undefined && data.product.discountPrice !== null ? String(data.product.discountPrice) : "",
+            stock: data.product.stock !== undefined && data.product.stock !== null ? String(data.product.stock) : "",
+          });
         } else {
           setStatusMessage({
             type: "error",
@@ -54,8 +61,55 @@ export default function AdminEditProductPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData) return;
-    setSaving(true);
+    setErrors({});
     setStatusMessage(null);
+
+    // Validate fields before converting to numbers
+    const newErrors: Record<string, string> = {};
+    const basePriceStr = String(formData.basePrice ?? "").trim();
+    const stockStr = String(formData.stock ?? "").trim();
+    const origPriceStr = String(formData.originalPrice ?? "").trim();
+
+    if (!basePriceStr) {
+      newErrors.basePrice = "Enter a valid price";
+    } else {
+      const bp = parseInt(basePriceStr, 10);
+      if (isNaN(bp) || bp <= 0) {
+        newErrors.basePrice = "Base Price must be greater than 0";
+      }
+    }
+
+    if (stockStr === "") {
+      newErrors.stock = "Enter available stock";
+    } else {
+      const st = parseInt(stockStr, 10);
+      if (isNaN(st) || st < 0) {
+        newErrors.stock = "Stock cannot be negative";
+      }
+    }
+
+    if (origPriceStr !== "" && basePriceStr !== "") {
+      const bp = parseInt(basePriceStr, 10);
+      const op = parseInt(origPriceStr, 10);
+      if (!isNaN(bp) && !isNaN(op) && op < bp) {
+        newErrors.originalPrice = "Original Price must be greater than or equal to Base Price";
+      }
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      setStatusMessage({
+        type: "error",
+        text: "Please correct the highlighted errors before saving.",
+      });
+      return;
+    }
+
+    setSaving(true);
+
+    const priceNum = parseInt(basePriceStr, 10);
+    const stockNum = parseInt(stockStr, 10);
+    const origNum = origPriceStr !== "" ? parseInt(origPriceStr, 10) : priceNum;
 
     // Prepare clean update payload without un-editable nested Prisma relations
     const payload = {
@@ -65,11 +119,11 @@ export default function AdminEditProductPage() {
       series: formData.series || "",
       tagline: formData.tagline || "",
       category: formData.category || "SMARTPHONE",
-      basePrice: parseInt(formData.basePrice, 10),
-      originalPrice: formData.originalPrice ? parseInt(formData.originalPrice, 10) : parseInt(formData.basePrice, 10),
+      basePrice: priceNum,
+      originalPrice: origNum,
       discountPrice: formData.discountPrice ? parseInt(formData.discountPrice, 10) : null,
-      stock: parseInt(formData.stock, 10),
-      inStock: Boolean(formData.inStock),
+      stock: stockNum,
+      inStock: stockNum > 0,
       isFeatured: Boolean(formData.isFeatured),
       warrantyMonths: formData.warrantyMonths ? parseInt(formData.warrantyMonths, 10) : 12,
       processor: formData.processor || "",
@@ -218,45 +272,63 @@ export default function AdminEditProductPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-muted mb-1.5">Base Price (₹)</label>
+                <label className="block text-xs font-semibold text-muted mb-1.5">
+                  Base Price (₹) <span className="text-red-500">*</span>
+                </label>
                 <NumberInput
-                  type="number"
-                  min="0"
-                  value={formData.basePrice ?? ""}
-                  onChange={(e) => setFormData({ ...formData, basePrice: parseInt(e.target.value, 10) || 0 })}
+                  value={formData.basePrice}
+                  onChange={(e) => {
+                    setFormData({ ...formData, basePrice: e.target.value });
+                    if (errors.basePrice) setErrors((prev) => ({ ...prev, basePrice: "" }));
+                  }}
+                  placeholder="Enter base price"
+                  hasError={Boolean(errors.basePrice)}
                   className="w-full px-4 py-2.5 bg-tile border border-border rounded-xl text-foreground text-xs focus:outline-none focus:border-[#C9A66B]"
-                  required
                 />
+                {errors.basePrice && (
+                  <p className="mt-1 text-xs text-red-500 font-medium">{errors.basePrice}</p>
+                )}
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-muted mb-1.5">Original Price (₹)</label>
                 <NumberInput
-                  type="number"
-                  min="0"
-                  value={formData.originalPrice ?? ""}
-                  onChange={(e) => setFormData({ ...formData, originalPrice: parseInt(e.target.value, 10) || 0 })}
+                  value={formData.originalPrice}
+                  onChange={(e) => {
+                    setFormData({ ...formData, originalPrice: e.target.value });
+                    if (errors.originalPrice) setErrors((prev) => ({ ...prev, originalPrice: "" }));
+                  }}
+                  placeholder="Enter original price (optional)"
+                  hasError={Boolean(errors.originalPrice)}
                   className="w-full px-4 py-2.5 bg-tile border border-border rounded-xl text-foreground text-xs focus:outline-none focus:border-[#C9A66B]"
                 />
+                {errors.originalPrice && (
+                  <p className="mt-1 text-xs text-red-500 font-medium">{errors.originalPrice}</p>
+                )}
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-muted mb-1.5">Available Stock</label>
+                <label className="block text-xs font-semibold text-muted mb-1.5">
+                  Available Stock <span className="text-red-500">*</span>
+                </label>
                 <NumberInput
-                  type="number"
-                  min="0"
-                  value={formData.stock ?? ""}
+                  value={formData.stock}
                   onChange={(e) => {
-                    const st = parseInt(e.target.value, 10) || 0;
+                    const val = e.target.value;
                     setFormData({
                       ...formData,
-                      stock: st,
-                      inStock: st > 0,
+                      stock: val,
+                      inStock: val !== "" && parseInt(val, 10) > 0,
                     });
+                    if (errors.stock) setErrors((prev) => ({ ...prev, stock: "" }));
                   }}
+                  placeholder="Enter available stock"
+                  hasError={Boolean(errors.stock)}
                   className="w-full px-4 py-2.5 bg-tile border border-border rounded-xl text-foreground text-xs focus:outline-none focus:border-[#C9A66B]"
-                  required
                 />
+                {errors.stock && (
+                  <p className="mt-1 text-xs text-red-500 font-medium">{errors.stock}</p>
+                )}
               </div>
 
               <div>
