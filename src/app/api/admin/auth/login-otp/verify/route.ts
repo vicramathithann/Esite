@@ -5,7 +5,6 @@ import {
   createSessionToken,
   ADMIN_EMAIL,
   ADMIN_COOKIE_NAME,
-  CUSTOMER_COOKIE_NAME,
   getSessionCookieOptions,
 } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/rateLimit";

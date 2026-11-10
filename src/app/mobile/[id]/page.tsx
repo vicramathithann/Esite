@@ -4,8 +4,7 @@ import React, { useState, useEffect, useMemo, use } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { MobileProductData, ProductColor, StorageOption, ProductVariantData, ProductImageData } from "@/lib/types";
-import { DEFAULT_PRODUCTS } from "@/lib/catalogData";
+import { MobileProductData, ProductColor, ProductVariantData, ProductImageData } from "@/lib/types";
 import { getCachedProduct } from "@/components/ProductCatalog";
 import { useApp } from "@/context/AppContext";
 import { 

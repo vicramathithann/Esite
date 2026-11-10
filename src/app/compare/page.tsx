@@ -15,7 +15,6 @@ import {
   Battery, 
   Smartphone, 
   ShieldCheck, 
-  ChevronRight, 
   Check,
   ShoppingBag
 } from "lucide-react";

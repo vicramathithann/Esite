@@ -62,7 +62,7 @@ export async function POST(request: Request) {
     }
 
     // 2. Query latest unused code from email_otps
-    const { data: records, error: fetchErr } = await supabaseAdmin
+    const { data: records } = await supabaseAdmin
       .from("email_otps")
       .select("*")
       .eq("email", cleanEmail)

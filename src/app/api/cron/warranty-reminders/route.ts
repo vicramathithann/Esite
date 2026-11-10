@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { checkAndDispatchWarrantyReminders } from "@/lib/email";
 import { enforceRateLimit } from "@/lib/rateLimit";
 import { logSecurityEvent, getClientIp } from "@/lib/securityLogger";
-import { getAuthenticatedUser } from "@/lib/auth";
 
 export async function POST(request: Request) {
   try {

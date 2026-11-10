@@ -187,7 +187,7 @@ function InviteAcceptanceContent() {
       setTimeout(() => {
         router.push(data.redirectUrl || "/");
       }, 1500);
-    } catch (err) {
+    } catch {
       setSubmitError("Network error while creating account. Please try again.");
       setIsSubmitting(false);
     }

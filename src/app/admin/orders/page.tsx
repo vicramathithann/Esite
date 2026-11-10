@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef, Suspense } from "react";
+import React, { useState, useEffect, useMemo, Suspense } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import {
   Package,
   Search,
@@ -11,11 +11,8 @@ import {
   ExternalLink,
   Calendar,
   Clock,
-  AlertTriangle,
   TrendingUp,
   XCircle,
-  CheckCircle2,
-  Filter,
   X,
   ChevronDown,
   ChevronRight,
@@ -26,11 +23,8 @@ import {
   Check,
   Layers,
   List,
-  SlidersHorizontal,
   ShieldCheck,
-  CreditCard,
   Truck,
-  RotateCcw,
 } from "lucide-react";
 import { formatINR, formatDateOnly } from "@/lib/formatters";
 import {
@@ -78,7 +72,6 @@ function OrdersLoadingSkeleton() {
 }
 
 function AdminOrdersContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
 
   const [orders, setOrders] = useState<any[]>([]);

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams, notFound } from "next/navigation";
+import { useSearchParams, notFound } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import {
   Lock,
@@ -20,7 +20,6 @@ import {
 const ADMIN_EMAIL = "rrroyce20@gmail.com";
 
 function AdminResetPasswordContent() {
-  const router = useRouter();
   const { login } = useApp();
   const searchParams = useSearchParams();
   const token = (searchParams.get("token") || "").trim();
@@ -34,7 +33,6 @@ function AdminResetPasswordContent() {
   // Token validation state
   const [checkingToken, setCheckingToken] = useState(true);
   const [tokenStatus, setTokenStatus] = useState<"VALID" | "EXPIRED" | "USED" | "INVALID" | "MISSING">("VALID");
-  const [tokenError, setTokenError] = useState<string | null>(null);
   const [expiresInMinutes, setExpiresInMinutes] = useState<number>(60);
 
   // Form states
@@ -53,7 +51,6 @@ function AdminResetPasswordContent() {
     if (!token) {
       setCheckingToken(false);
       setTokenStatus("MISSING");
-      setTokenError("No reset token provided in this link. Please use the exact link sent to your email.");
       return;
     }
 
@@ -66,10 +63,8 @@ function AdminResetPasswordContent() {
         if (data.valid) {
           setTokenStatus("VALID");
           setExpiresInMinutes(data.expiresInMinutes || 60);
-          setTokenError(null);
         } else {
           setTokenStatus(data.status || "INVALID");
-          setTokenError(data.error || "This reset link is invalid or has expired.");
         }
       } catch (err) {
         console.error("Token verification check error:", err);

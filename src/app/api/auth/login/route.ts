@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma";
 import {
   verifyPassword,
   createSessionToken,
-  ensureAdminUser,
   ADMIN_EMAIL,
   ADMIN_COOKIE_NAME,
   CUSTOMER_COOKIE_NAME,

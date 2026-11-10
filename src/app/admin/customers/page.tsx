@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Users,
   Search,
@@ -11,8 +11,6 @@ import {
   Trash2,
   Eye,
   EyeOff,
-  Send,
-  Lock,
   ShieldAlert,
   X,
   Sparkles,
@@ -20,7 +18,6 @@ import {
   User as UserIcon,
   Copy,
   Check,
-  Filter,
   ArrowUpDown,
   AlertTriangle,
 } from "lucide-react";

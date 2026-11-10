@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import MobileImage from "@/components/MobileImage";
-import { MobileProductData, ProductColor, StorageOption, ProductVariantData } from "@/lib/types";
+import { MobileProductData, ProductColor, ProductVariantData } from "@/lib/types";
 import { useApp } from "@/context/AppContext";
 import { 
   Check, 

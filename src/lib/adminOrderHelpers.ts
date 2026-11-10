@@ -1,5 +1,5 @@
 import { formatINR, formatDateOnly } from "@/lib/formatters";
-import { normalizeAdminOrderStatus, isOrderCancelled } from "@/lib/orderStatus";
+import { normalizeAdminOrderStatus } from "@/lib/orderStatus";
 
 export type StatusTabKey =
   | "ALL"

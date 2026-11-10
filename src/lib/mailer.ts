@@ -312,7 +312,6 @@ export async function sendWarrantyEmail(
 
   // 2. Prepare normalized warranty line items with real product names & variants
   const now = new Date();
-  const orderDateFormatted = formatDate(order.createdAt || now);
 
   let sourceItems: OrderItemEmailData[] = items.length > 0 ? [...items] : [];
 

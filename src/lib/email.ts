@@ -5,7 +5,6 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { isOrderCancelled } from "@/lib/orderStatus";
 import { getAppUrl } from "@/lib/appUrl";
 import {
-  renderOrderConfirmedEmail,
   renderOrderStatusEmail,
   renderOrderCancelledEmail,
   renderWarrantyActivationEmail,

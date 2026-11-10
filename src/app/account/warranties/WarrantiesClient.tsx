@@ -7,7 +7,6 @@ import {
   ShieldCheck,
   Smartphone,
   RefreshCw,
-  Mail,
   Copy,
   Check,
   Clock,

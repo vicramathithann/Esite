@@ -12,7 +12,6 @@ import {
   EyeOff,
   RefreshCw,
   KeyRound,
-  ShieldCheck,
   Mail,
   Clock,
 } from "lucide-react";

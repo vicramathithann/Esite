@@ -21,10 +21,6 @@ export async function POST(request: Request) {
 
     const rawLatest = messages[messages.length - 1]?.content || "";
     const latestMessage = sanitizeInput(rawLatest);
-    const historyText = messages
-      .slice(-4, -1)
-      .map((m: any) => sanitizeInput(m.content))
-      .join(" ");
 
     // 3. Security Check: Detect prompt injection / jailbreak / system prompt extraction attacks
     const attackCheck = detectLlmAttack(latestMessage);

@@ -16,8 +16,7 @@ import {
   Mail,
   X,
   Pencil,
-  MapPin,
-  Check
+  MapPin
 } from "lucide-react";
 import { formatINR } from "@/lib/formatters";
 import confetti from "canvas-confetti";
@@ -96,7 +95,7 @@ export default function CheckoutPage() {
       try {
         const saved = localStorage.getItem("novamobile_user");
         if (saved) user = JSON.parse(saved);
-      } catch (e) {
+      } catch {
         user = null;
       }
     }

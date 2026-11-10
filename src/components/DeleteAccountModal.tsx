@@ -8,7 +8,6 @@ import {
   X, 
   Mail, 
   ShieldAlert, 
-  Lock, 
   CheckCircle2, 
   RefreshCw, 
   ArrowRight,

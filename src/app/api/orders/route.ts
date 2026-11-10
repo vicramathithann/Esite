@@ -1,6 +1,5 @@
 import { NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sendOrderConfirmationEmail } from "@/lib/email";
 import { sendWarrantyEmail } from "@/lib/mailer";
 import { getAuthenticatedUser } from "@/lib/auth";
 import { logSecurityEvent, getClientIp } from "@/lib/securityLogger";

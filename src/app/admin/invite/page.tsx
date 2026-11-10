@@ -18,16 +18,12 @@ import {
   Trash2,
   History,
   User,
-  ExternalLink,
   ChevronDown,
-  ChevronRight,
   ChevronUp,
   RotateCcw,
   Layers,
   List,
-  Filter,
   X,
-  Radio,
 } from "lucide-react";
 import { formatDateOnly } from "@/lib/formatters";
 

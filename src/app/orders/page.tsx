@@ -9,7 +9,6 @@ import {
   Clock, 
   AlertTriangle, 
   RefreshCw, 
-  ChevronRight, 
   BellRing, 
   Award, 
   Truck, 
