@@ -148,9 +148,10 @@ export async function POST(request: Request) {
       mime: detected.mime,
     });
   } catch (error: any) {
-    console.error("Upload route error:", error);
+    const errorId = `ERR_${Date.now()}`;
+    console.error(`[UPLOAD_ERROR][${errorId}]`, error);
     return NextResponse.json(
-      { success: false, error: error?.message || "Internal server error during upload." },
+      { success: false, error: "Failed to upload image. Please try again later.", errorId },
       { status: 500 }
     );
   }
@@ -195,9 +196,10 @@ export async function DELETE(request: Request) {
       message: "Image successfully removed from cloud storage.",
     });
   } catch (error: any) {
-    console.error("Delete image error:", error);
+    const errorId = `ERR_${Date.now()}`;
+    console.error(`[DELETE_IMAGE_ERROR][${errorId}]`, error);
     return NextResponse.json(
-      { success: false, error: error?.message || "Failed to delete image." },
+      { success: false, error: "Failed to delete image. Please try again later.", errorId },
       { status: 500 }
     );
   }

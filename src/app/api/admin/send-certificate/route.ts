@@ -163,11 +163,13 @@ export async function POST(request: Request) {
       customerEmail: targetOrder.customerEmail,
     });
   } catch (error: any) {
-    console.error("[ADMIN SEND CERTIFICATE ERROR]", error);
+    const errorId = `ERR_${Date.now()}`;
+    console.error(`[ADMIN SEND CERTIFICATE ERROR][${errorId}]`, error);
     return NextResponse.json(
       {
         success: false,
-        error: error?.message || "Internal server error while dispatching warranty certificate.",
+        error: "Failed to dispatch warranty certificate. Please try again later.",
+        errorId,
       },
       { status: 500 }
     );

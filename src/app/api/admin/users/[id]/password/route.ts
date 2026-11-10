@@ -301,9 +301,10 @@ export async function POST(
       { status: 400 }
     );
   } catch (error: any) {
-    console.error("Admin user password management error:", error);
+    const errorId = `ERR_${Date.now()}`;
+    console.error(`[ADMIN_USER_PASSWORD_ERROR][${errorId}]`, error);
     return NextResponse.json(
-      { success: false, error: error?.message || "Failed to update password settings." },
+      { success: false, error: "Failed to update password settings. Please try again later.", errorId },
       { status: 500 }
     );
   }

@@ -165,14 +165,16 @@ export async function GET(request: Request) {
       customers: paginatedRecords,
     });
   } catch (error: any) {
-    console.error("[ADMIN_USERS_FATAL_ERROR] Unexpected error fetching user list:", {
+    const errorId = `ERR_${Date.now()}`;
+    console.error(`[ADMIN_USERS_FATAL_ERROR][${errorId}] Unexpected error fetching user list:`, {
       message: error?.message,
       stack: error?.stack,
     });
     return NextResponse.json(
       {
         success: false,
-        error: error?.message || "Failed to fetch user directory.",
+        error: "Failed to fetch user directory. Please try again later.",
+        errorId,
       },
       { status: 500 }
     );

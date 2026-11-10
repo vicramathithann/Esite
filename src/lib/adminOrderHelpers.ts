@@ -1,5 +1,5 @@
-import { formatINR, formatDateOnly } from "@/lib/formatters";
-import { normalizeAdminOrderStatus } from "@/lib/orderStatus";
+import { formatINR, formatDateOnly } from "./formatters";
+import { normalizeAdminOrderStatus } from "./orderStatus";
 
 export type StatusTabKey =
   | "ALL"
@@ -255,19 +255,8 @@ export function getStatusStyle(status?: string | null): {
   }
 }
 
-/**
- * Escapes values for CSV and neutralizes CSV Formula Injection (DDE attacks).
- * Any cell starting with =, +, -, @, \t, or \r is prefixed with a single quote.
- */
-export function sanitizeForCSV(value: unknown): string {
-  if (value === null || value === undefined) return '""';
-  let str = String(value);
-  // Neutralize spreadsheet formula injection characters
-  if (/^[\s]*[=+\-@\t\r]/.test(str)) {
-    str = `'${str}`;
-  }
-  return `"${str.replace(/"/g, '""')}"`;
-}
+export { sanitizeForCSV } from "./csvSanitizer";
+import { sanitizeForCSV } from "./csvSanitizer";
 
 export function exportOrdersToCSV(orders: any[], filenamePrefix = "vn-mobiles-orders") {
   if (!orders || orders.length === 0) {

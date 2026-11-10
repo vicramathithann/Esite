@@ -480,11 +480,13 @@ export async function PATCH(
       message: "Product updated successfully!",
     });
   } catch (error: any) {
-    console.error("Failed to update product:", error);
+    const errorId = `ERR_${Date.now()}`;
+    console.error(`Failed to update product [${errorId}]:`, error);
     return NextResponse.json(
       {
         success: false,
-        error: error?.message || "Failed to update product. Please check server logs.",
+        error: "Failed to update product. Please try again later.",
+        errorId,
       },
       { status: 500 }
     );
@@ -526,11 +528,13 @@ export async function DELETE(
       message: "Product deleted successfully!",
     });
   } catch (error: any) {
-    console.error("Failed to delete product:", error);
+    const errorId = `ERR_${Date.now()}`;
+    console.error(`Failed to delete product [${errorId}]:`, error);
     return NextResponse.json(
       {
         success: false,
-        error: error?.message || "Failed to delete product. Please check server logs.",
+        error: "Failed to delete product. Please try again later.",
+        errorId,
       },
       { status: 500 }
     );

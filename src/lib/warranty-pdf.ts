@@ -32,22 +32,8 @@ export function maskEmail(email: string): string {
   return `${prefix}*****@${domain}`;
 }
 
-/**
- * Sanitizes input text for pdf-lib standard WinAnsi encoding.
- * Strips unencodable characters, null bytes, and non-printable control codes.
- */
-export function sanitizePdfText(input: unknown): string {
-  if (input === null || input === undefined) return "";
-  const str = String(input);
-  const normalized = str
-    .replace(/[\u2018\u2019]/g, "'")
-    .replace(/[\u201C\u201D]/g, '"')
-    .replace(/[\u2013\u2014]/g, "-")
-    .replace(/\u2026/g, "...");
-
-  // WinAnsi supported range: \x20-\x7E and common extended Latin \xA0-\xFF
-  return normalized.replace(/[^\x20-\x7E\xA0-\xFF]/g, " ").trim();
-}
+import { sanitizePdfText } from "./pdfSanitizer";
+export { sanitizePdfText };
 
 export function formatKolkataDate(dateInput: string | Date | number | undefined | null): string {
   if (!dateInput) return "N/A";
