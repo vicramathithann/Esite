@@ -121,7 +121,36 @@ export async function DELETE(
       // Non-blocking
     }
 
-    // D. Delete User row
+    // D. Sync with Invitations: Mark linked invites as "ACCOUNT_DELETED" (never remove record)
+    try {
+      const { data: linkedInvites } = await supabaseAdmin
+        .from("invitations")
+        .select("id, token")
+        .or(`email.ilike.${targetUser.email}`);
+
+      if (linkedInvites && linkedInvites.length > 0) {
+        for (const inv of linkedInvites) {
+          const meta = {
+            acceptedUserId: targetUser.id,
+            accountDeletedAt: new Date().toISOString(),
+            deletedBy: `deleted by admin (${auth.email})`,
+          };
+          const baseToken = (inv.token || "").split(":meta:")[0];
+          const packedToken = `${baseToken}:meta:${Buffer.from(JSON.stringify(meta)).toString("base64")}`;
+          await supabaseAdmin
+            .from("invitations")
+            .update({
+              status: "ACCOUNT_DELETED",
+              token: packedToken,
+            })
+            .eq("id", inv.id);
+        }
+      }
+    } catch (inviteSyncErr) {
+      console.warn("[ADMIN_DELETE_USER] Failed to sync invitations for deleted user:", inviteSyncErr);
+    }
+
+    // E. Delete User row
     const { error: deleteErr } = await supabaseAdmin
       .from("User")
       .delete()

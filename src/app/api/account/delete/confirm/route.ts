@@ -286,7 +286,36 @@ export async function POST(request: Request) {
         reason: "Self-service customer account deletion",
       });
 
-      // h. Delete User Profile
+      // h. Sync with Invitations: Mark linked invites as "ACCOUNT_DELETED" (never remove record)
+      try {
+        const { data: linkedInvites } = await supabaseAdmin
+          .from("invitations")
+          .select("id, token")
+          .or(`email.ilike.${authUser.email.trim().toLowerCase()}`);
+
+        if (linkedInvites && linkedInvites.length > 0) {
+          for (const inv of linkedInvites) {
+            const meta = {
+              acceptedUserId: authUser.id,
+              accountDeletedAt: new Date().toISOString(),
+              deletedBy: "deleted by user",
+            };
+            const baseToken = (inv.token || "").split(":meta:")[0];
+            const packedToken = `${baseToken}:meta:${Buffer.from(JSON.stringify(meta)).toString("base64")}`;
+            await supabaseAdmin
+              .from("invitations")
+              .update({
+                status: "ACCOUNT_DELETED",
+                token: packedToken,
+              })
+              .eq("id", inv.id);
+          }
+        }
+      } catch (inviteSyncErr) {
+        console.warn("[AccountDeletion] Failed to sync invitations for deleted user:", inviteSyncErr);
+      }
+
+      // i. Delete User Profile
       const { error: userDeleteErr } = await supabaseAdmin
         .from("User")
         .delete()

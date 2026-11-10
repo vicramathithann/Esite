@@ -33,6 +33,9 @@ const DATE_COLUMNS = new Set([
   "reminded1DayAt",
   "reminded6MonthsAt",
   "expiresAt",
+  "acceptedAt",
+  "revokedAt",
+  "accountDeletedAt",
   "sentAt",
   "usedAt",
   "deletedAt",
@@ -73,6 +76,23 @@ function mapRowFromDb(tableName: string, row: any): any {
         (row.email || "").toLowerCase() === "rrroyce20@gmail.com" ||
         (row.role || "").toUpperCase() === "ADMIN";
       row.signupSource = isAdm ? "admin" : "self";
+    }
+  }
+  if (tableName === "invitations") {
+    if (typeof row.token === "string" && row.token.includes(":meta:")) {
+      try {
+        const parts = row.token.split(":meta:");
+        const metaStr = Buffer.from(parts[1], "base64").toString("utf8");
+        const meta = JSON.parse(metaStr);
+        if (meta && typeof meta === "object") {
+          if (meta.acceptedUserId && !row.acceptedUserId) row.acceptedUserId = meta.acceptedUserId;
+          if (meta.acceptedAt && !row.acceptedAt) row.acceptedAt = new Date(meta.acceptedAt);
+          if (meta.revokedAt && !row.revokedAt) row.revokedAt = new Date(meta.revokedAt);
+          if (meta.revokedBy && !row.revokedBy) row.revokedBy = meta.revokedBy;
+          if (meta.accountDeletedAt && !row.accountDeletedAt) row.accountDeletedAt = new Date(meta.accountDeletedAt);
+          if (meta.deletedBy && !row.deletedBy) row.deletedBy = meta.deletedBy;
+        }
+      } catch {}
     }
   }
   return row;
@@ -264,6 +284,26 @@ export class SupabaseModelDelegate {
       const dbKey = mapColumnToDb(this.tableName, key);
       clean[dbKey] = serializeValue(val);
     }
+
+    // For invitations, safely extract virtual metadata keys into token if present
+    if (this.tableName === "invitations") {
+      const metaKeys = ["acceptedUserId", "revokedAt", "revokedBy", "accountDeletedAt", "deletedBy"];
+      const hasMeta = metaKeys.some((k) => k in clean && clean[k] !== undefined);
+      if (hasMeta) {
+        const metaObj: Record<string, any> = {};
+        for (const k of metaKeys) {
+          if (clean[k] !== undefined) {
+            metaObj[k] = clean[k];
+            delete clean[k];
+          }
+        }
+        if (clean.token && typeof clean.token === "string") {
+          const baseToken = clean.token.split(":meta:")[0];
+          clean.token = `${baseToken}:meta:${Buffer.from(JSON.stringify(metaObj)).toString("base64")}`;
+        }
+      }
+    }
+
     return clean;
   }
 
@@ -796,6 +836,29 @@ export class SupabaseModelDelegate {
       }
     }
 
+    // For invitations: pack metadata into token if updating without explicit token
+    if (this.tableName === "invitations") {
+      const metaKeys = ["acceptedUserId", "revokedAt", "revokedBy", "accountDeletedAt", "deletedBy"];
+      const hasMeta = metaKeys.some((k) => k in rawData && rawData[k] !== undefined);
+      if (hasMeta && !("token" in updateData)) {
+        const current = await this.findFirst({ where: options.where });
+        const currentToken = (current && current.token) || "";
+        let existingMeta: Record<string, any> = {};
+        if (currentToken.includes(":meta:")) {
+          try {
+            existingMeta = JSON.parse(Buffer.from(currentToken.split(":meta:")[1], "base64").toString("utf8")) || {};
+          } catch {}
+        }
+        for (const k of metaKeys) {
+          if (rawData[k] !== undefined && rawData[k] !== null) {
+            existingMeta[k] = rawData[k] instanceof Date ? rawData[k].toISOString() : rawData[k];
+          }
+        }
+        const baseToken = currentToken.split(":meta:")[0];
+        updateData.token = `${baseToken}:meta:${Buffer.from(JSON.stringify(existingMeta)).toString("base64")}`;
+      }
+    }
+
     let query = client.from(this.tableName).update(updateData);
     query = applyWhere(query, options.where, this.tableName);
     let { data, error } = await query.select();
@@ -848,7 +911,31 @@ export class SupabaseModelDelegate {
     data: Record<string, any>;
   }): Promise<{ count: number }> {
     const client = this.getClient(true); // Always uses service role for write
-    const updateData = this.cleanData(options.data || {});
+    const rawData = options.data || {};
+    const updateData = this.cleanData(rawData);
+    // For invitations: pack metadata into token if updating without explicit token
+    if (this.tableName === "invitations") {
+      const metaKeys = ["acceptedUserId", "revokedAt", "revokedBy", "accountDeletedAt", "deletedBy"];
+      const hasMeta = metaKeys.some((k) => k in rawData && rawData[k] !== undefined);
+      if (hasMeta && !("token" in updateData)) {
+        const current = await this.findFirst({ where: options.where });
+        const currentToken = (current && current.token) || "";
+        let existingMeta: Record<string, any> = {};
+        if (currentToken.includes(":meta:")) {
+          try {
+            existingMeta = JSON.parse(Buffer.from(currentToken.split(":meta:")[1], "base64").toString("utf8")) || {};
+          } catch {}
+        }
+        for (const k of metaKeys) {
+          if (rawData[k] !== undefined && rawData[k] !== null) {
+            existingMeta[k] = rawData[k] instanceof Date ? rawData[k].toISOString() : rawData[k];
+          }
+        }
+        const baseToken = currentToken.split(":meta:")[0];
+        updateData.token = `${baseToken}:meta:${Buffer.from(JSON.stringify(existingMeta)).toString("base64")}`;
+      }
+    }
+
     let query = client.from(this.tableName).update(updateData);
     query = applyWhere(query, options.where, this.tableName);
     let { data, error } = await query.select();

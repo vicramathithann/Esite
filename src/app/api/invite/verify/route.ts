@@ -45,6 +45,17 @@ export async function GET(request: Request) {
       );
     }
 
+    if (invitation.status === "ACCOUNT_DELETED") {
+      return NextResponse.json(
+        {
+          success: false,
+          valid: false,
+          error: "This account has been deleted. The invitation link is no longer valid. Please ask for a new invite.",
+        },
+        { status: 410 }
+      );
+    }
+
     if (invitation.status === "REVOKED") {
       return NextResponse.json(
         {

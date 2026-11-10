@@ -82,6 +82,13 @@ export async function POST(request: Request) {
       );
     }
 
+    if (invitation.status === "ACCOUNT_DELETED") {
+      return NextResponse.json(
+        { success: false, error: "This account has been deleted. The invitation link is no longer valid. Please ask for a new invite." },
+        { status: 410 }
+      );
+    }
+
     if (invitation.status === "REVOKED") {
       return NextResponse.json(
         { success: false, error: "This invitation has been revoked. Please ask for a new invite." },
@@ -201,12 +208,19 @@ export async function POST(request: Request) {
 
     // 10. Mark invitation as ACCEPTED and invalidate token ONLY after user creation succeeds
     // In the event of a user creation failure above, execution jumps to catch, so failed attempts DO NOT burn the token!
+    const acceptMeta = {
+      acceptedUserId: newUser.id,
+      acceptedAt: new Date().toISOString(),
+    };
+    const usedToken = `${tokenHash}:used:${Date.now()}:meta:${Buffer.from(JSON.stringify(acceptMeta)).toString("base64")}`;
+
     await prisma.invitation.update({
       where: { id: invitation.id },
       data: {
         status: "ACCEPTED",
         acceptedAt: new Date(),
-        token: `${tokenHash}:used:${Date.now()}`,
+        acceptedUserId: newUser.id,
+        token: usedToken,
       },
     });
 
