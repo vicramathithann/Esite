@@ -373,6 +373,15 @@ export default function ProductCatalog({
     }
   };
 
+function getProductEffectivePrice(p: MobileProductData): number {
+  if (Array.isArray(p.variants) && p.variants.length > 0) {
+    const inStockVars = p.variants.filter((v) => v.inStock && (v.stock === undefined || v.stock > 0));
+    const targetVars = inStockVars.length > 0 ? inStockVars : p.variants;
+    return Math.min(...targetVars.map((v) => v.basePrice));
+  }
+  return p.basePrice || 0;
+}
+
   // Filter and sort products
   const filteredProducts = useMemo(() => {
     return (products || [])
@@ -398,27 +407,34 @@ export default function ProductCatalog({
           if (!matches) return false;
         }
 
-        // 3. Price Filter (up to priceRange)
-        if ((p.basePrice || 0) > priceRange) {
+        // 3. Price Filter (up to priceRange - lowest in-stock variant price)
+        const effectivePrice = getProductEffectivePrice(p);
+        if (effectivePrice > priceRange) {
           return false;
         }
 
-        // 4. RAM Filter (multi-select supported)
+        // 4. RAM Filter (multi-select supported, checks variants)
         if (selectedRam !== "All") {
           const targetRams = selectedRam.split(",").map((r) => r.trim().toLowerCase());
+          const hasVariantMatch = Array.isArray(p.variants) && p.variants.some((v) =>
+            targetRams.some((targetRam) => (v.ram || "").toLowerCase().includes(targetRam))
+          );
           const prodRam = (p.ram || "").toLowerCase();
-          const matches = targetRams.some((targetRam) => prodRam.includes(targetRam));
-          if (!matches) return false;
+          const hasProdMatch = targetRams.some((targetRam) => prodRam.includes(targetRam));
+          if (!hasVariantMatch && !hasProdMatch) return false;
         }
 
-        // 5. Storage Filter
+        // 5. Storage Filter (checks variants)
         if (selectedStorage !== "All") {
           const targetStorages = selectedStorage.split(",").map((s) => s.trim().toLowerCase());
-          const storageList = Array.isArray(p.storageOptions) ? p.storageOptions : [];
-          const matches = targetStorages.some((targetStorage) =>
-            storageList.some((s) => (s?.size || "").toLowerCase().includes(targetStorage))
+          const hasVariantMatch = Array.isArray(p.variants) && p.variants.some((v) =>
+            targetStorages.some((targetStorage) => (v.storage || "").toLowerCase().includes(targetStorage))
           );
-          if (!matches) return false;
+          const storageList = Array.isArray(p.storageOptions) ? p.storageOptions : [];
+          const hasLegacyMatch = targetStorages.some((targetStorage) =>
+            storageList.some((s: any) => (s?.size || s?.storage || "").toLowerCase().includes(targetStorage))
+          );
+          if (!hasVariantMatch && !hasLegacyMatch) return false;
         }
 
         // 6. OS Filter
@@ -514,8 +530,8 @@ export default function ProductCatalog({
         return true;
       })
       .sort((a, b) => {
-        if (sortBy === "price-asc") return (a.basePrice || 0) - (b.basePrice || 0);
-        if (sortBy === "price-desc") return (b.basePrice || 0) - (a.basePrice || 0);
+        if (sortBy === "price-asc") return getProductEffectivePrice(a) - getProductEffectivePrice(b);
+        if (sortBy === "price-desc") return getProductEffectivePrice(b) - getProductEffectivePrice(a);
         if (sortBy === "rating") return (b.rating || 0) - (a.rating || 0);
         if (sortBy === "newest") return (b.id || "") > (a.id || "") ? 1 : -1;
         return (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0);

@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import MobileImage from "@/components/MobileImage";
-import { MobileProductData, ProductColor, StorageOption } from "@/lib/types";
+import { MobileProductData, ProductColor, StorageOption, ProductVariantData } from "@/lib/types";
 import { useApp } from "@/context/AppContext";
 import { 
   Check, 
@@ -31,39 +31,69 @@ function MobileCardComponent({ product }: MobileCardProps) {
     siteSettings 
   } = useApp();
 
-  const safeStorageList = Array.isArray(product.storageOptions) && product.storageOptions.length > 0
-    ? product.storageOptions
-    : [{ size: "256GB", price: product.basePrice || 49999 }];
+  const variantsList: ProductVariantData[] = useMemo(() => {
+    if (Array.isArray(product.variants) && product.variants.length > 0) {
+      return product.variants;
+    }
+    if (Array.isArray(product.storageOptions) && product.storageOptions.length > 0) {
+      return product.storageOptions.map((opt: any, idx: number) => ({
+        id: opt.id || `${product.id}-${(opt.size || opt.storage || "128gb").toLowerCase().replace(/[^a-z0-9]/g, "")}`,
+        productId: product.id,
+        ram: opt.ram || (product.ram ? product.ram.split('/')[0].trim() : "8GB"),
+        storage: opt.size || opt.storage || "128GB",
+        basePrice: opt.basePrice || opt.price || product.basePrice || 49999,
+        originalPrice: opt.originalPrice || product.originalPrice,
+        stock: opt.stock !== undefined ? opt.stock : (product.stock !== undefined ? product.stock : 20),
+        inStock: (opt.stock !== undefined ? opt.stock : (product.stock !== undefined ? product.stock : 20)) > 0,
+        sku: opt.sku || "",
+        isDefault: opt.isDefault !== undefined ? opt.isDefault : idx === 0,
+      }));
+    }
+    return [{
+      id: `${product.id}-default`,
+      productId: product.id,
+      ram: product.ram ? product.ram.split('/')[0].trim() : "8GB",
+      storage: "128GB",
+      basePrice: product.basePrice || 49999,
+      originalPrice: product.originalPrice || (product.basePrice || 49999) + 10000,
+      stock: product.stock !== undefined ? product.stock : 20,
+      inStock: (product.stock !== undefined ? product.stock : 20) > 0,
+      sku: "",
+      isDefault: true,
+    }];
+  }, [product.variants, product.storageOptions, product.basePrice, product.originalPrice, product.stock, product.id, product.ram]);
+
+  const defaultVariant = useMemo(() => {
+    return variantsList.find((v) => v.isDefault) || variantsList[0];
+  }, [variantsList]);
+
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariantData>(defaultVariant);
 
   const safeColorsList = Array.isArray(product.colors) && product.colors.length > 0
     ? product.colors
     : [{ name: "Default", hex: "#1e1e1e" }];
 
-  const [selectedStorage, setSelectedStorage] = useState<StorageOption>(
-    safeStorageList[0]
-  );
-
   const [selectedColor, setSelectedColor] = useState<ProductColor>(
     safeColorsList[0]
   );
 
-  // Sync selected storage and color whenever product details are updated
+  // Sync selected variant and color whenever product details are updated
   useEffect(() => {
-    if (safeStorageList[0]) {
-      setSelectedStorage(safeStorageList[0]);
+    if (defaultVariant) {
+      setSelectedVariant(defaultVariant);
     }
     if (safeColorsList[0]) {
       setSelectedColor(safeColorsList[0]);
     }
-  }, [product.basePrice, product.storageOptions, product.colors, product.imageUrl]);
+  }, [defaultVariant, product.basePrice, product.colors, product.imageUrl]);
 
   const [isAdded, setIsAdded] = useState(false);
   const [outOfStockAlert, setOutOfStockAlert] = useState(false);
 
-  const isOutOfStock = !product.inStock || (product.stock !== undefined && product.stock <= 0);
+  const isOutOfStock = !selectedVariant?.inStock || (selectedVariant?.stock !== undefined && selectedVariant.stock <= 0);
 
-  const currentPrice = selectedStorage?.price || product.basePrice || 49999;
-  const originalPrice = product.originalPrice || currentPrice + 10000;
+  const currentPrice = selectedVariant?.basePrice || product.basePrice || 49999;
+  const originalPrice = selectedVariant?.originalPrice || product.originalPrice || currentPrice + 10000;
   const emiAmount = calculateEMI(currentPrice);
   const isCompared = compareList.some((p) => p.id === product.id);
 
@@ -77,16 +107,20 @@ function MobileCardComponent({ product }: MobileCardProps) {
     }
 
     addToCart({
-      id: `${product.id}-${selectedStorage?.size || "256GB"}-${selectedColor?.name || "Default"}`,
+      id: `${product.id}-${selectedVariant?.id || selectedVariant?.storage}-${selectedColor?.name || "Default"}`,
       productId: product.id,
+      variantId: selectedVariant?.id,
       name: product.name,
       brand: product.brand,
       imageUrl: product.imageUrl,
       selectedColor: selectedColor || safeColorsList[0],
-      selectedStorage: selectedStorage || safeStorageList[0],
+      selectedStorage: { size: selectedVariant?.storage || "128GB", price: currentPrice },
+      selectedRam: selectedVariant?.ram,
       price: currentPrice,
       quantity: 1,
       warrantyMonths: product.warrantyMonths || 12,
+      inStock: !isOutOfStock,
+      stock: selectedVariant?.stock,
     });
 
     setIsAdded(true);
@@ -208,22 +242,31 @@ function MobileCardComponent({ product }: MobileCardProps) {
             EMI from ₹{emiAmount.toLocaleString("en-IN")}/mo
           </div>
 
-          {/* Storage selector pills */}
+          {/* Storage selector pills from variants */}
           <div className="pt-2 flex flex-wrap gap-1">
-            {(product.storageOptions || safeStorageList).map((storage) => (
-              <button
-                key={storage.size}
-                type="button"
-                onClick={() => setSelectedStorage(storage)}
-                className={`px-2.5 py-0.5 text-[10px] sm:text-[11px] rounded-full font-medium transition-all duration-200 cursor-pointer ${
-                  selectedStorage?.size === storage.size
-                    ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] font-semibold shadow-xs"
-                    : "bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 text-[#8C6226] dark:text-[#E2C799] border border-[#C9A66B]/30"
-                }`}
-              >
-                {(storage.size || "").split(" ")[0]}
-              </button>
-            ))}
+            {variantsList.map((v) => {
+              const isVarOos = !v.inStock || (v.stock !== undefined && v.stock <= 0);
+              const isSelected = selectedVariant?.id ? selectedVariant.id === v.id : selectedVariant?.storage === v.storage;
+              return (
+                <button
+                  key={v.id || v.storage}
+                  type="button"
+                  disabled={isVarOos}
+                  onClick={() => !isVarOos && setSelectedVariant(v)}
+                  className={`px-2.5 py-0.5 text-[10px] sm:text-[11px] rounded-full font-medium transition-all duration-200 ${
+                    isVarOos
+                      ? "opacity-40 cursor-not-allowed line-through bg-tile text-muted border border-border"
+                      : isSelected
+                      ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] font-semibold shadow-xs cursor-pointer"
+                      : "bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 text-[#8C6226] dark:text-[#E2C799] border border-[#C9A66B]/30 cursor-pointer"
+                  }`}
+                  title={isVarOos ? `${v.storage} - Out of stock` : `${v.storage} (₹${v.basePrice.toLocaleString("en-IN")})`}
+                >
+                  {(v.storage || "").split(" ")[0]}
+                  {isVarOos && <span className="ml-1 text-[9px] no-underline font-normal">OOS</span>}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>

@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, use } from "react";
+import React, { useState, useEffect, useMemo, use } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { MobileProductData, ProductColor, StorageOption } from "@/lib/types";
+import { MobileProductData, ProductColor, StorageOption, ProductVariantData } from "@/lib/types";
 import { DEFAULT_PRODUCTS } from "@/lib/catalogData";
 import { getCachedProduct } from "@/components/ProductCatalog";
 import { useApp } from "@/context/AppContext";
@@ -53,8 +53,52 @@ export default function MobileDetailPage({
   const [loading, setLoading] = useState(!initialMatch);
   const [selectedImage, setSelectedImage] = useState<string>(initialMatch?.imageUrl || "");
   const [selectedColor, setSelectedColor] = useState<ProductColor | null>(initialMatch?.colors?.[0] || null);
-  const [selectedStorage, setSelectedStorage] = useState<StorageOption | null>(initialMatch?.storageOptions?.[0] || null);
-  const [selectedRam, setSelectedRam] = useState<string>(initialMatch?.ram || "8GB");
+
+  const variantsList: ProductVariantData[] = useMemo(() => {
+    if (!product) return [];
+    if (Array.isArray(product.variants) && product.variants.length > 0) {
+      return product.variants;
+    }
+    if (Array.isArray(product.storageOptions) && product.storageOptions.length > 0) {
+      return product.storageOptions.map((opt: any, idx: number) => ({
+        id: opt.id || `${product.id}-${(opt.size || opt.storage || "128gb").toLowerCase().replace(/[^a-z0-9]/g, "")}`,
+        productId: product.id,
+        ram: opt.ram || (product.ram ? product.ram.split('/')[0].trim() : "8GB"),
+        storage: opt.size || opt.storage || "128GB",
+        basePrice: opt.basePrice || opt.price || product.basePrice || 49999,
+        originalPrice: opt.originalPrice || product.originalPrice,
+        stock: opt.stock !== undefined ? opt.stock : (product.stock !== undefined ? product.stock : 20),
+        inStock: (opt.stock !== undefined ? opt.stock : (product.stock !== undefined ? product.stock : 20)) > 0,
+        sku: opt.sku || "",
+        isDefault: opt.isDefault !== undefined ? opt.isDefault : idx === 0,
+      }));
+    }
+    return [{
+      id: `${product.id}-default`,
+      productId: product.id,
+      ram: product.ram ? product.ram.split('/')[0].trim() : "8GB",
+      storage: "128GB",
+      basePrice: product.basePrice || 49999,
+      originalPrice: product.originalPrice || (product.basePrice || 49999) + 10000,
+      stock: product.stock !== undefined ? product.stock : 20,
+      inStock: (product.stock !== undefined ? product.stock : 20) > 0,
+      sku: "",
+      isDefault: true,
+    }];
+  }, [product]);
+
+  const defaultVariant = useMemo(() => {
+    return variantsList.find((v) => v.isDefault) || variantsList[0] || null;
+  }, [variantsList]);
+
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariantData | null>(defaultVariant);
+
+  useEffect(() => {
+    if (defaultVariant && (!selectedVariant || !variantsList.some(v => v.id === selectedVariant.id))) {
+      setSelectedVariant(defaultVariant);
+    }
+  }, [defaultVariant, variantsList]);
+
   const quantity = 1;
   const [isAdded, setIsAdded] = useState(false);
   const [outOfStockAlert, setOutOfStockAlert] = useState(false);
@@ -95,12 +139,6 @@ export default function MobileDetailPage({
           if (data.product.colors && data.product.colors.length > 0) {
             setSelectedColor(data.product.colors[0]);
           }
-          if (data.product.storageOptions && data.product.storageOptions.length > 0) {
-            setSelectedStorage(data.product.storageOptions[0]);
-          }
-          if (data.product.ram) {
-            setSelectedRam(data.product.ram);
-          }
         }
       } catch (err) {
         console.error("Failed to fetch product:", err);
@@ -133,6 +171,21 @@ export default function MobileDetailPage({
     };
   }, [resolvedParams.id]);
 
+  const distinctStorages = useMemo(() => {
+    const map = new Map<string, ProductVariantData>();
+    for (const v of variantsList) {
+      if (!map.has(v.storage)) {
+        map.set(v.storage, v);
+      }
+    }
+    return Array.from(map.values());
+  }, [variantsList]);
+
+  const distinctRams = useMemo(() => {
+    const rams = Array.from(new Set(variantsList.map((v) => v.ram).filter(Boolean)));
+    return rams.length > 0 ? rams : [product?.ram || "8GB"];
+  }, [variantsList, product?.ram]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center text-foreground font-medium gap-3">
@@ -142,7 +195,7 @@ export default function MobileDetailPage({
     );
   }
 
-  if (!product || !selectedColor || !selectedStorage) {
+  if (!product || !selectedColor || !selectedVariant) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center text-foreground p-6 text-center">
         <div className="w-14 h-14 rounded-2xl bg-tile border border-border flex items-center justify-center text-accent mb-4">
@@ -170,10 +223,10 @@ export default function MobileDetailPage({
     );
   }
 
-  const currentPrice = selectedStorage.price;
-  const originalPrice = product.originalPrice || currentPrice + 10000;
+  const currentPrice = selectedVariant.basePrice || product.basePrice || 49999;
+  const originalPrice = selectedVariant.originalPrice || product.originalPrice || currentPrice + 10000;
   const isCompared = compareList.some((p) => p.id === product.id);
-  const isOutOfStock = !product.inStock || ((product as any).stock !== undefined && (product as any).stock <= 0);
+  const isOutOfStock = !selectedVariant.inStock || (selectedVariant.stock !== undefined && selectedVariant.stock <= 0);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
@@ -198,16 +251,20 @@ export default function MobileDetailPage({
     }
 
     addToCart({
-      id: `${product.id}-${selectedStorage.size}-${selectedColor.name}`,
+      id: `${product.id}-${selectedVariant.id || selectedVariant.storage}-${selectedColor.name}`,
       productId: product.id,
+      variantId: selectedVariant.id,
       name: product.name,
       brand: product.brand,
       imageUrl: product.imageUrl,
       selectedColor,
-      selectedStorage,
+      selectedStorage: { size: selectedVariant.storage, price: currentPrice },
+      selectedRam: selectedVariant.ram,
       price: currentPrice,
       quantity,
       warrantyMonths: product.warrantyMonths || 12,
+      inStock: !isOutOfStock,
+      stock: selectedVariant.stock,
     });
     setIsAdded(true);
     setTimeout(() => setIsAdded(false), 2000);
@@ -220,16 +277,20 @@ export default function MobileDetailPage({
     }
 
     addToCart({
-      id: `${product.id}-${selectedStorage.size}-${selectedColor.name}`,
+      id: `${product.id}-${selectedVariant.id || selectedVariant.storage}-${selectedColor.name}`,
       productId: product.id,
+      variantId: selectedVariant.id,
       name: product.name,
       brand: product.brand,
       imageUrl: product.imageUrl,
       selectedColor,
-      selectedStorage,
+      selectedStorage: { size: selectedVariant.storage, price: currentPrice },
+      selectedRam: selectedVariant.ram,
       price: currentPrice,
       quantity,
       warrantyMonths: product.warrantyMonths || 12,
+      inStock: !isOutOfStock,
+      stock: selectedVariant.stock,
     });
 
     if (!currentUser) {
@@ -382,50 +443,78 @@ export default function MobileDetailPage({
               </div>
             </div>
 
-            {/* Storage Pills */}
+            {/* Storage Pills from Variants */}
             <div className="space-y-2.5">
               <span className="text-xs font-bold text-foreground block">
-                Storage Capacity: <span className="font-normal text-muted">{selectedStorage.size}</span>
+                Storage Capacity: <span className="font-normal text-muted">{selectedVariant?.storage}</span>
               </span>
               <div className="flex flex-wrap gap-2">
-                {product.storageOptions.map((storage) => (
-                  <button
-                    key={storage.size}
-                    onClick={() => setSelectedStorage(storage)}
-                    className={`px-4 py-2 rounded-full border text-xs font-medium cursor-pointer transition-all duration-200 ${
-                      selectedStorage.size === storage.size
-                        ? "border-[#C9A66B] dark:border-[#D4B483] bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] shadow-xs font-semibold"
-                        : "border-[#C9A66B]/30 bg-[#C9A66B]/5 text-foreground hover:border-[#C9A66B]"
-                    }`}
-                  >
-                    <span>{storage.size}</span>
-                    <span className="ml-1.5 opacity-70">₹{storage.price.toLocaleString("en-IN")}</span>
-                  </button>
-                ))}
+                {distinctStorages.map((storageVariant: ProductVariantData) => {
+                  const match = variantsList.find(
+                    (v) => v.storage === storageVariant.storage && (selectedVariant ? v.ram === selectedVariant.ram : true)
+                  ) || storageVariant;
+                  const isVarOos = !match.inStock || (match.stock !== undefined && match.stock <= 0);
+                  const isSelected = selectedVariant?.storage === storageVariant.storage;
+
+                  return (
+                    <button
+                      key={storageVariant.storage}
+                      disabled={isVarOos}
+                      onClick={() => !isVarOos && setSelectedVariant(match)}
+                      className={`px-4 py-2 rounded-full border text-xs font-medium transition-all duration-200 ${
+                        isVarOos
+                          ? "opacity-40 cursor-not-allowed line-through bg-tile text-muted border-border"
+                          : isSelected
+                          ? "border-[#C9A66B] dark:border-[#D4B483] bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] shadow-xs font-semibold cursor-pointer"
+                          : "border-[#C9A66B]/30 bg-[#C9A66B]/5 text-foreground hover:border-[#C9A66B] cursor-pointer"
+                      }`}
+                      title={isVarOos ? `${storageVariant.storage} - Out of stock` : `${storageVariant.storage} (₹${match.basePrice.toLocaleString("en-IN")})`}
+                    >
+                      <span>{storageVariant.storage}</span>
+                      <span className="ml-1.5 opacity-70">₹{match.basePrice.toLocaleString("en-IN")}</span>
+                      {isVarOos && <span className="ml-1.5 text-[10px] font-normal no-underline opacity-80">(Out of stock)</span>}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            {/* RAM Pills */}
-            <div className="space-y-2.5">
-              <span className="text-xs font-bold text-foreground block">
-                Memory (RAM): <span className="font-normal text-muted">{selectedRam}</span>
-              </span>
-              <div className="flex flex-wrap gap-2">
-                {[product.ram || "8GB", "12GB"].filter((v, i, a) => a.indexOf(v) === i).map((ram) => (
-                  <button
-                    key={ram}
-                    onClick={() => setSelectedRam(ram)}
-                    className={`px-4 py-2 rounded-full border text-xs font-medium cursor-pointer transition-all duration-200 ${
-                      selectedRam === ram
-                        ? "border-[#C9A66B] dark:border-[#D4B483] bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] shadow-xs font-semibold"
-                        : "border-[#C9A66B]/30 bg-[#C9A66B]/5 text-foreground hover:border-[#C9A66B]"
-                    }`}
-                  >
-                    {ram} Unified Memory
-                  </button>
-                ))}
+            {/* RAM Pills from Variants */}
+            {distinctRams.length > 0 && (
+              <div className="space-y-2.5">
+                <span className="text-xs font-bold text-foreground block">
+                  Memory (RAM): <span className="font-normal text-muted">{selectedVariant?.ram || distinctRams[0]}</span>
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {distinctRams.map((ram: string) => {
+                    const match = variantsList.find(
+                      (v) => v.ram === ram && (selectedVariant ? v.storage === selectedVariant.storage : true)
+                    ) || variantsList.find((v) => v.ram === ram);
+                    const isVarOos = match ? (!match.inStock || (match.stock !== undefined && match.stock <= 0)) : false;
+                    const isSelected = selectedVariant?.ram === ram;
+
+                    return (
+                      <button
+                        key={ram}
+                        disabled={isVarOos}
+                        onClick={() => match && !isVarOos && setSelectedVariant(match)}
+                        className={`px-4 py-2 rounded-full border text-xs font-medium transition-all duration-200 ${
+                          isVarOos
+                            ? "opacity-40 cursor-not-allowed line-through bg-tile text-muted border-border"
+                            : isSelected
+                            ? "border-[#C9A66B] dark:border-[#D4B483] bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] shadow-xs font-semibold cursor-pointer"
+                            : "border-[#C9A66B]/30 bg-[#C9A66B]/5 text-foreground hover:border-[#C9A66B] cursor-pointer"
+                        }`}
+                        title={isVarOos ? `${ram} - Out of stock` : ram}
+                      >
+                        {ram} Unified Memory
+                        {isVarOos && <span className="ml-1.5 text-[10px] font-normal no-underline opacity-80">(Out of stock)</span>}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Spec Icons (Camera, Battery, Display, Chip) */}
             <div className="bg-card rounded-[20px] p-5 border border-border shadow-xs grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">

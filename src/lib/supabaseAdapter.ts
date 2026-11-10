@@ -381,7 +381,72 @@ export class SupabaseModelDelegate {
           varMap.get(v.productId)!.push(v);
         }
         for (const rec of records) {
-          rec.variants = varMap.get(rec.id) || [];
+          const dbVariants = varMap.get(rec.id) || [];
+          if (dbVariants.length > 0) {
+            let parsedStorageOpts: any[] = [];
+            try {
+              parsedStorageOpts = typeof rec.storageOptions === "string" ? JSON.parse(rec.storageOptions) : (rec.storageOptions || []);
+            } catch {}
+            rec.variants = dbVariants.map((v: any, idx: number) => {
+              const matchedOpt = parsedStorageOpts.find((o: any) =>
+                (o.id && o.id === v.id) ||
+                ((o.storage || o.size) === v.storage && (!o.ram || o.ram === v.ram))
+              );
+              const bp = v.price ?? v.basePrice ?? rec.basePrice;
+              const op = matchedOpt?.originalPrice || (matchedOpt?.price && matchedOpt.price > bp ? matchedOpt.price : rec.originalPrice);
+              return {
+                id: v.id,
+                productId: v.productId,
+                ram: v.ram || (rec.ram ? rec.ram.split('/')[0].trim() : "8GB"),
+                storage: v.storage || "128GB",
+                basePrice: bp,
+                originalPrice: op && op >= bp ? op : bp,
+                stock: v.stock !== undefined ? v.stock : rec.stock,
+                inStock: (v.stock !== undefined ? v.stock : rec.stock) > 0,
+                sku: v.sku || matchedOpt?.sku || "",
+                isDefault: matchedOpt?.isDefault !== undefined ? matchedOpt.isDefault : idx === 0,
+              };
+            });
+          } else {
+            // Fallback from storageOptions if ProductVariant table rows are not yet populated
+            let parsedStorageOpts: any[] = [];
+            try {
+              parsedStorageOpts = typeof rec.storageOptions === "string" ? JSON.parse(rec.storageOptions) : (rec.storageOptions || []);
+            } catch {}
+            const defaultRam = rec.ram ? rec.ram.split('/')[0].trim() : "8GB";
+            if (Array.isArray(parsedStorageOpts) && parsedStorageOpts.length > 0) {
+              rec.variants = parsedStorageOpts.map((opt: any, idx: number) => {
+                const bp = opt.basePrice || opt.price || rec.basePrice;
+                const op = opt.originalPrice || rec.originalPrice;
+                const st = opt.stock !== undefined ? opt.stock : (rec.stock !== undefined ? rec.stock : 20);
+                return {
+                  id: opt.id || `${rec.id}-${(opt.size || opt.storage || "default").toLowerCase().replace(/[^a-z0-9]/g, "")}`,
+                  productId: rec.id,
+                  ram: opt.ram || defaultRam,
+                  storage: opt.size || opt.storage || "128GB",
+                  basePrice: bp,
+                  originalPrice: op && op >= bp ? op : bp,
+                  stock: st,
+                  inStock: st > 0,
+                  sku: opt.sku || "",
+                  isDefault: opt.isDefault !== undefined ? opt.isDefault : idx === 0,
+                };
+              });
+            } else {
+              rec.variants = [{
+                id: `${rec.id}-default`,
+                productId: rec.id,
+                ram: defaultRam,
+                storage: "128GB",
+                basePrice: rec.basePrice || 49999,
+                originalPrice: rec.originalPrice || rec.basePrice || 49999,
+                stock: rec.stock !== undefined ? rec.stock : 20,
+                inStock: (rec.stock !== undefined ? rec.stock : 20) > 0,
+                sku: "",
+                isDefault: true,
+              }];
+            }
+          }
         }
       }
 

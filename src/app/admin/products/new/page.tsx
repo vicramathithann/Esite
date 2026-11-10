@@ -3,8 +3,8 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Save } from "lucide-react";
-import NumberInput from "@/components/NumberInput";
+import { ArrowLeft, Save, AlertCircle } from "lucide-react";
+import VariantEditor, { FormVariantRow } from "@/components/admin/VariantEditor";
 
 const FAMOUS_BRANDS = [
   "Apple",
@@ -28,19 +28,15 @@ const FAMOUS_BRANDS = [
 export default function AdminNewProductPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [rowErrors, setRowErrors] = useState<Record<number, string[]>>({});
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     name: "",
     brand: "Apple",
     model: "",
     category: "SMARTPHONE",
-    basePrice: "",
-    discountPrice: "",
-    originalPrice: "",
-    stock: "",
     imageUrl: "https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=800&auto=format&fit=crop&q=80",
-    ram: "12GB",
     display: "6.7\" Super Retina XDR OLED 120Hz",
     displayType: "OLED 120Hz LTPO",
     processor: "A18 Pro Bionic",
@@ -59,66 +55,135 @@ export default function AdminNewProductPage() {
       { name: "Natural Titanium", hex: "#8c8780" },
       { name: "Desert Titanium", hex: "#c9bba8" },
     ],
-    storageOptions: [
-      { size: "128GB", price: 69999 },
-      { size: "256GB", price: 79999 },
-      { size: "512GB", price: 99999 },
-    ],
   });
+
+  const [variants, setVariants] = useState<FormVariantRow[]>([
+    {
+      ram: "8GB",
+      storage: "128GB",
+      basePrice: "69999",
+      originalPrice: "79999",
+      stock: "20",
+      inStock: true,
+      isDefault: true,
+    },
+    {
+      ram: "8GB",
+      storage: "256GB",
+      basePrice: "79999",
+      originalPrice: "89999",
+      stock: "20",
+      inStock: true,
+      isDefault: false,
+    },
+    {
+      ram: "8GB",
+      storage: "512GB",
+      basePrice: "99999",
+      originalPrice: "109999",
+      stock: "15",
+      inStock: true,
+      isDefault: false,
+    },
+  ]);
+
+  const totalStock = variants.reduce((sum, v) => sum + (parseInt(v.stock, 10) || 0), 0);
+  const isAnyVariantInStock = variants.some((v) => (parseInt(v.stock, 10) || 0) > 0 && v.inStock);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrors({});
+    setRowErrors({});
+    setStatusError(null);
 
-    // Validate fields before conversion
-    const newErrors: Record<string, string> = {};
-    const basePriceStr = String(formData.basePrice || "").trim();
-    const stockStr = String(formData.stock || "").trim();
-    const origPriceStr = String(formData.originalPrice || "").trim();
-
-    if (!basePriceStr) {
-      newErrors.basePrice = "Enter a valid price";
-    } else {
-      const bp = parseInt(basePriceStr, 10);
-      if (isNaN(bp) || bp <= 0) {
-        newErrors.basePrice = "Base Price must be greater than 0";
-      }
+    if (variants.length === 0) {
+      setStatusError("At least one variant is required.");
+      return;
     }
 
-    if (stockStr === "") {
-      newErrors.stock = "Enter available stock";
-    } else {
-      const st = parseInt(stockStr, 10);
-      if (isNaN(st) || st < 0) {
-        newErrors.stock = "Stock cannot be negative";
-      }
-    }
+    const errorsMap: Record<number, string[]> = {};
+    const seenPairs = new Set<string>();
 
-    if (origPriceStr !== "" && basePriceStr !== "") {
-      const bp = parseInt(basePriceStr, 10);
-      const op = parseInt(origPriceStr, 10);
-      if (!isNaN(bp) && !isNaN(op) && op < bp) {
-        newErrors.originalPrice = "Original Price must be greater than or equal to Base Price";
-      }
-    }
+    variants.forEach((v, idx) => {
+      const rowErrs: string[] = [];
+      const ramStr = (v.ram || "").trim();
+      const storageStr = (v.storage || "").trim();
 
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
+      if (!ramStr) {
+        rowErrs.push("RAM is required");
+      }
+      if (!storageStr) {
+        rowErrs.push("Storage is required");
+      }
+
+      const pairKey = `${ramStr.toLowerCase()}_${storageStr.toLowerCase()}`;
+      if (seenPairs.has(pairKey)) {
+        rowErrs.push(`Duplicate RAM (${ramStr}) and Storage (${storageStr})`);
+      } else {
+        seenPairs.add(pairKey);
+      }
+
+      const bpStr = (v.basePrice || "").trim();
+      if (!bpStr) {
+        rowErrs.push("Base price is required");
+      } else {
+        const bp = parseInt(bpStr, 10);
+        if (isNaN(bp) || bp <= 0) {
+          rowErrs.push("Base price must be greater than 0");
+        }
+      }
+
+      const opStr = (v.originalPrice || "").trim();
+      if (opStr !== "") {
+        const op = parseInt(opStr, 10);
+        const bp = parseInt(bpStr, 10);
+        if (isNaN(op) || (!isNaN(bp) && op < bp)) {
+          rowErrs.push("Original price must be >= Base price");
+        }
+      }
+
+      const stStr = (v.stock || "").trim();
+      if (stStr === "") {
+        rowErrs.push("Stock is required");
+      } else {
+        const st = parseInt(stStr, 10);
+        if (isNaN(st) || st < 0) {
+          rowErrs.push("Stock cannot be negative");
+        }
+      }
+
+      if (rowErrs.length > 0) {
+        errorsMap[idx] = rowErrs;
+      }
+    });
+
+    if (Object.keys(errorsMap).length > 0) {
+      setRowErrors(errorsMap);
+      setStatusError("Please fix the highlighted errors in the variants table before saving.");
       return;
     }
 
     setLoading(true);
 
-    const priceNum = parseInt(basePriceStr, 10);
-    const stockNum = parseInt(stockStr, 10);
-    const origNum = origPriceStr !== "" ? parseInt(origPriceStr, 10) : priceNum;
+    const preparedVariants = variants.map((v) => {
+      const bp = parseInt(v.basePrice.trim(), 10);
+      const opStr = v.originalPrice.trim();
+      const op = opStr !== "" ? parseInt(opStr, 10) : bp;
+      const st = parseInt(v.stock.trim() || "0", 10);
+      return {
+        ram: v.ram.trim(),
+        storage: v.storage.trim(),
+        basePrice: bp,
+        originalPrice: op,
+        stock: st,
+        inStock: v.inStock && st > 0,
+        isDefault: v.isDefault,
+        sku: v.sku ? v.sku.trim() : "",
+      };
+    });
 
     const payload = {
       ...formData,
-      basePrice: priceNum,
-      originalPrice: origNum,
-      stock: stockNum,
-      discountPrice: formData.discountPrice ? parseInt(formData.discountPrice, 10) : null,
+      variants: preparedVariants,
       warrantyMonths: formData.warrantyMonths ? parseInt(formData.warrantyMonths, 10) : 12,
     };
 
@@ -132,13 +197,12 @@ export default function AdminNewProductPage() {
 
       const data = await res.json();
       if (data.success) {
-        alert("Product created successfully!");
         router.push("/admin/products");
       } else {
-        alert(data.error || "Failed to create product");
+        setStatusError(data.error || "Failed to create product");
       }
     } catch {
-      alert("Error saving product to database");
+      setStatusError("Error saving product to database");
     } finally {
       setLoading(false);
     }
@@ -146,238 +210,182 @@ export default function AdminNewProductPage() {
 
   return (
     <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
-        <Link
-          href="/admin/products"
-          className="inline-flex items-center gap-2 text-sm text-muted hover:text-foreground transition"
-        >
-          <ArrowLeft className="w-4 h-4" /> Back to Products
-        </Link>
+      <Link
+        href="/admin/products"
+        className="inline-flex items-center gap-2 text-sm text-muted hover:text-foreground transition"
+      >
+        <ArrowLeft className="w-4 h-4" /> Back to Products
+      </Link>
 
-        <div className="bg-card border border-border rounded-2xl p-6 shadow-xs transition-colors duration-200">
-          <h1 className="text-xl font-bold text-foreground mb-1">Add New Smartphone / Accessory</h1>
-          <p className="text-xs text-muted mb-6">
-            Enter full technical specifications. Mobile products automatically register for 1-Year Device Shield warranty upon customer purchase.
-          </p>
+      {statusError && (
+        <div className="p-4 rounded-xl border flex items-center gap-3 text-xs font-medium bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300">
+          <AlertCircle className="w-5 h-5 shrink-0 text-rose-600 dark:text-rose-400" />
+          <div className="flex-1">{statusError}</div>
+          <button
+            type="button"
+            onClick={() => setStatusError(null)}
+            className="text-xs hover:opacity-75 cursor-pointer font-bold px-1"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Core Info */}
+      <div className="bg-card border border-border rounded-2xl p-6 shadow-xs transition-colors duration-200">
+        <h1 className="text-xl font-bold text-foreground mb-1">Add New Smartphone / Accessory</h1>
+        <p className="text-xs text-muted mb-6">
+          Enter product identity, specifications, and RAM/storage variants with independent pricing.
+        </p>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Core Info */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-semibold text-muted mb-1.5">Product Name</label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="e.g. Apple iPhone 16 Pro Max"
+                className="w-full px-4 py-2.5 bg-tile border border-border rounded-xl text-foreground text-xs focus:outline-none focus:border-[#C9A66B]"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-muted mb-1.5">Brand</label>
+              <select
+                value={formData.brand}
+                onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+                className="w-full px-4 py-2.5 bg-tile border border-border rounded-xl text-foreground text-xs focus:outline-none focus:border-[#C9A66B]"
+              >
+                {FAMOUS_BRANDS.map((b) => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-muted mb-1.5">Category</label>
+              <select
+                value={formData.category}
+                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                className="w-full px-4 py-2.5 bg-tile border border-border rounded-xl text-foreground text-xs focus:outline-none focus:border-[#C9A66B]"
+              >
+                <option value="SMARTPHONE">Smartphone</option>
+                <option value="ACCESSORY">Mobile Accessory</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Variants Section */}
+          <div className="pt-4 border-t border-border">
+            <VariantEditor
+              variants={variants}
+              onChange={setVariants}
+              rowErrors={rowErrors}
+            />
+          </div>
+
+          {/* Specifications */}
+          <div className="pt-4 border-t border-border space-y-4">
+            <h3 className="text-sm font-bold text-foreground">Hardware Specifications</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-semibold text-muted mb-1.5">Product Name</label>
+              <div>
+                <label className="block text-xs font-semibold text-muted mb-1.5">Processor</label>
                 <input
                   type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="e.g. Apple iPhone 16 Pro Max"
+                  value={formData.processor}
+                  onChange={(e) => setFormData({ ...formData, processor: e.target.value })}
+                  placeholder="e.g. A18 Pro Bionic / Snapdragon 8 Gen 3"
                   className="w-full px-4 py-2.5 bg-tile border border-border rounded-xl text-foreground text-xs focus:outline-none focus:border-[#C9A66B]"
-                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-muted mb-1.5">Display</label>
+                <input
+                  type="text"
+                  value={formData.display}
+                  onChange={(e) => setFormData({ ...formData, display: e.target.value })}
+                  placeholder="e.g. 6.7 inch Super Retina XDR OLED"
+                  className="w-full px-4 py-2.5 bg-tile border border-border rounded-xl text-foreground text-xs focus:outline-none focus:border-[#C9A66B]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-muted mb-1.5">Brand</label>
-                <select
-                  value={formData.brand}
-                  onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                  className="w-full px-4 py-2.5 bg-tile border border-border rounded-xl text-foreground text-xs focus:outline-none focus:border-[#C9A66B]"
-                >
-                  {FAMOUS_BRANDS.map((b) => (
-                    <option key={b} value={b}>{b}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-muted mb-1.5">Category</label>
-                <select
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  className="w-full px-4 py-2.5 bg-tile border border-border rounded-xl text-foreground text-xs focus:outline-none focus:border-[#C9A66B]"
-                >
-                  <option value="SMARTPHONE">Smartphone</option>
-                  <option value="ACCESSORY">Mobile Accessory</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-muted mb-1.5">
-                  Base Price (₹) <span className="text-red-500">*</span>
-                </label>
-                <NumberInput
-                  value={formData.basePrice}
-                  onChange={(e) => {
-                    setFormData({ ...formData, basePrice: e.target.value });
-                    if (errors.basePrice) setErrors((prev) => ({ ...prev, basePrice: "" }));
-                  }}
-                  placeholder="Enter base price"
-                  hasError={Boolean(errors.basePrice)}
+                <label className="block text-xs font-semibold text-muted mb-1.5">Camera</label>
+                <input
+                  type="text"
+                  value={formData.camera}
+                  onChange={(e) => setFormData({ ...formData, camera: e.target.value })}
+                  placeholder="e.g. 48MP Main + 12MP Ultra-Wide"
                   className="w-full px-4 py-2.5 bg-tile border border-border rounded-xl text-foreground text-xs focus:outline-none focus:border-[#C9A66B]"
                 />
-                {errors.basePrice && (
-                  <p className="mt-1 text-xs text-red-500 font-medium">{errors.basePrice}</p>
-                )}
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-muted mb-1.5">Original Price (₹)</label>
-                <NumberInput
-                  value={formData.originalPrice}
-                  onChange={(e) => {
-                    setFormData({ ...formData, originalPrice: e.target.value });
-                    if (errors.originalPrice) setErrors((prev) => ({ ...prev, originalPrice: "" }));
-                  }}
-                  placeholder="Enter original price (optional)"
-                  hasError={Boolean(errors.originalPrice)}
+                <label className="block text-xs font-semibold text-muted mb-1.5">Battery</label>
+                <input
+                  type="text"
+                  value={formData.battery}
+                  onChange={(e) => setFormData({ ...formData, battery: e.target.value })}
+                  placeholder="e.g. 4685 mAh All-Day Battery"
                   className="w-full px-4 py-2.5 bg-tile border border-border rounded-xl text-foreground text-xs focus:outline-none focus:border-[#C9A66B]"
                 />
-                {errors.originalPrice && (
-                  <p className="mt-1 text-xs text-red-500 font-medium">{errors.originalPrice}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-muted mb-1.5">
-                  Initial Stock Quantity <span className="text-red-500">*</span>
-                </label>
-                <NumberInput
-                  value={formData.stock}
-                  onChange={(e) => {
-                    setFormData({ ...formData, stock: e.target.value });
-                    if (errors.stock) setErrors((prev) => ({ ...prev, stock: "" }));
-                  }}
-                  placeholder="Enter stock quantity"
-                  hasError={Boolean(errors.stock)}
-                  className="w-full px-4 py-2.5 bg-tile border border-border rounded-xl text-foreground text-xs focus:outline-none focus:border-[#C9A66B]"
-                />
-                {errors.stock && (
-                  <p className="mt-1 text-xs text-red-500 font-medium">{errors.stock}</p>
-                )}
               </div>
 
               <div className="sm:col-span-2">
-                <label className="block text-xs font-semibold text-muted mb-1.5">Product Image URL</label>
+                <label className="block text-xs font-semibold text-muted mb-1.5">Operating System (OS)</label>
                 <input
-                  type="url"
-                  value={formData.imageUrl}
-                  onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                  placeholder="https://..."
+                  type="text"
+                  value={formData.os}
+                  onChange={(e) => setFormData({ ...formData, os: e.target.value })}
+                  placeholder="e.g. iOS 18 / Android 15"
                   className="w-full px-4 py-2.5 bg-tile border border-border rounded-xl text-foreground text-xs focus:outline-none focus:border-[#C9A66B]"
-                  required
                 />
               </div>
             </div>
+          </div>
 
-            {/* Smartphone Specifications */}
-            <div className="border-t border-border pt-5 space-y-4">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-[#8C6226] dark:text-[#E5CBA2]">Technical Specifications</h2>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                <div>
-                  <label className="block text-muted mb-1">Processor</label>
-                  <input
-                    type="text"
-                    value={formData.processor}
-                    onChange={(e) => setFormData({ ...formData, processor: e.target.value })}
-                    className="w-full px-4 py-2 bg-tile border border-border rounded-xl text-foreground focus:outline-none focus:border-[#C9A66B]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-muted mb-1">RAM</label>
-                  <input
-                    type="text"
-                    value={formData.ram}
-                    onChange={(e) => setFormData({ ...formData, ram: e.target.value })}
-                    className="w-full px-4 py-2 bg-tile border border-border rounded-xl text-foreground focus:outline-none focus:border-[#C9A66B]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-muted mb-1">Display</label>
-                  <input
-                    type="text"
-                    value={formData.display}
-                    onChange={(e) => setFormData({ ...formData, display: e.target.value })}
-                    className="w-full px-4 py-2 bg-tile border border-border rounded-xl text-foreground focus:outline-none focus:border-[#C9A66B]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-muted mb-1">Operating System</label>
-                  <input
-                    type="text"
-                    value={formData.os}
-                    onChange={(e) => setFormData({ ...formData, os: e.target.value })}
-                    className="w-full px-4 py-2 bg-tile border border-border rounded-xl text-foreground focus:outline-none focus:border-[#C9A66B]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-muted mb-1">Rear Camera</label>
-                  <input
-                    type="text"
-                    value={formData.rearCamera}
-                    onChange={(e) => setFormData({ ...formData, rearCamera: e.target.value })}
-                    className="w-full px-4 py-2 bg-tile border border-border rounded-xl text-foreground focus:outline-none focus:border-[#C9A66B]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-muted mb-1">Front Camera</label>
-                  <input
-                    type="text"
-                    value={formData.frontCamera}
-                    onChange={(e) => setFormData({ ...formData, frontCamera: e.target.value })}
-                    className="w-full px-4 py-2 bg-tile border border-border rounded-xl text-foreground focus:outline-none focus:border-[#C9A66B]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-muted mb-1">Battery</label>
-                  <input
-                    type="text"
-                    value={formData.battery}
-                    onChange={(e) => setFormData({ ...formData, battery: e.target.value })}
-                    className="w-full px-4 py-2 bg-tile border border-border rounded-xl text-foreground focus:outline-none focus:border-[#C9A66B]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-muted mb-1">5G Network Band</label>
-                  <input
-                    type="text"
-                    value={formData.network5G}
-                    onChange={(e) => setFormData({ ...formData, network5G: e.target.value })}
-                    className="w-full px-4 py-2 bg-tile border border-border rounded-xl text-foreground focus:outline-none focus:border-[#C9A66B]"
-                  />
-                </div>
-              </div>
+          {/* Automatic In-Stock & Feature */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4 border-t border-border">
+            <div className="flex items-center gap-2 text-xs font-medium text-foreground">
+              <span className="text-muted">Automatic Stock Status:</span>
+              {isAnyVariantInStock ? (
+                <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/30">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  In Stock ({totalStock} total units)
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 text-rose-600 dark:text-rose-400 font-semibold bg-rose-500/10 px-2.5 py-1 rounded-full border border-rose-500/30">
+                  <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                  Out of Stock
+                </span>
+              )}
             </div>
 
-            {/* Featured Checkbox */}
-            <div className="flex items-center gap-2 pt-2 border-t border-border">
+            <label className="flex items-center gap-2 text-xs text-foreground/90 font-medium cursor-pointer">
               <input
                 type="checkbox"
-                id="featuredToggle"
                 checked={formData.isFeatured}
                 onChange={(e) => setFormData({ ...formData, isFeatured: e.target.checked })}
                 className="rounded border-border text-[#C9A66B] focus:ring-[#C9A66B]"
               />
-              <label htmlFor="featuredToggle" className="text-xs text-foreground/90 font-medium cursor-pointer">
-                Mark as Featured Flagship Device (Promoted on homepage hero)
-              </label>
-            </div>
+              Feature on Homepage
+            </label>
+          </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] font-semibold text-xs rounded-xl flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer"
-            >
-              <Save className="w-4 h-4" />
-              {loading ? "Publishing Product..." : "Publish to Storefront"}
-            </button>
-          </form>
-        </div>
-      </main>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] font-semibold text-xs rounded-xl flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer disabled:opacity-50"
+          >
+            <Save className="w-4 h-4" />
+            {loading ? "Creating Product..." : "Create Product with Variants"}
+          </button>
+        </form>
+      </div>
+    </main>
   );
 }

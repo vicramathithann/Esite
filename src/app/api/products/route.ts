@@ -89,6 +89,7 @@ export async function GET(request: Request) {
       colors: JSON.parse(p.colors || "[]"),
       storageOptions: JSON.parse(p.storageOptions || "[]"),
       highlightFeatures: JSON.parse(p.highlightFeatures || "[]"),
+      variants: p.variants || [],
     }));
 
     return NextResponse.json(
@@ -150,46 +151,167 @@ export async function POST(request: Request) {
       variants,
     } = body;
 
-    if (!name || !brand || basePrice === undefined || basePrice === null || String(basePrice).trim() === "") {
-      return NextResponse.json(
-        { success: false, error: "Name, brand, and base price are required." },
-        { status: 400 }
-      );
-    }
+    let processedVariants: any[] | null = null;
+    let priceNum = 0;
+    let origPriceNum = 0;
+    let stockNum = 0;
+    let autoInStock = true;
+    let derivedRam = ram || "8GB";
+    let serializedStorageOptions = JSON.stringify(storageOptions || [{ size: "256GB", price: 49999 }]);
 
-    const priceNum = parseInt(String(basePrice), 10);
-    if (isNaN(priceNum) || priceNum <= 0) {
-      return NextResponse.json(
-        { success: false, error: "Base Price must be a valid number greater than 0." },
-        { status: 400 }
-      );
-    }
+    if (variants && Array.isArray(variants) && variants.length > 0) {
+      const seenPairs = new Set<string>();
+      processedVariants = [];
 
-    if (stock === undefined || stock === null || String(stock).trim() === "") {
-      return NextResponse.json(
-        { success: false, error: "Available stock is required." },
-        { status: 400 }
-      );
-    }
+      for (let i = 0; i < variants.length; i++) {
+        const v = variants[i];
+        const vRam = String(v.ram || "").trim();
+        const vStorage = String(v.storage || "").trim();
+        if (!vRam) {
+          return NextResponse.json(
+            { success: false, error: `Row ${i + 1}: RAM is required.` },
+            { status: 400 }
+          );
+        }
+        if (!vStorage) {
+          return NextResponse.json(
+            { success: false, error: `Row ${i + 1}: Storage is required.` },
+            { status: 400 }
+          );
+        }
 
-    const stockNum = parseInt(String(stock), 10);
-    if (isNaN(stockNum) || stockNum < 0) {
-      return NextResponse.json(
-        { success: false, error: "Stock must be a valid non-negative integer." },
-        { status: 400 }
-      );
-    }
+        const pairKey = `${vRam.toLowerCase()}_${vStorage.toLowerCase()}`;
+        if (seenPairs.has(pairKey)) {
+          return NextResponse.json(
+            { success: false, error: `Row ${i + 1}: Duplicate RAM (${vRam}) and Storage (${vStorage}) variant.` },
+            { status: 400 }
+          );
+        }
+        seenPairs.add(pairKey);
 
-    let origPriceNum = priceNum;
-    if (originalPrice !== undefined && originalPrice !== null && String(originalPrice).trim() !== "") {
-      const parsedOrig = parseInt(String(originalPrice), 10);
-      if (isNaN(parsedOrig) || parsedOrig < priceNum) {
+        const bp = parseInt(String(v.basePrice ?? v.price), 10);
+        if (isNaN(bp) || bp <= 0) {
+          return NextResponse.json(
+            { success: false, error: `Row ${i + 1}: Base price must be greater than 0.` },
+            { status: 400 }
+          );
+        }
+
+        const opStr = v.originalPrice !== undefined && v.originalPrice !== null ? String(v.originalPrice).trim() : "";
+        let op = bp;
+        if (opStr !== "") {
+          const parsedOp = parseInt(opStr, 10);
+          if (isNaN(parsedOp) || parsedOp < bp) {
+            return NextResponse.json(
+              { success: false, error: `Row ${i + 1}: Original price must be greater than or equal to Base price.` },
+              { status: 400 }
+            );
+          }
+          op = parsedOp;
+        }
+
+        const stStr = v.stock !== undefined && v.stock !== null ? String(v.stock).trim() : "0";
+        const st = parseInt(stStr, 10);
+        if (isNaN(st) || st < 0) {
+          return NextResponse.json(
+            { success: false, error: `Row ${i + 1}: Stock cannot be negative.` },
+            { status: 400 }
+          );
+        }
+
+        const isDefault = Boolean(v.isDefault);
+        const inStock = v.inStock !== undefined ? Boolean(v.inStock) : st > 0;
+        const sku = String(v.sku || "").trim();
+
+        processedVariants.push({
+          ram: vRam,
+          storage: vStorage,
+          basePrice: bp,
+          originalPrice: op,
+          stock: st,
+          inStock,
+          sku,
+          isDefault,
+        });
+      }
+
+      if (!processedVariants.some((v) => v.isDefault)) {
+        processedVariants[0].isDefault = true;
+      }
+
+      const defaultVariant = processedVariants.find((v) => v.isDefault) || processedVariants[0];
+      const lowestVariant = [...processedVariants].sort((a, b) => a.basePrice - b.basePrice)[0];
+
+      priceNum = lowestVariant.basePrice;
+      origPriceNum = defaultVariant.originalPrice || lowestVariant.originalPrice;
+      stockNum = processedVariants.reduce((sum, v) => sum + v.stock, 0);
+      autoInStock = processedVariants.some((v) => v.stock > 0 && v.inStock);
+
+      const uniqueRams = Array.from(new Set(processedVariants.map((v) => v.ram)));
+      derivedRam = uniqueRams.join(" / ");
+
+      serializedStorageOptions = JSON.stringify(
+        processedVariants.map((v) => ({
+          size: v.storage,
+          storage: v.storage,
+          ram: v.ram,
+          basePrice: v.basePrice,
+          price: v.basePrice,
+          originalPrice: v.originalPrice,
+          stock: v.stock,
+          inStock: v.inStock,
+          sku: v.sku,
+          isDefault: v.isDefault,
+        }))
+      );
+    } else {
+      if (basePrice === undefined || basePrice === null || String(basePrice).trim() === "") {
         return NextResponse.json(
-          { success: false, error: "Original Price must be greater than or equal to Base Price." },
+          { success: false, error: "Base price is required." },
           { status: 400 }
         );
       }
-      origPriceNum = parsedOrig;
+      priceNum = parseInt(String(basePrice), 10);
+      if (isNaN(priceNum) || priceNum <= 0) {
+        return NextResponse.json(
+          { success: false, error: "Base Price must be a valid number greater than 0." },
+          { status: 400 }
+        );
+      }
+
+      if (stock === undefined || stock === null || String(stock).trim() === "") {
+        return NextResponse.json(
+          { success: false, error: "Available stock is required." },
+          { status: 400 }
+        );
+      }
+      stockNum = parseInt(String(stock), 10);
+      if (isNaN(stockNum) || stockNum < 0) {
+        return NextResponse.json(
+          { success: false, error: "Stock must be a valid non-negative integer." },
+          { status: 400 }
+        );
+      }
+
+      origPriceNum = priceNum;
+      if (originalPrice !== undefined && originalPrice !== null && String(originalPrice).trim() !== "") {
+        const parsedOrig = parseInt(String(originalPrice), 10);
+        if (isNaN(parsedOrig) || parsedOrig < priceNum) {
+          return NextResponse.json(
+            { success: false, error: "Original Price must be greater than or equal to Base Price." },
+            { status: 400 }
+          );
+        }
+        origPriceNum = parsedOrig;
+      }
+      autoInStock = inStock !== undefined ? Boolean(inStock) : stockNum > 0;
+    }
+
+    if (!name || !brand) {
+      return NextResponse.json(
+        { success: false, error: "Name and brand are required." },
+        { status: 400 }
+      );
     }
 
     const product = await prisma.mobileProduct.create({
@@ -208,8 +330,8 @@ export async function POST(request: Request) {
         imageUrl: imageUrl || "/images/placeholder.png",
         galleryImages: JSON.stringify(galleryImages || [imageUrl || "/images/placeholder.png"]),
         colors: JSON.stringify(colors || [{ name: "Space Black", hex: "#1a1a1a" }]),
-        storageOptions: JSON.stringify(storageOptions || [{ size: "256GB", price: priceNum }]),
-        ram: ram || "12GB",
+        storageOptions: serializedStorageOptions,
+        ram: derivedRam,
         display: display || "6.7\" Super Retina AMOLED",
         displayType: displayType || "OLED / AMOLED 120Hz",
         processor: processor || "Flagship 4nm Processor",
@@ -222,24 +344,24 @@ export async function POST(request: Request) {
         network5G: network5G || "Sub-6GHz + mmWave 5G",
         warrantyMonths: warrantyMonths ? parseInt(String(warrantyMonths), 10) : 12,
         stock: stockNum,
-        inStock: inStock !== undefined ? Boolean(inStock) : stockNum > 0,
+        inStock: autoInStock,
         isFeatured: Boolean(isFeatured),
         highlightFeatures: JSON.stringify(highlightFeatures || ["5G Connectivity", "Fast Charging", "IP68 Water Resistance"]),
       },
     });
 
-    // Create variants if provided
-    if (variants && Array.isArray(variants) && variants.length > 0) {
-      for (const v of variants) {
+    // Create variants in ProductVariant table if provided
+    if (processedVariants && processedVariants.length > 0) {
+      for (const v of processedVariants) {
+        const vid = `${product.id}-${v.ram.toLowerCase().replace(/[^a-z0-9]/g, '')}-${v.storage.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
         await prisma.productVariant.create({
           data: {
+            id: vid,
             productId: product.id,
-            ram: v.ram || null,
-            storage: v.storage || null,
-            color: v.color || null,
-            colorHex: v.colorHex || null,
-            price: v.price ? parseInt(String(v.price), 10) : priceNum,
-            stock: v.stock !== undefined ? parseInt(String(v.stock), 10) : 10,
+            ram: v.ram,
+            storage: v.storage,
+            price: v.basePrice,
+            stock: v.stock,
             sku: v.sku || null,
           },
         });

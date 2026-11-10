@@ -29,6 +29,7 @@ export async function GET(
       colors: JSON.parse(product.colors || "[]"),
       storageOptions: JSON.parse(product.storageOptions || "[]"),
       highlightFeatures: JSON.parse(product.highlightFeatures || "[]"),
+      variants: product.variants || [],
     };
 
     return NextResponse.json(
@@ -110,93 +111,192 @@ export async function PATCH(
       updateData.category = cat ? cat.toUpperCase() : "SMARTPHONE";
     }
 
-    // 2. Pricing fields
-    if (body.basePrice !== undefined) {
-      if (body.basePrice === null || String(body.basePrice).trim() === "") {
+    // 2. Pricing & Variants fields
+    let processedVariants: any[] | null = null;
+    if (body.variants !== undefined) {
+      if (!Array.isArray(body.variants) || body.variants.length === 0) {
         return NextResponse.json(
-          { success: false, error: "Base Price is required." },
+          { success: false, error: "At least one variant is required." },
           { status: 400 }
         );
       }
-      const priceNum = parseInt(String(body.basePrice), 10);
-      if (isNaN(priceNum) || priceNum <= 0) {
-        return NextResponse.json(
-          { success: false, error: "Base Price must be a valid number greater than 0." },
-          { status: 400 }
-        );
-      }
-      updateData.basePrice = priceNum;
 
-      // Keep default storageOption aligned with basePrice if not explicitly passed
-      if (body.storageOptions === undefined && existing.storageOptions) {
-        try {
-          const currentStorage = JSON.parse(existing.storageOptions);
-          if (Array.isArray(currentStorage) && currentStorage.length > 0) {
-            const oldBase = existing.basePrice || currentStorage[0].price;
-            const delta = priceNum - oldBase;
-            const updatedStorage = currentStorage.map((opt: any, idx: number) => {
-              if (idx === 0 || opt.price === oldBase) {
-                return { ...opt, price: priceNum };
-              }
-              return { ...opt, price: Math.max(0, (opt.price || 0) + delta) };
-            });
-            updateData.storageOptions = JSON.stringify(updatedStorage);
-          }
-        } catch {
-          // ignore parsing error
-        }
-      }
-    }
+      const seenPairs = new Set<string>();
+      processedVariants = [];
 
-    if (body.discountPrice !== undefined) {
-      if (body.discountPrice === null || body.discountPrice === "" || isNaN(Number(body.discountPrice))) {
-        updateData.discountPrice = null;
-      } else {
-        const discNum = parseInt(String(body.discountPrice), 10);
-        updateData.discountPrice = discNum >= 0 ? discNum : null;
-      }
-    }
-
-    if (body.originalPrice !== undefined) {
-      if (body.originalPrice === null || String(body.originalPrice).trim() === "") {
-        updateData.originalPrice = updateData.basePrice ?? existing.basePrice;
-      } else {
-        const origNum = parseInt(String(body.originalPrice), 10);
-        const effectiveBasePrice = (updateData.basePrice as number) ?? existing.basePrice;
-        if (isNaN(origNum) || origNum < effectiveBasePrice) {
+      for (let i = 0; i < body.variants.length; i++) {
+        const v = body.variants[i];
+        const ram = String(v.ram || "").trim();
+        const storage = String(v.storage || "").trim();
+        if (!ram) {
           return NextResponse.json(
-            { success: false, error: "Original Price must be greater than or equal to Base Price." },
+            { success: false, error: `Row ${i + 1}: RAM is required.` },
             { status: 400 }
           );
         }
-        updateData.originalPrice = origNum;
-      }
-    }
+        if (!storage) {
+          return NextResponse.json(
+            { success: false, error: `Row ${i + 1}: Storage is required.` },
+            { status: 400 }
+          );
+        }
 
-    // 3. Stock & Visibility
-    if (body.stock !== undefined) {
-      if (body.stock === null || String(body.stock).trim() === "") {
-        return NextResponse.json(
-          { success: false, error: "Available stock is required." },
-          { status: 400 }
-        );
-      }
-      const stockInt = parseInt(String(body.stock), 10);
-      if (isNaN(stockInt) || stockInt < 0) {
-        return NextResponse.json(
-          { success: false, error: "Stock must be a valid non-negative integer." },
-          { status: 400 }
-        );
-      }
-      updateData.stock = stockInt;
-      // Auto-update inStock if not explicitly passed
-      if (body.inStock === undefined) {
-        updateData.inStock = stockInt > 0;
-      }
-    }
+        const pairKey = `${ram.toLowerCase()}_${storage.toLowerCase()}`;
+        if (seenPairs.has(pairKey)) {
+          return NextResponse.json(
+            { success: false, error: `Row ${i + 1}: Duplicate RAM (${ram}) and Storage (${storage}) variant.` },
+            { status: 400 }
+          );
+        }
+        seenPairs.add(pairKey);
 
-    if (body.inStock !== undefined) {
-      updateData.inStock = Boolean(body.inStock);
+        const bp = parseInt(String(v.basePrice), 10);
+        if (isNaN(bp) || bp <= 0) {
+          return NextResponse.json(
+            { success: false, error: `Row ${i + 1}: Base price must be greater than 0.` },
+            { status: 400 }
+          );
+        }
+
+        const opStr = v.originalPrice !== undefined && v.originalPrice !== null ? String(v.originalPrice).trim() : "";
+        let op = bp;
+        if (opStr !== "") {
+          const parsedOp = parseInt(opStr, 10);
+          if (isNaN(parsedOp) || parsedOp < bp) {
+            return NextResponse.json(
+              { success: false, error: `Row ${i + 1}: Original price must be greater than or equal to Base price.` },
+              { status: 400 }
+            );
+          }
+          op = parsedOp;
+        }
+
+        const stStr = v.stock !== undefined && v.stock !== null ? String(v.stock).trim() : "0";
+        const st = parseInt(stStr, 10);
+        if (isNaN(st) || st < 0) {
+          return NextResponse.json(
+            { success: false, error: `Row ${i + 1}: Stock cannot be negative.` },
+            { status: 400 }
+          );
+        }
+
+        const isDefault = Boolean(v.isDefault);
+        const inStock = v.inStock !== undefined ? Boolean(v.inStock) : st > 0;
+        const sku = String(v.sku || "").trim();
+        const vid = v.id && !v.id.startsWith("temp-") ? v.id : `${id}-${ram.toLowerCase().replace(/[^a-z0-9]/g, '')}-${storage.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+
+        processedVariants.push({
+          id: vid,
+          productId: id,
+          ram,
+          storage,
+          basePrice: bp,
+          originalPrice: op,
+          stock: st,
+          inStock,
+          sku,
+          isDefault,
+        });
+      }
+
+      if (!processedVariants.some((v) => v.isDefault)) {
+        processedVariants[0].isDefault = true;
+      }
+
+      const defaultVariant = processedVariants.find((v) => v.isDefault) || processedVariants[0];
+      const lowestVariant = [...processedVariants].sort((a, b) => a.basePrice - b.basePrice)[0];
+
+      updateData.basePrice = lowestVariant.basePrice;
+      updateData.originalPrice = defaultVariant.originalPrice || lowestVariant.originalPrice;
+      updateData.stock = processedVariants.reduce((sum, v) => sum + v.stock, 0);
+      updateData.inStock = processedVariants.some((v) => v.stock > 0 && v.inStock);
+
+      const uniqueRams = Array.from(new Set(processedVariants.map((v) => v.ram)));
+      updateData.ram = uniqueRams.join(" / ");
+
+      updateData.storageOptions = JSON.stringify(
+        processedVariants.map((v) => ({
+          id: v.id,
+          size: v.storage,
+          storage: v.storage,
+          ram: v.ram,
+          basePrice: v.basePrice,
+          price: v.basePrice,
+          originalPrice: v.originalPrice,
+          stock: v.stock,
+          inStock: v.inStock,
+          sku: v.sku,
+          isDefault: v.isDefault,
+        }))
+      );
+    } else {
+      // Legacy fallback for single price/stock/ram update
+      if (body.basePrice !== undefined) {
+        if (body.basePrice === null || String(body.basePrice).trim() === "") {
+          return NextResponse.json(
+            { success: false, error: "Base Price is required." },
+            { status: 400 }
+          );
+        }
+        const priceNum = parseInt(String(body.basePrice), 10);
+        if (isNaN(priceNum) || priceNum <= 0) {
+          return NextResponse.json(
+            { success: false, error: "Base Price must be a valid number greater than 0." },
+            { status: 400 }
+          );
+        }
+        updateData.basePrice = priceNum;
+      }
+
+      if (body.discountPrice !== undefined) {
+        if (body.discountPrice === null || body.discountPrice === "" || isNaN(Number(body.discountPrice))) {
+          updateData.discountPrice = null;
+        } else {
+          const discNum = parseInt(String(body.discountPrice), 10);
+          updateData.discountPrice = discNum >= 0 ? discNum : null;
+        }
+      }
+
+      if (body.originalPrice !== undefined) {
+        if (body.originalPrice === null || String(body.originalPrice).trim() === "") {
+          updateData.originalPrice = updateData.basePrice ?? existing.basePrice;
+        } else {
+          const origNum = parseInt(String(body.originalPrice), 10);
+          const effectiveBasePrice = (updateData.basePrice as number) ?? existing.basePrice;
+          if (isNaN(origNum) || origNum < effectiveBasePrice) {
+            return NextResponse.json(
+              { success: false, error: "Original Price must be greater than or equal to Base Price." },
+              { status: 400 }
+            );
+          }
+          updateData.originalPrice = origNum;
+        }
+      }
+
+      // Stock & Visibility
+      if (body.stock !== undefined) {
+        if (body.stock === null || String(body.stock).trim() === "") {
+          return NextResponse.json(
+            { success: false, error: "Available stock is required." },
+            { status: 400 }
+          );
+        }
+        const stockInt = parseInt(String(body.stock), 10);
+        if (isNaN(stockInt) || stockInt < 0) {
+          return NextResponse.json(
+            { success: false, error: "Stock must be a valid non-negative integer." },
+            { status: 400 }
+          );
+        }
+        updateData.stock = stockInt;
+        if (body.inStock === undefined) {
+          updateData.inStock = stockInt > 0;
+        }
+      }
+
+      if (body.inStock !== undefined) {
+        updateData.inStock = Boolean(body.inStock);
+      }
     }
 
     if (body.isFeatured !== undefined) {
@@ -232,6 +332,30 @@ export async function PATCH(
       where: { id },
       data: updateData,
     });
+
+    // 5b. Sync ProductVariant table rows
+    if (processedVariants && processedVariants.length > 0) {
+      try {
+        await prisma.productVariant.deleteMany({
+          where: { productId: id },
+        });
+        for (const pv of processedVariants) {
+          await prisma.productVariant.create({
+            data: {
+              id: pv.id,
+              productId: id,
+              ram: pv.ram,
+              storage: pv.storage,
+              price: pv.basePrice,
+              stock: pv.stock,
+              sku: pv.sku || null,
+            },
+          });
+        }
+      } catch (pvErr) {
+        console.warn("Non-fatal sync warning for ProductVariant records:", pvErr);
+      }
+    }
 
     // 6. Dual catalog synchronization: keep Mobile table in sync
     try {

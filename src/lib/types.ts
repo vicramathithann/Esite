@@ -8,6 +8,19 @@ export interface StorageOption {
   price: number;
 }
 
+export interface ProductVariantData {
+  id: string;
+  productId?: string;
+  ram: string;
+  storage: string;
+  basePrice: number;
+  originalPrice?: number;
+  stock: number;
+  inStock: boolean;
+  sku?: string;
+  isDefault: boolean;
+}
+
 export interface MobileProductData {
   id: string;
   name: string;
@@ -22,6 +35,7 @@ export interface MobileProductData {
   galleryImages: string[];
   colors: ProductColor[];
   storageOptions: StorageOption[];
+  variants?: ProductVariantData[];
   ram: string;
   display: string;
   processor: string;
@@ -39,11 +53,13 @@ export interface MobileProductData {
 export interface CartItem {
   id: string;
   productId: string;
+  variantId?: string;
   name: string;
   brand: string;
   imageUrl: string;
   selectedColor: ProductColor;
   selectedStorage: StorageOption;
+  selectedRam?: string;
   price: number;
   quantity: number;
   warrantyMonths: number;
@@ -54,6 +70,7 @@ export interface CartItem {
 export interface OrderItemData {
   id: string;
   productId: string;
+  variantId?: string;
   productName: string;
   productBrand: string;
   productImageUrl: string;

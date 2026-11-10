@@ -192,17 +192,18 @@ export async function POST(request: Request) {
       }
     }
 
-    // 5. Parallel Product Lookups (Single Batch Query instead of sequential loop)
+    // 5. Parallel Product Lookups with Variants
     const productIds: string[] = Array.from(
       new Set(items.map((i: any) => i.productId).filter(Boolean))
     );
     const dbProducts = await prisma.mobileProduct.findMany({
       where: { id: { in: productIds } },
+      include: { variants: true },
     });
     const productMap = new Map(dbProducts.map((p: any) => [p.id, p]));
 
     let computedBackendTotal = 0;
-    const validatedProductsMap = new Map<string, { product: any; unitPrice: number; qty: number }>();
+    const validatedProductsMap = new Map<string, { product: any; variant: any; unitPrice: number; qty: number }>();
 
     for (const item of items) {
       const qty = Math.max(1, parseInt(String(item.quantity || 1), 10));
@@ -223,23 +224,48 @@ export async function POST(request: Request) {
         );
       }
 
-      if (!product.inStock || product.stock <= 0 || product.stock < qty) {
+      // Resolve specific variant
+      const rawStorage = typeof item.selectedStorage === "object" && item.selectedStorage !== null
+        ? item.selectedStorage.size
+        : String(item.selectedStorage || "");
+      const rawRam = String(item.selectedRam || "").trim();
+
+      let matchedVariant: any = null;
+      if (item.variantId && Array.isArray(product.variants)) {
+        matchedVariant = product.variants.find((v: any) => v.id === item.variantId);
+      }
+      if (!matchedVariant && Array.isArray(product.variants) && product.variants.length > 0) {
+        matchedVariant = product.variants.find((v: any) =>
+          (rawStorage ? (v.storage || "").toLowerCase() === rawStorage.toLowerCase() : true) &&
+          (rawRam ? (v.ram || "").toLowerCase().includes(rawRam.toLowerCase()) : true)
+        );
+        if (!matchedVariant && rawStorage) {
+          matchedVariant = product.variants.find((v: any) => (v.storage || "").toLowerCase() === rawStorage.toLowerCase());
+        }
+        if (!matchedVariant) {
+          matchedVariant = product.variants.find((v: any) => v.isDefault) || product.variants[0];
+        }
+      }
+
+      const availableStock = matchedVariant ? matchedVariant.stock : product.stock;
+      if (availableStock === undefined || availableStock <= 0 || availableStock < qty) {
+        const varLabel = matchedVariant ? ` (${matchedVariant.storage})` : "";
         return NextResponse.json(
           {
             success: false,
-            error: `Sorry, "${product.name}" is out of stock (available: ${product.stock}, requested: ${qty}).`,
+            error: `Sorry, "${product.name}${varLabel}" is out of stock (available: ${availableStock ?? 0}, requested: ${qty}).`,
           },
           { status: 400 }
         );
       }
 
-      const unitPrice =
-        product.discountPrice && product.discountPrice > 0
-          ? product.discountPrice
-          : product.basePrice;
+      const unitPrice = matchedVariant
+        ? (matchedVariant.basePrice || matchedVariant.price)
+        : (product.discountPrice && product.discountPrice > 0 ? product.discountPrice : product.basePrice);
 
       computedBackendTotal += unitPrice * qty;
-      validatedProductsMap.set(item.productId, { product, unitPrice, qty });
+      const itemKey = item.variantId ? `${item.productId}_${item.variantId}` : `${item.productId}_${rawStorage}`;
+      validatedProductsMap.set(itemKey, { product, variant: matchedVariant, unitPrice, qty });
     }
 
     // Authoritative total calculated strictly on the server
@@ -251,8 +277,13 @@ export async function POST(request: Request) {
     const orderItemsCreateData: any[] = [];
 
     for (const item of items) {
-      const validated = validatedProductsMap.get(item.productId);
+      const rawStorage = typeof item.selectedStorage === "object" && item.selectedStorage !== null
+        ? item.selectedStorage.size
+        : String(item.selectedStorage || "");
+      const itemKey = item.variantId ? `${item.productId}_${item.variantId}` : `${item.productId}_${rawStorage}`;
+      const validated = validatedProductsMap.get(itemKey);
       const prod = validated?.product;
+      const matchedVariant = validated?.variant;
       const unitPrice = validated?.unitPrice || 0;
       const qty = validated?.qty || 1;
 
@@ -275,7 +306,8 @@ export async function POST(request: Request) {
           : (prod?.name || "Samsung Galaxy S24");
       }
 
-      const pName = realModelName;
+      const storageLabel = matchedVariant ? matchedVariant.storage : (typeof item.selectedStorage === "object" ? item.selectedStorage.size : (item.selectedStorage || ""));
+      const pName = storageLabel && !realModelName.includes(storageLabel) ? `${realModelName} ${storageLabel}` : realModelName;
       const pBrand = prod ? prod.brand : (item.productBrand || "VN Mobiles");
       const pImage = prod ? prod.imageUrl : (item.productImageUrl || "/images/placeholder.png");
 
@@ -315,12 +347,31 @@ export async function POST(request: Request) {
     const fullDeliveryAddress = `${cleanAddress}, ${cleanCity}, ${cleanState} - ${cleanPincode}`;
 
     const { order, createdWarranties } = await prisma.$transaction(async (tx: any) => {
-      // 7a. Deduct stock in parallel
+      // 7a. Deduct stock in parallel (both variant-level and product-level)
       await Promise.all(
-        items.map((item: any) => {
+        items.map(async (item: any) => {
+          const rawStorage = typeof item.selectedStorage === "object" && item.selectedStorage !== null
+            ? item.selectedStorage.size
+            : String(item.selectedStorage || "");
+          const itemKey = item.variantId ? `${item.productId}_${item.variantId}` : `${item.productId}_${rawStorage}`;
+          const validated = validatedProductsMap.get(itemKey);
           const qty = Math.max(1, parseInt(String(item.quantity || 1), 10));
-          const prod = productMap.get(item.productId);
-          const updatedStock = ((prod?.stock || 0) - qty);
+          const prod = validated?.product;
+          const variant = validated?.variant;
+
+          if (variant?.id) {
+            const updatedVarStock = Math.max(0, (variant.stock || 0) - qty);
+            try {
+              await tx.productVariant.update({
+                where: { id: variant.id },
+                data: { stock: updatedVarStock },
+              });
+            } catch (vErr) {
+              console.warn("Could not update variant stock row:", vErr);
+            }
+          }
+
+          const updatedStock = Math.max(0, (prod?.stock || 0) - qty);
           return tx.mobileProduct.update({
             where: { id: item.productId },
             data: {
