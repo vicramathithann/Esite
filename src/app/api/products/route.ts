@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { revalidateProducts } from "@/lib/revalidate";
+import { validateSafeImageUrl } from "@/lib/ssrf";
 
 export async function GET(request: Request) {
   try {
@@ -363,6 +364,13 @@ export async function POST(request: Request) {
             { status: 400 }
           );
         }
+        const imgCheck = validateSafeImageUrl(img.url);
+        if (!imgCheck.valid) {
+          return NextResponse.json(
+            { success: false, error: `Image #${i + 1}: ${imgCheck.error}` },
+            { status: 400 }
+          );
+        }
       }
 
       const primaryImg = body.images.find((img: any) => img.isPrimary) || body.images[0];
@@ -380,6 +388,13 @@ export async function POST(request: Request) {
       if (!imageUrl || !String(imageUrl).trim()) {
         return NextResponse.json(
           { success: false, error: "At least one product image is required." },
+          { status: 400 }
+        );
+      }
+      const imgCheck = validateSafeImageUrl(imageUrl);
+      if (!imgCheck.valid) {
+        return NextResponse.json(
+          { success: false, error: `Product image: ${imgCheck.error}` },
           { status: 400 }
         );
       }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { revalidateProducts } from "@/lib/revalidate";
+import { validateSafeImageUrl } from "@/lib/ssrf";
 
 export async function GET(
   _request: Request,
@@ -359,6 +360,13 @@ export async function PATCH(
             { status: 400 }
           );
         }
+        const imgCheck = validateSafeImageUrl(img.url);
+        if (!imgCheck.valid) {
+          return NextResponse.json(
+            { success: false, error: `Image #${i + 1}: ${imgCheck.error}` },
+            { status: 400 }
+          );
+        }
       }
 
       const primaryImg = body.images.find((img: any) => img.isPrimary) || body.images[0];
@@ -373,7 +381,19 @@ export async function PATCH(
       updateData.imageUrl = primaryImg.url.trim();
       updateData.galleryImages = JSON.stringify(normalizedImages);
     } else if (body.imageUrl !== undefined) {
-      updateData.imageUrl = safeTrim(body.imageUrl) || existing.imageUrl;
+      const trimmedUrl = safeTrim(body.imageUrl);
+      if (trimmedUrl) {
+        const imgCheck = validateSafeImageUrl(trimmedUrl);
+        if (!imgCheck.valid) {
+          return NextResponse.json(
+            { success: false, error: `Product image: ${imgCheck.error}` },
+            { status: 400 }
+          );
+        }
+        updateData.imageUrl = trimmedUrl;
+      } else {
+        updateData.imageUrl = existing.imageUrl;
+      }
     }
 
     // 5. Specifications
