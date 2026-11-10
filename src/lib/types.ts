@@ -75,39 +75,3 @@ export interface CartItem {
   inStock?: boolean;
   stock?: number;
 }
-
-export interface OrderItemData {
-  id: string;
-  productId: string;
-  variantId?: string;
-  productName: string;
-  productBrand: string;
-  productImageUrl: string;
-  selectedColor: string;
-  selectedStorage: string;
-  price: number;
-  quantity: number;
-  imeiNumber: string;
-  warrantyMonths: number;
-  warrantyStartDate: string;
-  warrantyExpiryDate: string;
-  warrantyStatus: "ACTIVE" | "EXPIRING_SOON" | "EXPIRED" | "CANCELLED";
-}
-
-export interface OrderData {
-  id: string;
-  orderNumber: string;
-  customerName: string;
-  customerPhone?: string;
-  customerEmail: string;
-  address: string;
-  city: string;
-  pincode: string;
-  state: string;
-  totalAmount: number;
-  paymentMethod: string;
-  paymentStatus: string;
-  orderStatus: string;
-  createdAt: string;
-  items: OrderItemData[];
-}
