@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, use } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { MobileProductData, ProductColor, StorageOption, ProductVariantData } from "@/lib/types";
+import { MobileProductData, ProductColor, StorageOption, ProductVariantData, ProductImageData } from "@/lib/types";
 import { DEFAULT_PRODUCTS } from "@/lib/catalogData";
 import { getCachedProduct } from "@/components/ProductCatalog";
 import { useApp } from "@/context/AppContext";
@@ -228,6 +228,34 @@ export default function MobileDetailPage({
   const isCompared = compareList.some((p) => p.id === product.id);
   const isOutOfStock = !selectedVariant.inStock || (selectedVariant.stock !== undefined && selectedVariant.stock <= 0);
 
+  const productImagesList: ProductImageData[] = useMemo(() => {
+    if (!product) return [];
+    if (Array.isArray(product.images) && product.images.length > 0) {
+      return product.images;
+    }
+    if (Array.isArray(product.galleryImages) && product.galleryImages.length > 0) {
+      return product.galleryImages.map((imgUrl, idx) => ({
+        url: typeof imgUrl === "string" ? imgUrl : (imgUrl as any)?.url || product.imageUrl,
+        alt: `${product.name} photo ${idx + 1}`,
+        isPrimary: idx === 0,
+        order: idx,
+      }));
+    }
+    return [{
+      url: product.imageUrl,
+      alt: product.name,
+      isPrimary: true,
+      order: 0,
+    }];
+  }, [product]);
+
+  useEffect(() => {
+    if (productImagesList.length > 0 && !selectedImage) {
+      const primary = productImagesList.find((img) => img.isPrimary) || productImagesList[0];
+      setSelectedImage(primary.url);
+    }
+  }, [productImagesList, selectedImage]);
+
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
     const x = ((e.clientX - left) / width) * 100;
@@ -237,10 +265,16 @@ export default function MobileDetailPage({
 
   const handleColorChange = (color: ProductColor) => {
     setSelectedColor(color);
-    if (product.galleryImages && product.galleryImages.length > 0) {
-      setSelectedImage(product.galleryImages[0]);
+    const colorPhoto = productImagesList.find(
+      (img) => img.colorKey && img.colorKey.toLowerCase() === color.name.toLowerCase()
+    );
+    if (colorPhoto) {
+      setSelectedImage(colorPhoto.url);
     } else {
-      setSelectedImage(product.imageUrl);
+      const primary = productImagesList.find((img) => img.isPrimary) || productImagesList[0];
+      if (primary) {
+        setSelectedImage(primary.url);
+      }
     }
   };
 
@@ -325,19 +359,21 @@ export default function MobileDetailPage({
           {/* Column 1: Image Gallery with Interactive Zoom */}
           <div className="lg:col-span-6 flex flex-col-reverse sm:flex-row gap-4 sticky top-24">
             {/* Thumbnail Strip */}
-            {product.galleryImages && product.galleryImages.length > 1 && (
+            {productImagesList.length > 1 && (
               <div className="flex sm:flex-col gap-2.5 overflow-x-auto sm:overflow-y-auto max-h-[520px] scrollbar-none shrink-0">
-                {product.galleryImages.map((imgUrl, idx) => (
+                {productImagesList.map((img, idx) => (
                   <button
-                    key={idx}
-                    onClick={() => setSelectedImage(imgUrl)}
-                    className={`relative w-16 h-16 rounded-[14px] p-2 bg-tile border transition-all duration-200 cursor-pointer ${
-                      selectedImage === imgUrl
-                        ? "border-accent ring-2 ring-accent/20 shadow-xs"
+                    key={img.url || idx}
+                    type="button"
+                    onClick={() => setSelectedImage(img.url)}
+                    className={`relative w-16 h-16 rounded-[14px] p-2 bg-tile border transition-all duration-200 cursor-pointer overflow-hidden ${
+                      selectedImage === img.url
+                        ? "border-[#C9A66B] dark:border-[#D4B483] ring-2 ring-[#C9A66B]/25 shadow-xs"
                         : "border-border hover:border-foreground/30"
                     }`}
+                    title={img.alt || `Photo ${idx + 1}`}
                   >
-                    <Image src={imgUrl} alt="Thumbnail" fill unoptimized className="object-contain" />
+                    <Image src={img.url} alt={img.alt || "Thumbnail"} fill unoptimized className="object-contain p-1" />
                   </button>
                 ))}
               </div>
@@ -358,7 +394,7 @@ export default function MobileDetailPage({
                 }}
               >
                 <Image
-                  src={selectedImage || product.imageUrl}
+                  src={selectedImage || productImagesList[0]?.url || product.imageUrl}
                   alt={product.name}
                   fill
                   priority

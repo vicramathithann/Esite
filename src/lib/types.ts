@@ -8,6 +8,14 @@ export interface StorageOption {
   price: number;
 }
 
+export interface ProductImageData {
+  url: string;
+  alt?: string;
+  isPrimary: boolean;
+  order: number;
+  colorKey?: string;
+}
+
 export interface ProductVariantData {
   id: string;
   productId?: string;
@@ -33,6 +41,7 @@ export interface MobileProductData {
   reviewCount: number;
   imageUrl: string;
   galleryImages: string[];
+  images?: ProductImageData[];
   colors: ProductColor[];
   storageOptions: StorageOption[];
   variants?: ProductVariantData[];

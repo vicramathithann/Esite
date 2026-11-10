@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Save, AlertCircle } from "lucide-react";
 import VariantEditor, { FormVariantRow } from "@/components/admin/VariantEditor";
+import ProductImageManager from "@/components/admin/ProductImageManager";
+import { ProductImageData } from "@/lib/types";
 
 const FAMOUS_BRANDS = [
   "Apple",
@@ -30,13 +32,16 @@ export default function AdminNewProductPage() {
   const [loading, setLoading] = useState(false);
   const [rowErrors, setRowErrors] = useState<Record<number, string[]>>({});
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [images, setImages] = useState<ProductImageData[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     name: "",
     brand: "Apple",
     model: "",
     category: "SMARTPHONE",
-    imageUrl: "https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=800&auto=format&fit=crop&q=80",
+    imageUrl: "",
     display: "6.7\" Super Retina XDR OLED 120Hz",
     displayType: "OLED 120Hz LTPO",
     processor: "A18 Pro Bionic",
@@ -93,7 +98,22 @@ export default function AdminNewProductPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setRowErrors({});
+    setImageError(null);
     setStatusError(null);
+
+    // Validate active upload
+    if (isUploading) {
+      setImageError("Please wait for the photo upload to complete before saving.");
+      setStatusError("Please wait for photo uploads to finish before saving.");
+      return;
+    }
+
+    // Validate Images: at least 1 image required
+    if (images.length === 0) {
+      setImageError("At least one product photo is required.");
+      setStatusError("Every product must have at least one image before saving.");
+      return;
+    }
 
     if (variants.length === 0) {
       setStatusError("At least one variant is required.");
@@ -181,8 +201,12 @@ export default function AdminNewProductPage() {
       };
     });
 
+    const primaryImg = images.find((img) => img.isPrimary) || images[0];
+
     const payload = {
       ...formData,
+      imageUrl: primaryImg ? primaryImg.url : "",
+      images,
       variants: preparedVariants,
       warrantyMonths: formData.warrantyMonths ? parseInt(formData.warrantyMonths, 10) : 12,
     };
@@ -287,6 +311,25 @@ export default function AdminNewProductPage() {
             />
           </div>
 
+          {/* Product Images Section (Above Hardware Specifications) */}
+          <div className="pt-4 border-t border-border">
+            <ProductImageManager
+              images={images}
+              onChange={setImages}
+              availableColors={
+                formData.colors
+                  ? Array.isArray(formData.colors)
+                    ? formData.colors
+                    : []
+                  : []
+              }
+              isUploading={isUploading}
+              setIsUploading={setIsUploading}
+              errorMessage={imageError}
+              setErrorMessage={setImageError}
+            />
+          </div>
+
           {/* Specifications */}
           <div className="pt-4 border-t border-border space-y-4">
             <h3 className="text-sm font-bold text-foreground">Hardware Specifications</h3>
@@ -378,11 +421,11 @@ export default function AdminNewProductPage() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || isUploading || images.length === 0}
             className="w-full py-3 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] font-semibold text-xs rounded-xl flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
-            {loading ? "Creating Product..." : "Create Product with Variants"}
+            {loading ? "Creating Product..." : isUploading ? "Uploading Images..." : "Create Product with Variants"}
           </button>
         </form>
       </div>

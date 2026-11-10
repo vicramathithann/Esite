@@ -23,9 +23,37 @@ export async function GET(
       return NextResponse.json({ success: false, error: "Product not found" }, { status: 404 });
     }
 
+    let parsedImages: any[] = [];
+    try {
+      const parsedGallery = JSON.parse(product.galleryImages || "[]");
+      if (Array.isArray(parsedGallery) && parsedGallery.length > 0) {
+        if (typeof parsedGallery[0] === "object" && parsedGallery[0] !== null && parsedGallery[0].url) {
+          parsedImages = parsedGallery;
+        } else {
+          parsedImages = parsedGallery.map((u: string, idx: number) => ({
+            url: u,
+            alt: `${product.name} Photo ${idx + 1}`,
+            isPrimary: idx === 0,
+            order: idx,
+          }));
+        }
+      }
+    } catch {}
+    if (parsedImages.length === 0 && product.imageUrl) {
+      parsedImages = [
+        {
+          url: product.imageUrl,
+          alt: product.name,
+          isPrimary: true,
+          order: 0,
+        },
+      ];
+    }
+
     const parsed = {
       ...product,
       galleryImages: JSON.parse(product.galleryImages || "[]"),
+      images: parsedImages,
       colors: JSON.parse(product.colors || "[]"),
       storageOptions: JSON.parse(product.storageOptions || "[]"),
       highlightFeatures: JSON.parse(product.highlightFeatures || "[]"),
@@ -308,8 +336,47 @@ export async function PATCH(
       updateData.warrantyMonths = isNaN(wm) ? 12 : wm;
     }
 
-    // 4. Specifications
-    if (body.imageUrl !== undefined) updateData.imageUrl = safeTrim(body.imageUrl) || existing.imageUrl;
+    // 4. Product Images
+    if (body.images !== undefined) {
+      if (!Array.isArray(body.images) || body.images.length === 0) {
+        return NextResponse.json(
+          { success: false, error: "At least one product image is required." },
+          { status: 400 }
+        );
+      }
+      if (body.images.length > 8) {
+        return NextResponse.json(
+          { success: false, error: "A maximum of 8 product images is allowed." },
+          { status: 400 }
+        );
+      }
+
+      for (let i = 0; i < body.images.length; i++) {
+        const img = body.images[i];
+        if (!img || !img.url || typeof img.url !== "string" || !img.url.trim()) {
+          return NextResponse.json(
+            { success: false, error: `Image #${i + 1} has an invalid or empty URL.` },
+            { status: 400 }
+          );
+        }
+      }
+
+      const primaryImg = body.images.find((img: any) => img.isPrimary) || body.images[0];
+      const normalizedImages = body.images.map((img: any, idx: number) => ({
+        url: img.url.trim(),
+        alt: img.alt ? String(img.alt).trim() : `${body.name || existing.name} photo ${idx + 1}`,
+        isPrimary: img.url.trim() === primaryImg.url.trim(),
+        order: idx,
+        colorKey: img.colorKey ? String(img.colorKey).trim() : undefined,
+      }));
+
+      updateData.imageUrl = primaryImg.url.trim();
+      updateData.galleryImages = JSON.stringify(normalizedImages);
+    } else if (body.imageUrl !== undefined) {
+      updateData.imageUrl = safeTrim(body.imageUrl) || existing.imageUrl;
+    }
+
+    // 5. Specifications
     if (body.ram !== undefined) updateData.ram = safeTrim(body.ram) || "";
     if (body.display !== undefined) updateData.display = safeTrim(body.display) || "";
     if (body.displayType !== undefined) updateData.displayType = safeTrim(body.displayType);

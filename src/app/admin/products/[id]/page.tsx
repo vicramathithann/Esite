@@ -5,6 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Save, AlertCircle, CheckCircle2 } from "lucide-react";
 import VariantEditor, { FormVariantRow } from "@/components/admin/VariantEditor";
+import ProductImageManager from "@/components/admin/ProductImageManager";
+import { ProductImageData } from "@/lib/types";
 
 export default function AdminEditProductPage() {
   const params = useParams();
@@ -15,6 +17,9 @@ export default function AdminEditProductPage() {
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState<any | null>(null);
   const [variants, setVariants] = useState<FormVariantRow[]>([]);
+  const [images, setImages] = useState<ProductImageData[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
   const [rowErrors, setRowErrors] = useState<Record<number, string[]>>({});
   const [statusMessage, setStatusMessage] = useState<{
     type: "success" | "error";
@@ -35,6 +40,7 @@ export default function AdminEditProductPage() {
         if (data.success && data.product) {
           setFormData(data.product);
 
+          // 1. Initialize Variants
           let initialVariants: FormVariantRow[] = [];
           if (Array.isArray(data.product.variants) && data.product.variants.length > 0) {
             initialVariants = data.product.variants.map((v: any) => ({
@@ -51,7 +57,7 @@ export default function AdminEditProductPage() {
           } else if (Array.isArray(data.product.storageOptions) && data.product.storageOptions.length > 0) {
             initialVariants = data.product.storageOptions.map((opt: any, idx: number) => ({
               id: opt.id,
-              ram: opt.ram || (data.product.ram ? data.product.ram.split('/')[0].trim() : "8GB"),
+              ram: opt.ram || (data.product.ram ? data.product.ram.split("/")[0].trim() : "8GB"),
               storage: opt.size || opt.storage || "128GB",
               basePrice: opt.basePrice !== undefined ? String(opt.basePrice) : String(opt.price || data.product.basePrice || ""),
               originalPrice: opt.originalPrice !== undefined ? String(opt.originalPrice) : String(data.product.originalPrice || ""),
@@ -63,7 +69,7 @@ export default function AdminEditProductPage() {
           } else {
             initialVariants = [
               {
-                ram: data.product.ram ? data.product.ram.split('/')[0].trim() : "8GB",
+                ram: data.product.ram ? data.product.ram.split("/")[0].trim() : "8GB",
                 storage: "128GB",
                 basePrice: String(data.product.basePrice || "49999"),
                 originalPrice: String(data.product.originalPrice || "54999"),
@@ -77,8 +83,33 @@ export default function AdminEditProductPage() {
           if (!initialVariants.some((v) => v.isDefault) && initialVariants.length > 0) {
             initialVariants[0].isDefault = true;
           }
-
           setVariants(initialVariants);
+
+          // 2. Initialize Images
+          let initialImages: ProductImageData[] = [];
+          if (Array.isArray(data.product.images) && data.product.images.length > 0) {
+            initialImages = data.product.images;
+          } else if (Array.isArray(data.product.galleryImages) && data.product.galleryImages.length > 0) {
+            initialImages = data.product.galleryImages.map((u: any, idx: number) => {
+              if (typeof u === "object" && u !== null && u.url) return u;
+              return {
+                url: typeof u === "string" ? u : "",
+                alt: `${data.product.name} photo ${idx + 1}`,
+                isPrimary: idx === 0,
+                order: idx,
+              };
+            });
+          } else if (data.product.imageUrl) {
+            initialImages = [
+              {
+                url: data.product.imageUrl,
+                alt: data.product.name,
+                isPrimary: true,
+                order: 0,
+              },
+            ];
+          }
+          setImages(initialImages);
         } else {
           setStatusMessage({
             type: "error",
@@ -105,7 +136,28 @@ export default function AdminEditProductPage() {
     e.preventDefault();
     if (!formData) return;
     setRowErrors({});
+    setImageError(null);
     setStatusMessage(null);
+
+    // Validate active upload
+    if (isUploading) {
+      setImageError("Please wait for the photo upload to complete before saving.");
+      setStatusMessage({
+        type: "error",
+        text: "Please wait for photo uploads to finish before saving.",
+      });
+      return;
+    }
+
+    // Validate Images: at least 1 image required
+    if (images.length === 0) {
+      setImageError("At least one product photo is required.");
+      setStatusMessage({
+        type: "error",
+        text: "Every product must have at least one image before saving.",
+      });
+      return;
+    }
 
     // Validate Variants
     if (variants.length === 0) {
@@ -201,7 +253,6 @@ export default function AdminEditProductPage() {
       };
     });
 
-    // Clean update payload
     const payload = {
       name: formData.name,
       brand: formData.brand,
@@ -217,6 +268,13 @@ export default function AdminEditProductPage() {
       battery: formData.battery || "",
       os: formData.os || "",
       variants: preparedVariants,
+      images: images.map((img, i) => ({
+        url: img.url.trim(),
+        alt: img.alt ? img.alt.trim() : `${formData.name} photo ${i + 1}`,
+        isPrimary: img.isPrimary,
+        order: i,
+        colorKey: img.colorKey,
+      })),
     };
 
     try {
@@ -313,7 +371,7 @@ export default function AdminEditProductPage() {
       <div className="bg-card border border-border rounded-2xl p-6 shadow-xs transition-colors duration-200">
         <h1 className="text-xl font-bold text-foreground mb-1">Edit {formData.name}</h1>
         <p className="text-xs text-muted mb-6">
-          Update specifications, RAM and storage tiers, independent pricing, and stock.
+          Update specifications, upload product gallery photos, and manage RAM & storage tiers.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -362,7 +420,26 @@ export default function AdminEditProductPage() {
             />
           </div>
 
-          {/* Specifications */}
+          {/* Product Images Section (Above Hardware Specifications) */}
+          <div className="pt-4 border-t border-border">
+            <ProductImageManager
+              images={images}
+              onChange={setImages}
+              availableColors={
+                formData.colors
+                  ? Array.isArray(formData.colors)
+                    ? formData.colors
+                    : JSON.parse(formData.colors)
+                  : []
+              }
+              isUploading={isUploading}
+              setIsUploading={setIsUploading}
+              errorMessage={imageError}
+              setErrorMessage={setImageError}
+            />
+          </div>
+
+          {/* Hardware Specifications */}
           <div className="pt-4 border-t border-border space-y-4">
             <h3 className="text-sm font-bold text-foreground">Hardware Specifications</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -423,7 +500,7 @@ export default function AdminEditProductPage() {
             </div>
           </div>
 
-          {/* Automatic In-Stock Badge & Options */}
+          {/* Automatic In-Stock & Options */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4 border-t border-border">
             <div className="flex items-center gap-2 text-xs font-medium text-foreground">
               <span className="text-muted">Automatic Stock Status:</span>
@@ -453,11 +530,11 @@ export default function AdminEditProductPage() {
 
           <button
             type="submit"
-            disabled={saving}
+            disabled={saving || isUploading || images.length === 0}
             className="w-full py-3 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] font-semibold text-xs rounded-xl flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
-            {saving ? "Saving Changes..." : "Save Product Changes"}
+            {saving ? "Saving Changes..." : isUploading ? "Uploading Images..." : "Save Product Changes"}
           </button>
         </form>
       </div>

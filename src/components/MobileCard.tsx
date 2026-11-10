@@ -173,19 +173,29 @@ function MobileCardComponent({ product }: MobileCardProps) {
         </div>
 
         {/* Product Image Frame: in dark mode, tile is slightly lighter than card */}
-        <Link 
-          href={`/mobile/${product.id}`}
-          className="block relative aspect-square w-full mb-3.5 p-4 rounded-[16px] bg-tile border border-border/50 group-hover:border-border transition-colors duration-200 flex items-center justify-center overflow-hidden"
-        >
-          <MobileImage
-            src={product.imageUrl}
-            alt={product.name}
-            phoneId={product.id}
-            brand={product.brand}
-            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
-            className="object-contain group-hover:scale-105 transition-transform duration-200 ease-out"
-          />
-        </Link>
+        {(() => {
+          const primaryImg = product.images?.find((img) => img.isPrimary)?.url || product.imageUrl;
+          const activeColorImage = selectedColor
+            ? product.images?.find((img) => img.colorKey && img.colorKey.toLowerCase() === selectedColor.name.toLowerCase())?.url
+            : null;
+          const displayImage = activeColorImage || primaryImg;
+
+          return (
+            <Link 
+              href={`/mobile/${product.id}`}
+              className="block relative aspect-square w-full mb-3.5 p-4 rounded-[16px] bg-tile border border-border/50 group-hover:border-border transition-colors duration-200 flex items-center justify-center overflow-hidden"
+            >
+              <MobileImage
+                src={displayImage}
+                alt={product.name}
+                phoneId={product.id}
+                brand={product.brand}
+                sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
+                className="object-contain group-hover:scale-105 transition-transform duration-200 ease-out"
+              />
+            </Link>
+          );
+        })()}
 
         {/* Color Swatch Dots */}
         <div className="flex items-center justify-center gap-1.5 mb-3">

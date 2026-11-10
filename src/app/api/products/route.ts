@@ -77,20 +77,44 @@ export async function GET(request: Request) {
       },
     });
 
-    const parsed = products.map((p: {
-      galleryImages?: string | null;
-      colors?: string | null;
-      storageOptions?: string | null;
-      highlightFeatures?: string | null;
-      [key: string]: any;
-    }) => ({
-      ...p,
-      galleryImages: JSON.parse(p.galleryImages || "[]"),
-      colors: JSON.parse(p.colors || "[]"),
-      storageOptions: JSON.parse(p.storageOptions || "[]"),
-      highlightFeatures: JSON.parse(p.highlightFeatures || "[]"),
-      variants: p.variants || [],
-    }));
+    const parsed = products.map((p: any) => {
+      let parsedImages: any[] = [];
+      try {
+        const parsedGallery = JSON.parse(p.galleryImages || "[]");
+        if (Array.isArray(parsedGallery) && parsedGallery.length > 0) {
+          if (typeof parsedGallery[0] === "object" && parsedGallery[0] !== null && parsedGallery[0].url) {
+            parsedImages = parsedGallery;
+          } else {
+            parsedImages = parsedGallery.map((u: string, idx: number) => ({
+              url: u,
+              alt: `${p.name} Photo ${idx + 1}`,
+              isPrimary: idx === 0,
+              order: idx,
+            }));
+          }
+        }
+      } catch {}
+      if (parsedImages.length === 0 && p.imageUrl) {
+        parsedImages = [
+          {
+            url: p.imageUrl,
+            alt: p.name,
+            isPrimary: true,
+            order: 0,
+          },
+        ];
+      }
+
+      return {
+        ...p,
+        galleryImages: JSON.parse(p.galleryImages || "[]"),
+        images: parsedImages,
+        colors: JSON.parse(p.colors || "[]"),
+        storageOptions: JSON.parse(p.storageOptions || "[]"),
+        highlightFeatures: JSON.parse(p.highlightFeatures || "[]"),
+        variants: p.variants || [],
+      };
+    });
 
     return NextResponse.json(
       { success: true, count: parsed.length, products: parsed },
@@ -314,6 +338,55 @@ export async function POST(request: Request) {
       );
     }
 
+    let finalImageUrl = imageUrl || "";
+    let finalGalleryImages = "[]";
+
+    if (body.images !== undefined) {
+      if (!Array.isArray(body.images) || body.images.length === 0) {
+        return NextResponse.json(
+          { success: false, error: "At least one product image is required." },
+          { status: 400 }
+        );
+      }
+      if (body.images.length > 8) {
+        return NextResponse.json(
+          { success: false, error: "A maximum of 8 product images is allowed." },
+          { status: 400 }
+        );
+      }
+
+      for (let i = 0; i < body.images.length; i++) {
+        const img = body.images[i];
+        if (!img || !img.url || typeof img.url !== "string" || !img.url.trim()) {
+          return NextResponse.json(
+            { success: false, error: `Image #${i + 1} has an invalid or empty URL.` },
+            { status: 400 }
+          );
+        }
+      }
+
+      const primaryImg = body.images.find((img: any) => img.isPrimary) || body.images[0];
+      const normalizedImages = body.images.map((img: any, idx: number) => ({
+        url: img.url.trim(),
+        alt: img.alt ? String(img.alt).trim() : `${name} photo ${idx + 1}`,
+        isPrimary: img.url.trim() === primaryImg.url.trim(),
+        order: idx,
+        colorKey: img.colorKey ? String(img.colorKey).trim() : undefined,
+      }));
+
+      finalImageUrl = primaryImg.url.trim();
+      finalGalleryImages = JSON.stringify(normalizedImages);
+    } else {
+      if (!imageUrl || !String(imageUrl).trim()) {
+        return NextResponse.json(
+          { success: false, error: "At least one product image is required." },
+          { status: 400 }
+        );
+      }
+      finalImageUrl = String(imageUrl).trim();
+      finalGalleryImages = JSON.stringify(galleryImages || [finalImageUrl]);
+    }
+
     const product = await prisma.mobileProduct.create({
       data: {
         name: name.trim(),
@@ -327,8 +400,8 @@ export async function POST(request: Request) {
         originalPrice: origPriceNum,
         rating: rating !== undefined ? parseFloat(String(rating)) : 4.8,
         reviewCount: reviewCount !== undefined ? parseInt(String(reviewCount), 10) : 100,
-        imageUrl: imageUrl || "/images/placeholder.png",
-        galleryImages: JSON.stringify(galleryImages || [imageUrl || "/images/placeholder.png"]),
+        imageUrl: finalImageUrl,
+        galleryImages: finalGalleryImages,
         colors: JSON.stringify(colors || [{ name: "Space Black", hex: "#1a1a1a" }]),
         storageOptions: serializedStorageOptions,
         ram: derivedRam,
