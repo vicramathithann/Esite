@@ -44,8 +44,8 @@ export function verifyPassword(password: string, storedHash: string): boolean {
     return false;
   }
 
-  // Fallback for simple legacy test passwords if any
-  return password === storedHash;
+  // Reject unhashed / plaintext passwords to prevent credential compromise
+  return false;
 }
 
 /**

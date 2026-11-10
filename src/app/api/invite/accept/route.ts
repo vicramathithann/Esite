@@ -160,12 +160,12 @@ export async function POST(request: Request) {
     const userRole = (invitation.role || "USER").toUpperCase();
 
     // 7. Generate safe unique placeholder phone number if creating fresh user
-    let uniquePhone = existingUser?.phone || `+91 ${Math.floor(6000000000 + Math.random() * 3999999999)}`;
+    let uniquePhone = existingUser?.phone || `+91 ${crypto.randomInt(6000000000, 10000000000)}`;
     while (
       !existingUser &&
       (await prisma.user.findUnique({ where: { phone: uniquePhone } }))
     ) {
-      uniquePhone = `+91 ${Math.floor(6000000000 + Math.random() * 3999999999)}`;
+      uniquePhone = `+91 ${crypto.randomInt(6000000000, 10000000000)}`;
     }
 
     // 8. Hash password using PBKDF2/SHA-512 (100,000 iterations)

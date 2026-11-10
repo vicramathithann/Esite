@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 import type { Transporter } from "nodemailer";
+import crypto from "node:crypto";
 import { env, getMissingServerEnvVars, getBaseUrl } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import {
@@ -354,7 +355,7 @@ export async function sendWarrantyEmail(
     sourceItems = [
       {
         productName: orderNumber ? `Order #${orderNumber} Device` : "Protected Device",
-        imeiNumber: `86${Math.floor(1000000000000 + Math.random() * 9000000000000)}`,
+        imeiNumber: `86${crypto.randomInt(1000000000000, 10000000000000)}`,
         warrantyMonths: 12,
       },
     ];
@@ -402,7 +403,7 @@ export async function sendWarrantyEmail(
     const warrantyNum =
       matchedWarranty?.warrantyNumber || `WRT-${orderNumber}-${idx + 1}`;
     const imei =
-      matchedWarranty?.imeiNumber || item.imeiNumber || `86${Math.floor(1000000000000 + Math.random() * 9000000000000)}`;
+      matchedWarranty?.imeiNumber || item.imeiNumber || `86${crypto.randomInt(1000000000000, 10000000000000)}`;
 
     const months = item.warrantyMonths || 12;
     const durationStr =

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import crypto from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { getAuthenticatedUser } from "@/lib/auth";
 import { sendWarrantyEmail } from "@/lib/mailer";
@@ -83,7 +84,7 @@ export async function POST(
               customerName: order.customerName,
               customerEmail: order.customerEmail,
               productName: item.productName,
-              imeiNumber: item.imeiNumber || `86${Math.floor(1000000000000 + Math.random() * 9000000000000)}`,
+              imeiNumber: item.imeiNumber || `86${crypto.randomInt(1000000000000, 10000000000000)}`,
               purchaseDate: order.createdAt || new Date(),
               warrantyDuration: `${Math.round((item.warrantyMonths || 12) / 12)} Year`,
               warrantyStartDate: item.warrantyStartDate || order.createdAt || new Date(),

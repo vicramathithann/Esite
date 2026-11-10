@@ -56,7 +56,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const cleanPhone = phone?.trim() || existingUser?.phone || `+91 ${Math.floor(6000000000 + Math.random() * 3999999999)}`;
+    const cleanPhone = phone?.trim() || existingUser?.phone || `+91 ${crypto.randomInt(6000000000, 10000000000)}`;
     const hashedPassword = hashPassword(password);
     const verificationToken = crypto.randomBytes(32).toString("hex");
     const tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);

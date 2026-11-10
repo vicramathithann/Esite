@@ -1,4 +1,5 @@
 import { NextResponse, after } from "next/server";
+import crypto from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { sendWarrantyEmail } from "@/lib/mailer";
 import { getAuthenticatedUser } from "@/lib/auth";
@@ -269,7 +270,7 @@ export async function POST(request: Request) {
 
     // Authoritative total calculated strictly on the server
     const orderTotal = computedBackendTotal;
-    const orderNumber = `ORD${Math.floor(10000 + Math.random() * 90000)}`;
+    const orderNumber = `ORD${crypto.randomInt(10000, 100000)}`;
     const now = new Date();
 
     // 6. Prepare Order Items & IMEI numbers with verified server pricing
@@ -310,7 +311,7 @@ export async function POST(request: Request) {
       const pBrand = prod ? prod.brand : (item.productBrand || "VN Mobiles");
       const pImage = prod ? prod.imageUrl : (item.productImageUrl || "/images/placeholder.png");
 
-      const imei = `86${Math.floor(1000000000000 + Math.random() * 9000000000000)}`;
+      const imei = `86${crypto.randomInt(1000000000000, 10000000000000)}`;
       const months = item.warrantyMonths || 12;
       const expiry = new Date(now);
       expiry.setFullYear(expiry.getFullYear() + Math.max(1, Math.round(months / 12)));
