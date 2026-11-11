@@ -14,6 +14,7 @@ import {
   renderAccountDeletionOtpEmail,
   renderAccountDeletionConfirmedEmail,
   renderAdminInvitationEmail,
+  renderWarrantyUpdatedEmail,
 } from "./email-templates";
 import { generateWarrantyCertificatePdf, formatKolkataDate } from "./warranty-pdf";
 import { sendWarrantyEmail } from "./mailer";
@@ -892,6 +893,129 @@ export async function sendWarrantyActivationEmail(warranty: {
     subject,
     emailType: "WARRANTY_NOTIFICATION",
     orderId: warranty.orderId,
+    productName: resolvedName,
+    contentSummary: plainText,
+    text: plainText,
+    html,
+    attachments: pdfAttachment ? [pdfAttachment] : undefined,
+  });
+}
+
+/**
+ * Sends Mobile Warranty Updated Email with updated official PDF certificate attached.
+ * Dispatched when an administrator modifies a device warranty's duration or expiration date.
+ */
+export async function sendWarrantyUpdatedEmail(params: {
+  warrantyId: string;
+  orderId: string;
+  orderNumber?: string;
+  userId?: string | null;
+  customerName: string;
+  customerEmail: string;
+  productName: string;
+  imeiNumber: string;
+  purchaseDate?: Date | string;
+  oldDuration: string;
+  newDuration: string;
+  oldExpiryDate: Date | string;
+  newExpiryDate: Date | string;
+  warrantyStartDate: Date | string;
+  isExtended: boolean;
+  reason?: string | null;
+  showReasonToCustomer?: boolean;
+}): Promise<EmailSendResult> {
+  const siteUrl = getAppUrl();
+  let resolvedName = params.productName;
+  let resolvedBrand = "VN Mobiles";
+  let resolvedVariant = "";
+
+  try {
+    const dbWar = await prisma.warranty.findUnique({
+      where: { id: params.warrantyId },
+      include: {
+        orderItem: true,
+        order: true,
+      },
+    });
+
+    if (dbWar) {
+      if (dbWar.productName) resolvedName = dbWar.productName;
+      if (dbWar.orderItem) {
+        if (dbWar.orderItem.productName) resolvedName = dbWar.orderItem.productName;
+        if (dbWar.orderItem.productBrand) resolvedBrand = dbWar.orderItem.productBrand;
+        resolvedVariant = [dbWar.orderItem.selectedStorage, dbWar.orderItem.selectedColor]
+          .filter(Boolean)
+          .join(", ");
+      }
+    }
+  } catch (dbErr) {
+    console.warn("[WARRANTY EMAIL] Notice: could not load warranty relations:", dbErr);
+  }
+
+  const orderNum =
+    params.orderNumber ||
+    (params.orderId ? `ORD${params.orderId.slice(0, 5)}` : "REG");
+  const warrantyNumber = `WRT-${orderNum}-1`;
+
+  // Build updated PDF certificate attachment with new duration and expiry
+  let pdfAttachment: { filename: string; content: Buffer; contentType: string } | null = null;
+  try {
+    const isNewActive = new Date(params.newExpiryDate) > new Date();
+    const pdfResult = await generateWarrantyCertificatePdf({
+      customerName: params.customerName,
+      customerEmail: params.customerEmail,
+      orderNumber: orderNum,
+      devices: [
+        {
+          productName: resolvedName,
+          productBrand: resolvedBrand,
+          variantInfo: resolvedVariant,
+          warrantyNumber,
+          imeiNumber: params.imeiNumber,
+          coveragePeriod: params.newDuration,
+          warrantyStartDate: params.warrantyStartDate,
+          warrantyExpiryDate: params.newExpiryDate,
+          purchaseDate: params.purchaseDate || params.warrantyStartDate,
+          orderNumber: orderNum,
+          status: isNewActive ? "ACTIVE" : "EXPIRED",
+        },
+      ],
+    });
+
+    pdfAttachment = {
+      filename: pdfResult.filename,
+      content: pdfResult.pdfBuffer,
+      contentType: "application/pdf",
+    };
+  } catch (pdfErr) {
+    console.error(`[WARRANTY PDF GENERATION ERROR] Warranty ${params.warrantyId}:`, pdfErr);
+  }
+
+  const { subject, html, text: plainText } = renderWarrantyUpdatedEmail(
+    {
+      customerName: params.customerName,
+      customerEmail: params.customerEmail,
+      productName: resolvedName,
+      variantInfo: resolvedVariant,
+      oldDuration: params.oldDuration,
+      newDuration: params.newDuration,
+      oldExpiryDate: params.oldExpiryDate,
+      newExpiryDate: params.newExpiryDate,
+      updatedAt: new Date(),
+      isExtended: params.isExtended,
+      reason: params.reason,
+      showReasonToCustomer: params.showReasonToCustomer,
+    },
+    siteUrl
+  );
+
+  return sendGmailEmail({
+    userId: params.userId,
+    recipientName: params.customerName,
+    recipientEmail: params.customerEmail,
+    subject,
+    emailType: "WARRANTY_NOTIFICATION",
+    orderId: params.orderId,
     productName: resolvedName,
     contentSummary: plainText,
     text: plainText,

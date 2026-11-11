@@ -9,4 +9,5 @@ export * from "./password-reset-link";
 export * from "./account-welcome";
 export * from "./account-deletion";
 export * from "./admin-invitation";
+export * from "./warranty-updated";
 

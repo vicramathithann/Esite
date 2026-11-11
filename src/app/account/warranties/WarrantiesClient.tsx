@@ -40,6 +40,9 @@ export interface EnrichedWarranty {
   customerEmail: string;
   reminded1DayAt?: string | null;
   reminded6MonthsAt?: string | null;
+  changeHistory?: any[];
+  isUpdated?: boolean;
+  lastUpdatedAt?: string | null;
 }
 
 interface WarrantiesClientProps {
@@ -323,7 +326,16 @@ export default function WarrantiesClient({
                         </div>
                       </div>
 
-                      <div className="self-start sm:self-auto">
+                      <div className="self-start sm:self-auto flex flex-wrap items-center gap-2">
+                        {w.isUpdated && w.lastUpdatedAt && (
+                          <span
+                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#C9A66B]/15 text-[#8C6226] dark:text-[#E5CBA2] border border-[#C9A66B]/30"
+                            title={`Warranty updated on ${formatDateDisplay(w.lastUpdatedAt)}`}
+                          >
+                            <RefreshCw className="w-2.5 h-2.5" />
+                            Updated
+                          </span>
+                        )}
                         <span
                           className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-bold tracking-wide ${badgeClasses}`}
                         >

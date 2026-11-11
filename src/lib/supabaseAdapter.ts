@@ -95,6 +95,17 @@ function mapRowFromDb(tableName: string, row: any): any {
       } catch {}
     }
   }
+  if (tableName === "Warranty") {
+    if (typeof row.changeHistory === "string") {
+      try {
+        row.changeHistory = JSON.parse(row.changeHistory);
+      } catch {
+        row.changeHistory = [];
+      }
+    } else if (!Array.isArray(row.changeHistory)) {
+      row.changeHistory = [];
+    }
+  }
   return row;
 }
 
@@ -510,6 +521,35 @@ export class SupabaseModelDelegate {
 
     // Attach relations for Warranty
     if (this.modelName === "warranty") {
+      const recordsWithoutHistory = records.filter(
+        (r) => !r.changeHistory || (Array.isArray(r.changeHistory) && r.changeHistory.length === 0)
+      );
+      if (recordsWithoutHistory.length > 0) {
+        const keys = recordsWithoutHistory.map((r) => `warranty_history_${r.id}`);
+        try {
+          const { data: settings } = await supabaseAdmin
+            .from("SiteSetting")
+            .select("key, value")
+            .in("key", keys);
+          if (settings && settings.length > 0) {
+            const setMap = new Map<string, any>();
+            for (const s of settings) {
+              try {
+                setMap.set(s.key, JSON.parse(s.value));
+              } catch {
+                setMap.set(s.key, []);
+              }
+            }
+            for (const rec of recordsWithoutHistory) {
+              const h = setMap.get(`warranty_history_${rec.id}`);
+              if (h && Array.isArray(h) && h.length > 0) {
+                rec.changeHistory = h;
+              }
+            }
+          }
+        } catch {}
+      }
+
       if (include.order) {
         const orderIds = records.map((r) => r.orderId).filter(Boolean);
         if (orderIds.length > 0) {
@@ -859,6 +899,13 @@ export class SupabaseModelDelegate {
       }
     }
 
+    // For Warranty: ensure changeHistory is stringified if array/object
+    if (this.tableName === "Warranty" && "changeHistory" in updateData) {
+      if (typeof updateData.changeHistory !== "string") {
+        updateData.changeHistory = JSON.stringify(updateData.changeHistory);
+      }
+    }
+
     let query = client.from(this.tableName).update(updateData);
     query = applyWhere(query, options.where, this.tableName);
     let { data, error } = await query.select();
@@ -877,12 +924,45 @@ export class SupabaseModelDelegate {
       error = retry.error;
     }
 
+    if (
+      error &&
+      (error.code === "42703" || error.code === "PGRST204" || error.message?.includes("changeHistory")) &&
+      "changeHistory" in updateData
+    ) {
+      const historyStr = updateData.changeHistory;
+      const fallbackData = { ...updateData };
+      delete fallbackData.changeHistory;
+      let retryQuery = client.from(this.tableName).update(fallbackData);
+      retryQuery = applyWhere(retryQuery, options.where, this.tableName);
+      const retry = await retryQuery.select();
+      data = retry.data;
+      error = retry.error;
+      if (!error && data && data.length > 0 && historyStr) {
+        const wid = data[0].id;
+        try {
+          await supabaseAdmin.from("SiteSetting").upsert({
+            key: `warranty_history_${wid}`,
+            value: typeof historyStr === "string" ? historyStr : JSON.stringify(historyStr),
+          }, { onConflict: "key" });
+        } catch {}
+      }
+    }
+
     if (error) {
       logSupabaseError(this.tableName, "update", error);
       throw new Error(`Database error in ${this.tableName}.update: ${error.message} (${error.code})`);
     }
 
     const updatedRecord = (data && data.length > 0) ? deserializeRow(data[0], this.tableName) : null;
+
+    if (this.tableName === "Warranty" && rawData.changeHistory && updatedRecord) {
+      try {
+        await supabaseAdmin.from("SiteSetting").upsert({
+          key: `warranty_history_${updatedRecord.id}`,
+          value: typeof rawData.changeHistory === "string" ? rawData.changeHistory : JSON.stringify(rawData.changeHistory),
+        }, { onConflict: "key" });
+      } catch {}
+    }
 
     // Handle nested Order statusHistory creation during update
     if (this.modelName === "order" && rawData.statusHistory?.create && Array.isArray(rawData.statusHistory.create) && updatedRecord) {

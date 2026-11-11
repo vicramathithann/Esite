@@ -88,6 +88,29 @@ export default async function UserWarrantiesPage() {
     const catalogById = new Map(catalog.map((c) => [c.id, c]));
     const catalogByPrice = new Map(catalog.map((c) => [c.basePrice, c]));
 
+    // Batch-fetch change history from SiteSetting for direct warranties
+    const warIds = directWarranties.map((w) => w.id).filter(Boolean);
+    const historyMap = new Map<string, any[]>();
+    if (warIds.length > 0) {
+      try {
+        const { data: historySettings } = await supabaseAdmin
+          .from("SiteSetting")
+          .select("key, value")
+          .in("key", warIds.map((id) => `warranty_history_${id}`));
+        if (historySettings && historySettings.length > 0) {
+          for (const s of historySettings) {
+            try {
+              const warId = s.key.replace("warranty_history_", "");
+              const parsed = JSON.parse(s.value);
+              if (Array.isArray(parsed)) {
+                historyMap.set(warId, parsed);
+              }
+            } catch {}
+          }
+        }
+      } catch {}
+    }
+
     // 3. Batch-fetch OrderItem records for the user's orders (if any)
     let itemsMap = new Map<string, any>();
     if (userOrderIds.length > 0) {
@@ -247,6 +270,10 @@ export default async function UserWarrantiesPage() {
         }
       }
 
+      const rawHistory = historyMap.get(w.id) || (Array.isArray(w.changeHistory) ? w.changeHistory : []);
+      const isUpdated = rawHistory.length > 0;
+      const lastUpdatedAt = isUpdated ? rawHistory[rawHistory.length - 1].changedAt : null;
+
       const enriched: EnrichedWarranty = {
         id: w.id,
         warrantyNumber: wNumber,
@@ -268,6 +295,9 @@ export default async function UserWarrantiesPage() {
         customerEmail: w.customerEmail || cleanEmail,
         reminded1DayAt: w.reminded1DayAt || w.reminder1DaySentAt || null,
         reminded6MonthsAt: w.reminded6MonthsAt || w.reminder6MonthSentAt || null,
+        changeHistory: rawHistory,
+        isUpdated,
+        lastUpdatedAt,
       };
 
       if (classifiedStatus === "CANCELLED") {
