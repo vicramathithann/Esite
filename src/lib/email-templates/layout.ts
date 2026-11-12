@@ -291,11 +291,13 @@ export function renderEmailLayout(options: LayoutOptions): string {
 
   const ctaHtml = options.cta
     ? `
-      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:28px 0 8px 0;">
+      <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin:28px 0 8px 0;">
         <tr>
-          <td align="center">
-            <a href="${escapeHtml(options.cta.url)}" style="display:inline-block;background-color:#C9A66B;color:#FFFFFF;font-size:14px;font-weight:600;text-decoration:none;padding:12px 32px;border-radius:9999px;letter-spacing:0.3px;">
-              ${escapeHtml(options.cta.label)}
+          <td align="center" style="border-radius:9999px;background-color:#C9A66B;">
+            <a href="${escapeHtml(options.cta.url)}" target="_blank" style="display:inline-block;padding:12px 32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#FFFFFF;text-decoration:none;font-weight:600;border-radius:9999px;background-color:#C9A66B;mso-padding-alt:0;text-underline-color:#C9A66B;">
+              <!--[if mso]><i style="letter-spacing:32px;mso-font-width:-100%;mso-text-raise:18pt">&nbsp;</i><![endif]-->
+              <span style="mso-text-raise:9pt;">${escapeHtml(options.cta.label)}</span>
+              <!--[if mso]><i style="letter-spacing:32px;mso-font-width:-100%">&nbsp;</i><![endif]-->
             </a>
           </td>
         </tr>
@@ -370,11 +372,17 @@ export function renderEmailLayout(options: LayoutOptions): string {
           <!-- Clean Footer -->
           <tr>
             <td style="background-color:#F8FAFC;padding:24px 32px;border-top:1px solid #E2E8F0;text-align:center;">
+              <p style="margin:0 0 6px 0;font-weight:700;color:#0F172A;font-size:12px;">
+                VN Mobiles India
+              </p>
+              <p style="margin:0 0 8px 0;font-size:11px;color:#64748B;line-height:1.4;">
+                Electronics City Phase 1, Hosur Road, Bengaluru, Karnataka 560100, India
+              </p>
               <p style="margin:0 0 8px 0;font-size:12px;color:#64748B;line-height:1.5;">
                 Need assistance? Our support team is here to help at <a href="mailto:support@vnmobiles.in" style="color:#C9A66B;text-decoration:none;font-weight:600;">support@vnmobiles.in</a>
               </p>
               <p style="margin:0 0 8px 0;font-size:11px;color:#94A3B8;line-height:1.4;">
-                This is an automated transaction notification from VN Mobiles India.
+                You are receiving this automated transactional notification because you placed an order or created an account at VN Mobiles.
               </p>
               <p style="margin:0;font-size:11px;color:#94A3B8;">
                 &copy; 2026 VN Mobiles India. All rights reserved. &bull; <a href="${siteUrl}" style="color:#94A3B8;text-decoration:underline;">vnmobiles.in</a>
@@ -394,9 +402,10 @@ export function renderPlainFooter(siteUrl = "https://vnmobiles.in"): string {
   return [
     "--------------------------------------------------",
     "VN Mobiles India",
-    "Need help? Contact support@vnmobiles.in",
-    `Visit us at ${cleanUrl}`,
-    "This is an automated transaction notification.",
+    "Electronics City Phase 1, Hosur Road, Bengaluru, Karnataka 560100, India",
+    "Customer Support: support@vnmobiles.in",
+    `Website: ${cleanUrl}`,
+    "You are receiving this automated transactional notification because you placed an order or created an account at VN Mobiles.",
     "(c) 2026 VN Mobiles India. All rights reserved.",
   ].join("\n");
 }

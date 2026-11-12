@@ -132,9 +132,17 @@ export const env = {
  * Returns booleans only - NEVER reveals secret values.
  */
 export function checkEnvStatus(): Record<string, boolean> {
+  const hasResend = Boolean(cleanString(process.env.RESEND_API_KEY));
+  const hasSendGrid = Boolean(cleanString(process.env.SENDGRID_API_KEY));
+  const hasSES = Boolean(cleanString(process.env.AWS_SES_REGION) || cleanString(process.env.AWS_ACCESS_KEY_ID));
+  const hasGmail = Boolean(cleanString(process.env.GMAIL_USER) && cleanPassword(process.env.GMAIL_APP_PASSWORD));
+
   return {
-    GMAIL_USER: Boolean(cleanString(process.env.GMAIL_USER)),
-    GMAIL_APP_PASSWORD: Boolean(cleanPassword(process.env.GMAIL_APP_PASSWORD)),
+    RESEND_API_KEY: hasResend,
+    SENDGRID_API_KEY: hasSendGrid,
+    AWS_SES: hasSES,
+    GMAIL_CONFIGURED: hasGmail,
+    EMAIL_PROVIDER_CONFIGURED: hasResend || hasSendGrid || hasSES || hasGmail,
     NEXT_PUBLIC_SUPABASE_URL: Boolean(cleanString(process.env.NEXT_PUBLIC_SUPABASE_URL)),
     NEXT_PUBLIC_SUPABASE_ANON_KEY: Boolean(cleanString(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)),
     SUPABASE_SERVICE_ROLE_KEY: Boolean(cleanString(process.env.SUPABASE_SERVICE_ROLE_KEY)),
@@ -144,12 +152,19 @@ export function checkEnvStatus(): Record<string, boolean> {
 
 /**
  * Returns a list of any missing REQUIRED server environment variables.
- * Only the 5 critical credentials are required; NEXT_PUBLIC_APP_URL is completely optional.
+ * Recognizes modern transactional providers (Resend, SendGrid, SES) or Gmail SMTP.
  */
 export function getMissingServerEnvVars(): string[] {
   const missing: string[] = [];
-  if (!cleanString(process.env.GMAIL_USER)) missing.push("GMAIL_USER");
-  if (!cleanPassword(process.env.GMAIL_APP_PASSWORD)) missing.push("GMAIL_APP_PASSWORD");
+  const hasResend = Boolean(cleanString(process.env.RESEND_API_KEY));
+  const hasSendGrid = Boolean(cleanString(process.env.SENDGRID_API_KEY));
+  const hasSES = Boolean(cleanString(process.env.AWS_SES_REGION) || cleanString(process.env.AWS_ACCESS_KEY_ID));
+  const hasGmail = Boolean(cleanString(process.env.GMAIL_USER) && cleanPassword(process.env.GMAIL_APP_PASSWORD));
+
+  if (!hasResend && !hasSendGrid && !hasSES && !hasGmail) {
+    missing.push("RESEND_API_KEY (or GMAIL_USER + GMAIL_APP_PASSWORD)");
+  }
+
   if (!cleanString(process.env.NEXT_PUBLIC_SUPABASE_URL)) missing.push("NEXT_PUBLIC_SUPABASE_URL");
   if (!cleanString(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)) missing.push("NEXT_PUBLIC_SUPABASE_ANON_KEY");
   if (!cleanString(process.env.SUPABASE_SERVICE_ROLE_KEY)) missing.push("SUPABASE_SERVICE_ROLE_KEY");

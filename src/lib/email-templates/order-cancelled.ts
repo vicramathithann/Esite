@@ -42,7 +42,8 @@ export function renderOrderCancelledEmail(
   const productHeadline = rawHeadline.replace(/^your\s+/i, "");
 
   const formattedTotal = formatINR(order.totalAmount);
-  const subject = `Order cancelled: ${productHeadline}`;
+  const rawSubject = `Order cancelled: ${productHeadline}`;
+  const subject = rawSubject.length > 58 ? rawSubject.slice(0, 55) + "..." : rawSubject;
   const preheader = "Your cancellation has been processed and your refund is initiated.";
 
   const contentHtml = `
@@ -58,10 +59,6 @@ export function renderOrderCancelledEmail(
       <tr>
         <td style="padding:14px 18px;border-bottom:1px solid #E2E8F0;color:#64748B;width:38%;">Smartphone / Item</td>
         <td style="padding:14px 18px;border-bottom:1px solid #E2E8F0;color:#0F172A;font-weight:700;">${escapeHtml(productHeadline)}</td>
-      </tr>
-      <tr>
-        <td style="padding:14px 18px;border-bottom:1px solid #E2E8F0;color:#64748B;">Order Reference</td>
-        <td style="padding:14px 18px;border-bottom:1px solid #E2E8F0;color:#0F172A;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-weight:600;">#${escapeHtml(order.orderNumber)}</td>
       </tr>
       <tr>
         <td style="padding:14px 18px;border-bottom:1px solid #E2E8F0;color:#64748B;">Refund Amount</td>

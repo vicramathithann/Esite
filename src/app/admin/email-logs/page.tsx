@@ -11,17 +11,24 @@ import {
   Mail,
   Trash2,
   ShieldAlert,
+  Send,
   X,
 } from "lucide-react";
 import { formatDateOnly } from "@/lib/formatters";
 
 export default function AdminEmailLogsPage() {
   const [logs, setLogs] = useState<any[]>([]);
-  const [stats, setStats] = useState<{ total: number; sentCount: number; failedCount: number } | null>(null);
+  const [stats, setStats] = useState<{ total: number; sentCount: number; failedCount: number; bouncedCount?: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [retryingId, setRetryingId] = useState<string | null>(null);
+
+  // Send Test Email Modal State
+  const [showSendTestModal, setShowSendTestModal] = useState(false);
+  const [testTemplate, setTestTemplate] = useState("order_confirmed");
+  const [testRecipient, setTestRecipient] = useState("");
+  const [testSending, setTestSending] = useState(false);
 
   // Selection state for bulk actions
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -93,6 +100,39 @@ export default function AdminEmailLogsPage() {
       showToast("Error contacting email gateway", "error");
     } finally {
       setRetryingId(null);
+    }
+  };
+
+  const handleSendTestEmail = async () => {
+    if (!testRecipient || !testRecipient.includes("@")) {
+      showToast("Please provide a valid recipient email address.", "error");
+      return;
+    }
+
+    try {
+      setTestSending(true);
+      const res = await fetch("/api/admin/email-logs/send-test", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          templateKey: testTemplate,
+          recipientEmail: testRecipient,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        showToast(data.message || `Test email dispatched to ${testRecipient}!`, "success");
+        setShowSendTestModal(false);
+        await loadLogs();
+      } else {
+        showToast(data.error || "Failed to dispatch test email.", "error");
+      }
+    } catch {
+      showToast("Error contacting email test dispatch service.", "error");
+    } finally {
+      setTestSending(false);
     }
   };
 
@@ -223,12 +263,22 @@ export default function AdminEmailLogsPage() {
           <div>
             <h1 className="text-xl font-bold text-foreground">Transactional Email Logs</h1>
             <p className="text-xs text-muted">
-              Gmail SMTP Delivery audit trail. Monitor, retry, delete, or clear email dispatches.
+              Transactional email delivery audit trail. Monitor, test templates, and track delivery status.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+          {/* Send Test Email Button */}
+          <button
+            onClick={() => setShowSendTestModal(true)}
+            className="px-3 py-2 bg-[#C9A66B] hover:bg-[#B8914A] active:bg-[#A67C3D] text-[#FFFCFA] text-xs font-semibold rounded-xl transition-all inline-flex items-center gap-1.5 shadow-xs cursor-pointer"
+            title="Dispatch a test email using any template"
+          >
+            <Send className="w-3.5 h-3.5" />
+            Send Test Email
+          </button>
+
           {/* Clear All Logs Button */}
           {logs.length > 0 && (
             <button
@@ -252,7 +302,7 @@ export default function AdminEmailLogsPage() {
       </div>
 
       {/* Stats Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className={`grid grid-cols-1 sm:grid-cols-${(stats?.bouncedCount ?? 0) > 0 ? "4" : "3"} gap-4`}>
         <div className="bg-card border border-border rounded-2xl p-4 flex items-center justify-between shadow-xs transition-colors duration-200">
           <div>
             <span className="text-xs text-muted">Total Email Events</span>
@@ -276,6 +326,16 @@ export default function AdminEmailLogsPage() {
           </div>
           <AlertCircle className="w-6 h-6 text-amber-600 dark:text-amber-400" />
         </div>
+
+        {(stats?.bouncedCount ?? 0) > 0 && (
+          <div className="bg-card border border-purple-500/30 rounded-2xl p-4 flex items-center justify-between shadow-xs transition-colors duration-200">
+            <div>
+              <span className="text-xs text-purple-600 dark:text-purple-400">Bounced / Suppressed</span>
+              <p className="text-2xl font-bold text-purple-700 dark:text-purple-300 mt-1">{stats?.bouncedCount ?? 0}</p>
+            </div>
+            <ShieldAlert className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+          </div>
+        )}
       </div>
 
       {/* Bulk Selection Bar */}
@@ -328,6 +388,7 @@ export default function AdminEmailLogsPage() {
           <option value="all">All Delivery Statuses</option>
           <option value="SENT">Sent Only</option>
           <option value="FAILED">Failed Only</option>
+          <option value="BOUNCED">Bounced / Suppressed Only</option>
           <option value="PENDING">Pending Only</option>
         </select>
       </div>
@@ -402,6 +463,8 @@ export default function AdminEmailLogsPage() {
                           className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
                             log.status === "SENT"
                               ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
+                              : log.status === "BOUNCED"
+                              ? "bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20"
                               : "bg-amber-500/10 text-amber-800 dark:text-amber-400 border-amber-500/20"
                           }`}
                         >
@@ -570,6 +633,103 @@ export default function AdminEmailLogsPage() {
               >
                 {deleteActionLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                 Yes, Clear All Logs
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: Send Test Email */}
+      {showSendTestModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-card border border-[#C9A66B]/30 w-full max-w-lg rounded-2xl p-6 shadow-2xl space-y-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#C9A66B]/10 border border-[#C9A66B]/20 flex items-center justify-center text-[#8C6226] dark:text-[#E5CBA2] shrink-0">
+                  <Send className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-foreground">Send Test Email</h2>
+                  <p className="text-xs text-muted">Test any transactional email template to verify delivery and rendering.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowSendTestModal(false)}
+                disabled={testSending}
+                className="text-muted hover:text-foreground transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1.5">
+                  Select Email Template
+                </label>
+                <select
+                  value={testTemplate}
+                  onChange={(e) => setTestTemplate(e.target.value)}
+                  className="w-full bg-tile/70 border border-border text-xs text-foreground rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#C9A66B]"
+                >
+                  <optgroup label="Orders">
+                    <option value="order_confirmed">Order Confirmed / Placed</option>
+                    <option value="order_cancelled">Order Cancelled</option>
+                    <option value="order_shipped">Order Shipped (In Transit)</option>
+                    <option value="order_out_for_delivery">Order Out for Delivery</option>
+                    <option value="order_delivered">Order Delivered</option>
+                  </optgroup>
+                  <optgroup label="Warranties">
+                    <option value="warranty_certificate">Warranty Certificate (Official PDF Attached)</option>
+                    <option value="warranty_updated">Warranty Duration Updated (PDF Attached)</option>
+                    <option value="warranty_reminder_6m">Warranty Reminder (6 Months Remaining)</option>
+                    <option value="warranty_reminder_1d">Warranty Reminder (1 Day Remaining)</option>
+                  </optgroup>
+                  <optgroup label="Authentication & Security">
+                    <option value="otp_registration">Registration OTP Verification</option>
+                    <option value="otp_login">Sign-In OTP Code</option>
+                    <option value="password_reset">Password Reset Link</option>
+                    <option value="admin_invitation">Admin Invitation</option>
+                    <option value="account_welcome">Account Welcome</option>
+                    <option value="account_deletion">Account Deletion Authorization</option>
+                  </optgroup>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1.5">
+                  Recipient Email Address
+                </label>
+                <input
+                  type="email"
+                  value={testRecipient}
+                  onChange={(e) => setTestRecipient(e.target.value)}
+                  placeholder="e.g. your-inbox@gmail.com"
+                  className="w-full bg-tile/70 border border-border text-xs text-foreground rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#C9A66B]"
+                />
+                <p className="text-[11px] text-muted mt-1">
+                  Deliverability note: Uses verified sender identity and passes SPF/DKIM/DMARC checks.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-border">
+              <button
+                type="button"
+                onClick={() => setShowSendTestModal(false)}
+                disabled={testSending}
+                className="px-4 py-2 border border-border text-foreground text-xs font-semibold rounded-xl hover:bg-tile transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSendTestEmail}
+                disabled={testSending || !testRecipient.trim()}
+                className="px-4 py-2 bg-[#C9A66B] hover:bg-[#B8914A] active:bg-[#A67C3D] text-[#FFFCFA] text-xs font-semibold rounded-xl transition shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                {testSending ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                {testSending ? "Dispatching..." : "Send Test Email"}
               </button>
             </div>
           </div>

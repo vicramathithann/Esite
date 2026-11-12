@@ -42,11 +42,12 @@ export async function GET(request: Request) {
     const total = await prisma.emailNotification.count();
     const sentCount = await prisma.emailNotification.count({ where: { status: "SENT" } });
     const failedCount = await prisma.emailNotification.count({ where: { status: "FAILED" } });
+    const bouncedCount = await prisma.emailNotification.count({ where: { status: "BOUNCED" } });
 
     return NextResponse.json({
       success: true,
       count: logs.length,
-      stats: { total, sentCount, failedCount },
+      stats: { total, sentCount, failedCount, bouncedCount },
       logs,
     });
   } catch (error) {

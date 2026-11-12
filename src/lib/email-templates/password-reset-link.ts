@@ -52,8 +52,7 @@ export function renderPasswordResetLinkEmail(
       </div>
 
       <div style="margin:24px 0 0 0;padding-top:16px;border-top:1px solid #E2E8F0;font-size:12px;color:#64748B;line-height:1.5;">
-        If the button above does not work, copy and paste this link into your browser:<br>
-        <a href="${escapeHtml(data.resetUrl)}" style="color:#C9A66B;word-break:break-all;text-decoration:underline;">${escapeHtml(data.resetUrl)}</a>
+        For your security, this single-use recovery link will expire in ${minutes} minutes.
       </div>
     `;
 

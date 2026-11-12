@@ -35,9 +35,10 @@ export function renderWarrantyExpiringEmail(
 
   const isOneDay = type === "1_DAY";
 
-  const subject = isOneDay
+  const rawSubject = isOneDay
     ? `1 day left on your warranty: ${deviceName}`
     : `6 months of warranty remaining: ${deviceName}`;
+  const subject = rawSubject.length > 58 ? rawSubject.slice(0, 55) + "..." : rawSubject;
 
   const preheader = isOneDay
     ? "Official manufacturer warranty coverage expires tomorrow."
@@ -67,10 +68,6 @@ export function renderWarrantyExpiringEmail(
         <td style="padding:14px 18px;border-bottom:1px solid #E2E8F0;color:#0F172A;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-weight:700;">${escapeHtml(warranty.warrantyNumber)}</td>
       </tr>
       <tr>
-        <td style="padding:14px 18px;border-bottom:1px solid #E2E8F0;color:#64748B;">Device IMEI</td>
-        <td style="padding:14px 18px;border-bottom:1px solid #E2E8F0;color:#0F172A;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-weight:600;">${escapeHtml(warranty.imeiNumber)}</td>
-      </tr>
-      <tr>
         <td style="padding:14px 18px;border-bottom:1px solid #E2E8F0;color:#64748B;">Coverage Start</td>
         <td style="padding:14px 18px;border-bottom:1px solid #E2E8F0;color:#0F172A;">${escapeHtml(startStr)}</td>
       </tr>
@@ -83,12 +80,6 @@ export function renderWarrantyExpiringEmail(
     <div style="background-color:#FFFFFF;border:1px solid #E2E8F0;border-radius:8px;padding:16px 20px;margin:20px 0;font-size:13px;line-height:1.6;color:#475569;">
       <strong>Recommended Action:</strong> Check your device hardware, battery health, touchscreen responsiveness, and camera sensors. If you are noticing any defects or issues, visit an authorized brand service center before ${escapeHtml(expiryStr)} to claim free repairs under warranty.
     </div>
-
-    ${
-      warranty.orderNumber
-        ? `<p style="margin:16px 0 0 0;font-size:13px;color:#64748B;">Order Reference: <span style="font-family:ui-monospace,SFMono-Regular,Consolas,monospace;color:#0F172A;font-weight:600;">#${escapeHtml(warranty.orderNumber)}</span></p>`
-        : ""
-    }
   `;
 
   const html = renderEmailLayout({

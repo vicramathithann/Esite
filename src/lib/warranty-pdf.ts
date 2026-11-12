@@ -181,9 +181,7 @@ export async function generateWarrantyCertificatePdf(
 
   const devices = options.devices && options.devices.length > 0 ? options.devices : [];
   const primaryDevice = devices[0];
-  const primarySlug = primaryDevice ? slugify(primaryDevice.productName) : "official-device";
-  const primaryCert = primaryDevice?.warrantyNumber || `WRT-${options.orderNumber || "REG"}-1`;
-  const filename = `Warranty-Certificate-${primarySlug}-${primaryCert}.pdf`;
+  const filename = "VN-Mobiles-Warranty-Certificate.pdf";
 
   const PAGE_WIDTH = 595.28;
   const PAGE_HEIGHT = 841.89;

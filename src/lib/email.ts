@@ -64,7 +64,7 @@ export interface SendEmailOptions {
 
 export interface EmailSendResult {
   success: boolean;
-  status: "SENT" | "FAILED";
+  status: "SENT" | "FAILED" | "BOUNCED";
   statusCode?: number;
   message: string;
   messageId?: string;
