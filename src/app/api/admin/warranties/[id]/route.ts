@@ -12,6 +12,9 @@ import {
 } from "@/lib/warrantyDateHelpers";
 import { sendWarrantyUpdatedEmail } from "@/lib/email";
 
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -240,26 +243,86 @@ export async function PATCH(
       revalidatePath("/account/warranties");
     } catch {}
 
-    // Automatically dispatch customer email in the background after save
-    sendWarrantyUpdatedEmail({
-      warrantyId: id,
-      orderId: warranty.orderId,
-      orderNumber: warranty.order?.orderNumber,
-      userId: warranty.userId,
-      customerName: warranty.customerName,
-      customerEmail: warranty.customerEmail,
-      productName: warranty.productName,
-      imeiNumber: warranty.imeiNumber,
-      purchaseDate: warranty.purchaseDate,
-      oldDuration: historyEntry.oldDuration,
-      newDuration: historyEntry.newDuration,
-      oldExpiryDate: historyEntry.oldExpiry,
-      newExpiryDate: historyEntry.newExpiry,
-      warrantyStartDate: warranty.warrantyStartDate || warranty.purchaseDate || now,
-      isExtended: calculation.isExtended,
-    })
-      .then(async (result) => {
-        if (result.success) {
+    // Resolve current valid recipient email
+    let recipientEmail = (warranty.customerEmail || warranty.order?.customerEmail || "").trim().toLowerCase();
+    let recipientName = (warranty.customerName || warranty.order?.customerName || "Valued Customer").trim();
+
+    if (warranty.userId) {
+      try {
+        const linkedUser = await prisma.user.findUnique({
+          where: { id: warranty.userId },
+          select: { email: true, name: true, deletedAt: true },
+        });
+        if (linkedUser && !linkedUser.deletedAt && linkedUser.email) {
+          if (!recipientEmail || recipientEmail.includes("@deleted.")) {
+            recipientEmail = linkedUser.email.trim().toLowerCase();
+          }
+          if (!recipientName || recipientName === "Deleted Customer") {
+            recipientName = linkedUser.name || recipientName;
+          }
+        }
+      } catch {}
+    }
+
+    const isDeletedEmail = recipientEmail.includes("@deleted.") || recipientEmail.startsWith("deleted-");
+    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientEmail) && !isDeletedEmail;
+
+    let emailSent = false;
+    let emailError: string | null = null;
+
+    if (!isValidEmail) {
+      emailError = isDeletedEmail
+        ? "Customer account is deleted. Email delivery skipped."
+        : "Invalid recipient email address.";
+      console.warn(`[WARRANTY UPDATE EMAIL SKIPPED] ID ${id}: ${emailError} (${recipientEmail})`);
+      try {
+        await prisma.emailNotification.create({
+          data: {
+            recipientEmail: recipientEmail || "unknown@vnmobiles.in",
+            recipientName,
+            emailType: "WARRANTY_NOTIFICATION",
+            orderId: warranty.orderId,
+            productName: warranty.productName,
+            subject: `Your warranty for ${warranty.productName} has been updated`,
+            contentSummary: emailError,
+            status: "FAILED",
+            errorMessage: emailError,
+          },
+        });
+      } catch {}
+    } else {
+      try {
+        // Await with a 15-second safety timeout so Vercel runtime does not freeze mid-dispatch
+        const emailPromise = sendWarrantyUpdatedEmail({
+          warrantyId: id,
+          orderId: warranty.orderId,
+          orderNumber: warranty.order?.orderNumber,
+          userId: warranty.userId,
+          customerName: recipientName,
+          customerEmail: recipientEmail,
+          productName: warranty.productName,
+          imeiNumber: warranty.imeiNumber,
+          purchaseDate: warranty.purchaseDate,
+          oldDuration: historyEntry.oldDuration,
+          newDuration: historyEntry.newDuration,
+          oldExpiryDate: historyEntry.oldExpiry,
+          newExpiryDate: historyEntry.newExpiry,
+          warrantyStartDate: warranty.warrantyStartDate || warranty.purchaseDate || now,
+          isExtended: calculation.isExtended,
+        });
+
+        const timeoutPromise = new Promise<{ success: boolean; error?: string }>((resolve) =>
+          setTimeout(() => resolve({ success: false, error: "Email delivery timed out after 15s." }), 15000)
+        );
+
+        const emailResult = await Promise.race([emailPromise, timeoutPromise]);
+        emailSent = emailResult.success;
+        if (!emailResult.success) {
+          emailError = emailResult.error || "Email delivery failed.";
+          console.error(`[WARRANTY UPDATE EMAIL FAILED] ID ${id}: ${emailError}`);
+        } else {
+          console.log(`[WARRANTY UPDATE EMAIL DELIVERED] ID ${id} to ${recipientEmail}`);
+          historyEntry.emailSent = true;
           try {
             const fresh = await prisma.warranty.findUnique({ where: { id } });
             if (fresh && Array.isArray(fresh.changeHistory)) {
@@ -272,17 +335,21 @@ export async function PATCH(
               });
             }
           } catch {}
-        } else {
-          console.error(`[WARRANTY UPDATE EMAIL FAILED] ID ${id}:`, result.error);
         }
-      })
-      .catch((emailErr) => {
+      } catch (emailErr: any) {
+        emailError = emailErr?.message || "Email dispatch failed.";
         console.error(`[WARRANTY UPDATE EMAIL EXCEPTION] ID ${id}:`, emailErr);
-      });
+      }
+    }
 
     return NextResponse.json({
       success: true,
-      message: `Warranty duration successfully updated to ${calculation.newDuration}.`,
+      message: emailSent
+        ? `Warranty updated and email sent to ${recipientEmail}`
+        : `Warranty updated, but the email failed. Resend?`,
+      emailSent,
+      emailError,
+      customerEmail: recipientEmail,
       warranty: updatedWarranty,
       calculation,
     });
@@ -357,13 +424,33 @@ export async function POST(
       ? history.find((h: any) => h.id === body.historyId) || history[history.length - 1]
       : history[history.length - 1];
 
+    let recipientEmail = (warranty.customerEmail || warranty.order?.customerEmail || "").trim().toLowerCase();
+    let recipientName = (warranty.customerName || warranty.order?.customerName || "Valued Customer").trim();
+
+    if (warranty.userId) {
+      try {
+        const linkedUser = await prisma.user.findUnique({
+          where: { id: warranty.userId },
+          select: { email: true, name: true, deletedAt: true },
+        });
+        if (linkedUser && !linkedUser.deletedAt && linkedUser.email) {
+          if (!recipientEmail || recipientEmail.includes("@deleted.")) {
+            recipientEmail = linkedUser.email.trim().toLowerCase();
+          }
+          if (!recipientName || recipientName === "Deleted Customer") {
+            recipientName = linkedUser.name || recipientName;
+          }
+        }
+      } catch {}
+    }
+
     const result = await sendWarrantyUpdatedEmail({
       warrantyId: id,
       orderId: warranty.orderId,
       orderNumber: warranty.order?.orderNumber,
       userId: warranty.userId,
-      customerName: warranty.customerName,
-      customerEmail: warranty.customerEmail,
+      customerName: recipientName,
+      customerEmail: recipientEmail,
       productName: warranty.productName,
       imeiNumber: warranty.imeiNumber,
       purchaseDate: warranty.purchaseDate,
@@ -395,7 +482,7 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      message: `Warranty update notification re-emailed to ${warranty.customerEmail}.`,
+      message: `Warranty update notification re-emailed to ${recipientEmail}.`,
     });
   } catch (error: any) {
     console.error("Resend update email error:", error);

@@ -63,15 +63,23 @@ export default function AdminWarrantiesPage() {
 
   // Toast / Feedback State
   const [notification, setNotification] = useState<{
-    type: "success" | "error";
+    type: "success" | "error" | "warning";
     message: string;
+    action?: {
+      label: string;
+      onClick: () => void;
+    };
   } | null>(null);
 
-  const showToast = (message: string, type: "success" | "error" = "success") => {
-    setNotification({ type, message });
+  const showToast = (
+    message: string,
+    type: "success" | "error" | "warning" = "success",
+    action?: { label: string; onClick: () => void }
+  ) => {
+    setNotification({ type, message, action });
     setTimeout(() => {
       setNotification((prev) => (prev?.message === message ? null : prev));
-    }, 5000);
+    }, action ? 10000 : 5000);
   };
 
   const loadWarranties = async () => {
@@ -159,7 +167,8 @@ export default function AdminWarrantiesPage() {
       setEditLoading(true);
       setEditError(null);
 
-      const res = await fetch(`/api/admin/warranties/${editModalWarranty.id}`, {
+      const targetWarrantyId = editModalWarranty.id;
+      const res = await fetch(`/api/admin/warranties/${targetWarrantyId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -172,7 +181,19 @@ export default function AdminWarrantiesPage() {
 
       const data = await res.json();
       if (data.success) {
-        showToast(data.message || "Warranty duration updated successfully!");
+        const targetEmail = data.customerEmail || editModalWarranty.customerEmail;
+        if (data.emailSent) {
+          showToast(`Warranty updated and email sent to ${targetEmail}`, "success");
+        } else {
+          showToast(
+            `Warranty updated, but the email failed. Resend?`,
+            "warning",
+            {
+              label: "Resend update email",
+              onClick: () => handleResendUpdateEmail(targetWarrantyId),
+            }
+          );
+        }
         setEditModalWarranty(null);
         await loadWarranties();
       } else {
@@ -273,15 +294,34 @@ export default function AdminWarrantiesPage() {
           className={`fixed top-5 right-5 z-50 max-w-md p-4 rounded-xl border shadow-lg flex items-start gap-3 transition-all animate-in fade-in slide-in-from-top-2 ${
             notification.type === "success"
               ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-300 backdrop-blur-md"
+              : notification.type === "warning"
+              ? "bg-amber-500/10 border-amber-500/30 text-amber-800 dark:text-amber-300 backdrop-blur-md"
               : "bg-rose-500/10 border-rose-500/30 text-rose-800 dark:text-rose-300 backdrop-blur-md"
           }`}
         >
           {notification.type === "success" ? (
             <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+          ) : notification.type === "warning" ? (
+            <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
           ) : (
             <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
           )}
-          <div className="flex-1 text-xs font-medium leading-relaxed">{notification.message}</div>
+          <div className="flex-1 text-xs font-medium leading-relaxed">
+            <div>{notification.message}</div>
+            {notification.action && (
+              <button
+                type="button"
+                onClick={() => {
+                  notification.action?.onClick();
+                  setNotification(null);
+                }}
+                className="mt-2 px-3 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-bold text-[11px] inline-flex items-center gap-1.5 shadow-xs transition cursor-pointer"
+              >
+                <RefreshCw className="w-3 h-3" />
+                {notification.action.label}
+              </button>
+            )}
+          </div>
           <button
             onClick={() => setNotification(null)}
             className="text-muted hover:text-foreground transition cursor-pointer"

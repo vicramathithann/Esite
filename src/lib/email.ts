@@ -1005,7 +1005,7 @@ export async function sendWarrantyUpdatedEmail(params: {
     siteUrl
   );
 
-  return sendGmailEmail({
+  const sendPayload = {
     userId: params.userId,
     recipientName: params.customerName,
     recipientEmail: params.customerEmail,
@@ -1017,7 +1017,29 @@ export async function sendWarrantyUpdatedEmail(params: {
     text: plainText,
     html,
     attachments: pdfAttachment ? [pdfAttachment] : undefined,
-  });
+  };
+
+  let result = await sendGmailEmail(sendPayload);
+
+  // If initial attempt failed, perform 1 retry after 1.5s
+  if (!result.success) {
+    console.warn(
+      `[WARRANTY UPDATE EMAIL RETRY] Initial dispatch to ${params.customerEmail} failed (${result.error}). Retrying in 1.5s...`
+    );
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    result = await sendGmailEmail(sendPayload);
+    if (result.success) {
+      console.log(
+        `[WARRANTY UPDATE EMAIL RETRY SUCCESS] Warranty update email delivered on retry to ${params.customerEmail}.`
+      );
+    } else {
+      console.error(
+        `[WARRANTY UPDATE EMAIL RETRY FAILED] Retry to ${params.customerEmail} also failed: ${result.error}`
+      );
+    }
+  }
+
+  return result;
 }
 
 /**
