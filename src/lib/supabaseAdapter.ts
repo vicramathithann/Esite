@@ -899,16 +899,54 @@ export class SupabaseModelDelegate {
       }
     }
 
-    // For Warranty: ensure changeHistory is stringified if array/object
-    if (this.tableName === "Warranty" && "changeHistory" in updateData) {
-      if (typeof updateData.changeHistory !== "string") {
-        updateData.changeHistory = JSON.stringify(updateData.changeHistory);
+    // For Warranty: handle changeHistory and map reminder columns
+    let warrantyHistoryToSave: any = null;
+    if (this.tableName === "Warranty") {
+      if ("changeHistory" in updateData) {
+        warrantyHistoryToSave = updateData.changeHistory;
+        delete updateData.changeHistory;
+      }
+      if ("reminder6MonthSentAt" in updateData) {
+        if (!("reminded6MonthsAt" in updateData)) {
+          updateData.reminded6MonthsAt = updateData.reminder6MonthSentAt;
+        }
+        delete updateData.reminder6MonthSentAt;
+      }
+      if ("reminder1DaySentAt" in updateData) {
+        if (!("reminded1DayAt" in updateData)) {
+          updateData.reminded1DayAt = updateData.reminder1DaySentAt;
+        }
+        delete updateData.reminder1DaySentAt;
       }
     }
 
     let query = client.from(this.tableName).update(updateData);
     query = applyWhere(query, options.where, this.tableName);
     let { data, error } = await query.select();
+
+    // Robust column fallback retry: if Postgres reports a column doesn't exist, strip and retry
+    let retryAttempts = 0;
+    while (
+      error &&
+      (error.code === "42703" || error.code === "PGRST204" || error.message?.includes("column")) &&
+      retryAttempts < 5
+    ) {
+      retryAttempts++;
+      const match =
+        error.message?.match(/column ['"]?([a-zA-Z0-9_]+)['"]?/i) ||
+        error.message?.match(/Could not find the ['"]?([a-zA-Z0-9_]+)['"]? column/i);
+      const badCol = match ? match[1] : null;
+      if (badCol && badCol in updateData) {
+        delete updateData[badCol];
+        let retryQuery = client.from(this.tableName).update(updateData);
+        retryQuery = applyWhere(retryQuery, options.where, this.tableName);
+        const retry = await retryQuery.select();
+        data = retry.data;
+        error = retry.error;
+      } else {
+        break;
+      }
+    }
 
     if (
       error &&
@@ -924,30 +962,6 @@ export class SupabaseModelDelegate {
       error = retry.error;
     }
 
-    if (
-      error &&
-      (error.code === "42703" || error.code === "PGRST204" || error.message?.includes("changeHistory")) &&
-      "changeHistory" in updateData
-    ) {
-      const historyStr = updateData.changeHistory;
-      const fallbackData = { ...updateData };
-      delete fallbackData.changeHistory;
-      let retryQuery = client.from(this.tableName).update(fallbackData);
-      retryQuery = applyWhere(retryQuery, options.where, this.tableName);
-      const retry = await retryQuery.select();
-      data = retry.data;
-      error = retry.error;
-      if (!error && data && data.length > 0 && historyStr) {
-        const wid = data[0].id;
-        try {
-          await supabaseAdmin.from("SiteSetting").upsert({
-            key: `warranty_history_${wid}`,
-            value: typeof historyStr === "string" ? historyStr : JSON.stringify(historyStr),
-          }, { onConflict: "key" });
-        } catch {}
-      }
-    }
-
     if (error) {
       logSupabaseError(this.tableName, "update", error);
       throw new Error(`Database error in ${this.tableName}.update: ${error.message} (${error.code})`);
@@ -955,13 +969,21 @@ export class SupabaseModelDelegate {
 
     const updatedRecord = (data && data.length > 0) ? deserializeRow(data[0], this.tableName) : null;
 
-    if (this.tableName === "Warranty" && rawData.changeHistory && updatedRecord) {
+    if (this.tableName === "Warranty" && (warrantyHistoryToSave || rawData.changeHistory) && updatedRecord) {
+      const hist = warrantyHistoryToSave || rawData.changeHistory;
       try {
         await supabaseAdmin.from("SiteSetting").upsert({
           key: `warranty_history_${updatedRecord.id}`,
-          value: typeof rawData.changeHistory === "string" ? rawData.changeHistory : JSON.stringify(rawData.changeHistory),
+          value: typeof hist === "string" ? hist : JSON.stringify(hist),
         }, { onConflict: "key" });
       } catch {}
+      try {
+        updatedRecord.changeHistory = Array.isArray(hist)
+          ? hist
+          : (typeof hist === "string" ? JSON.parse(hist) : []);
+      } catch {
+        updatedRecord.changeHistory = [];
+      }
     }
 
     // Handle nested Order statusHistory creation during update

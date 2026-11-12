@@ -921,8 +921,6 @@ export async function sendWarrantyUpdatedEmail(params: {
   newExpiryDate: Date | string;
   warrantyStartDate: Date | string;
   isExtended: boolean;
-  reason?: string | null;
-  showReasonToCustomer?: boolean;
 }): Promise<EmailSendResult> {
   const siteUrl = getAppUrl();
   let resolvedName = params.productName;
@@ -1003,8 +1001,6 @@ export async function sendWarrantyUpdatedEmail(params: {
       newExpiryDate: params.newExpiryDate,
       updatedAt: new Date(),
       isExtended: params.isExtended,
-      reason: params.reason,
-      showReasonToCustomer: params.showReasonToCustomer,
     },
     siteUrl
   );

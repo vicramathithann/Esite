@@ -40,14 +40,7 @@ export async function PATCH(
     }
 
     const body = await request.json().catch(() => ({}));
-    const {
-      durationValue,
-      durationUnit,
-      calculateFrom,
-      reason,
-      showReasonToCustomer,
-      notifyCustomer,
-    } = body;
+    const { durationValue, durationUnit, calculateFrom } = body;
 
     // Validate duration value
     const parsedValue = Number(durationValue);
@@ -84,20 +77,6 @@ export async function PATCH(
     if (!validCalcFrom.includes(calculateFrom)) {
       return NextResponse.json(
         { success: false, error: "calculateFrom must be START_DATE or TODAY." },
-        { status: 400 }
-      );
-    }
-
-    // Validate reason
-    if (!reason || typeof reason !== "string" || reason.trim().length < 3) {
-      return NextResponse.json(
-        { success: false, error: "A valid reason for modifying warranty duration is required (minimum 3 characters)." },
-        { status: 400 }
-      );
-    }
-    if (reason.trim().length > 300) {
-      return NextResponse.json(
-        { success: false, error: "Reason cannot exceed 300 characters." },
         { status: 400 }
       );
     }
@@ -144,6 +123,14 @@ export async function PATCH(
       calculateFrom,
     });
 
+    // If new expiry equals old expiry ("No change in expiry"), reject save
+    if (!calculation.isExtended && !calculation.isReduced) {
+      return NextResponse.json(
+        { success: false, error: "The new warranty duration produces the exact same expiration date. No change to save." },
+        { status: 400 }
+      );
+    }
+
     const now = new Date();
     let newStatus = "ACTIVE";
     if (calculation.newExpiryDate <= now) {
@@ -163,34 +150,24 @@ export async function PATCH(
     const daysUntilExpiry =
       (calculation.newExpiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
 
-    let reminder6MonthSentAt: string | null = null;
     let reminded6MonthsAt: string | null = null;
-    let reminder1DaySentAt: string | null = null;
     let reminded1DayAt: string | null = null;
 
     if (daysUntilExpiry <= 0) {
-      reminder6MonthSentAt = now.toISOString();
       reminded6MonthsAt = now.toISOString();
-      reminder1DaySentAt = now.toISOString();
       reminded1DayAt = now.toISOString();
     } else if (daysUntilExpiry <= 1) {
-      reminder6MonthSentAt = now.toISOString();
       reminded6MonthsAt = now.toISOString();
-      reminder1DaySentAt = null;
       reminded1DayAt = null;
     } else if (daysUntilExpiry <= 185) {
-      reminder6MonthSentAt = now.toISOString();
       reminded6MonthsAt = now.toISOString();
-      reminder1DaySentAt = null;
       reminded1DayAt = null;
     } else {
-      reminder6MonthSentAt = null;
       reminded6MonthsAt = null;
-      reminder1DaySentAt = null;
       reminded1DayAt = null;
     }
 
-    // Build history entry
+    // Build history entry without reason or customer visibility flag
     const historyEntry = {
       id: crypto.randomUUID(),
       oldDuration: warranty.warrantyDuration || "1 Year",
@@ -201,9 +178,6 @@ export async function PATCH(
           : new Date(warranty.warrantyExpiryDate).toISOString(),
       newExpiry: calculation.newExpiryDateISO,
       calculateFrom,
-      reason: reason.trim(),
-      showReasonToCustomer: Boolean(showReasonToCustomer),
-      notifyCustomer: Boolean(notifyCustomer),
       changedBy: (auth as any).email || "Admin",
       changedAt: now.toISOString(),
       emailSent: false,
@@ -221,11 +195,9 @@ export async function PATCH(
         warrantyDuration: calculation.newDuration,
         warrantyExpiryDate: calculation.newExpiryDateISO,
         warrantyStatus: newStatus,
-        changeHistory: updatedHistory,
-        reminder6MonthSentAt,
         reminded6MonthsAt,
-        reminder1DaySentAt,
         reminded1DayAt,
+        changeHistory: updatedHistory,
       },
       include: {
         order: {
@@ -258,9 +230,7 @@ export async function PATCH(
         newDuration: historyEntry.newDuration,
         oldExpiry: historyEntry.oldExpiry,
         newExpiry: historyEntry.newExpiry,
-        reason: historyEntry.reason,
-        showReasonToCustomer: historyEntry.showReasonToCustomer,
-        notifyCustomer: historyEntry.notifyCustomer,
+        calculateFrom: historyEntry.calculateFrom,
       },
     });
 
@@ -270,47 +240,45 @@ export async function PATCH(
       revalidatePath("/account/warranties");
     } catch {}
 
-    // Dispatch background email if notifyCustomer is true
-    if (notifyCustomer) {
-      sendWarrantyUpdatedEmail({
-        warrantyId: id,
-        orderId: warranty.orderId,
-        orderNumber: warranty.order?.orderNumber,
-        userId: warranty.userId,
-        customerName: warranty.customerName,
-        customerEmail: warranty.customerEmail,
-        productName: warranty.productName,
-        imeiNumber: warranty.imeiNumber,
-        purchaseDate: warranty.purchaseDate,
-        oldDuration: historyEntry.oldDuration,
-        newDuration: historyEntry.newDuration,
-        oldExpiryDate: historyEntry.oldExpiry,
-        newExpiryDate: historyEntry.newExpiry,
-        warrantyStartDate: warranty.warrantyStartDate || warranty.purchaseDate || now,
-        isExtended: calculation.isExtended,
-        reason: historyEntry.reason,
-        showReasonToCustomer: historyEntry.showReasonToCustomer,
+    // Automatically dispatch customer email in the background after save
+    sendWarrantyUpdatedEmail({
+      warrantyId: id,
+      orderId: warranty.orderId,
+      orderNumber: warranty.order?.orderNumber,
+      userId: warranty.userId,
+      customerName: warranty.customerName,
+      customerEmail: warranty.customerEmail,
+      productName: warranty.productName,
+      imeiNumber: warranty.imeiNumber,
+      purchaseDate: warranty.purchaseDate,
+      oldDuration: historyEntry.oldDuration,
+      newDuration: historyEntry.newDuration,
+      oldExpiryDate: historyEntry.oldExpiry,
+      newExpiryDate: historyEntry.newExpiry,
+      warrantyStartDate: warranty.warrantyStartDate || warranty.purchaseDate || now,
+      isExtended: calculation.isExtended,
+    })
+      .then(async (result) => {
+        if (result.success) {
+          try {
+            const fresh = await prisma.warranty.findUnique({ where: { id } });
+            if (fresh && Array.isArray(fresh.changeHistory)) {
+              const h = fresh.changeHistory.map((item: any) =>
+                item.id === historyEntry.id ? { ...item, emailSent: true } : item
+              );
+              await prisma.warranty.update({
+                where: { id },
+                data: { changeHistory: h },
+              });
+            }
+          } catch {}
+        } else {
+          console.error(`[WARRANTY UPDATE EMAIL FAILED] ID ${id}:`, result.error);
+        }
       })
-        .then(async (result) => {
-          if (result.success) {
-            try {
-              const fresh = await prisma.warranty.findUnique({ where: { id } });
-              if (fresh && Array.isArray(fresh.changeHistory)) {
-                const h = fresh.changeHistory.map((item: any) =>
-                  item.id === historyEntry.id ? { ...item, emailSent: true } : item
-                );
-                await prisma.warranty.update({
-                  where: { id },
-                  data: { changeHistory: h },
-                });
-              }
-            } catch {}
-          }
-        })
-        .catch((emailErr) => {
-          console.error(`[WARRANTY UPDATE EMAIL ERROR] ID ${id}:`, emailErr);
-        });
-    }
+      .catch((emailErr) => {
+        console.error(`[WARRANTY UPDATE EMAIL EXCEPTION] ID ${id}:`, emailErr);
+      });
 
     return NextResponse.json({
       success: true,
@@ -318,10 +286,11 @@ export async function PATCH(
       warranty: updatedWarranty,
       calculation,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Update warranty duration error:", error);
+    const safeError = error?.message ? String(error.message) : "Failed to update warranty duration.";
     return NextResponse.json(
-      { success: false, error: "Failed to update warranty duration." },
+      { success: false, error: safeError },
       { status: 500 }
     );
   }
@@ -404,8 +373,6 @@ export async function POST(
       newExpiryDate: targetHistory.newExpiry,
       warrantyStartDate: warranty.warrantyStartDate || warranty.purchaseDate || new Date(),
       isExtended: new Date(targetHistory.newExpiry) > new Date(targetHistory.oldExpiry),
-      reason: targetHistory.reason,
-      showReasonToCustomer: targetHistory.showReasonToCustomer,
     });
 
     if (!result.success) {
@@ -430,10 +397,11 @@ export async function POST(
       success: true,
       message: `Warranty update notification re-emailed to ${warranty.customerEmail}.`,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Resend update email error:", error);
+    const safeError = error?.message ? String(error.message) : "Failed to resend warranty update email.";
     return NextResponse.json(
-      { success: false, error: "Failed to resend warranty update email." },
+      { success: false, error: safeError },
       { status: 500 }
     );
   }
@@ -476,10 +444,11 @@ export async function DELETE(
       success: true,
       message: `Warranty for ${warranty.productName} (IMEI: ${warranty.imeiNumber}) deleted successfully.`,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Delete warranty error:", error);
+    const safeError = error?.message ? String(error.message) : "Failed to delete warranty record.";
     return NextResponse.json(
-      { success: false, error: "Failed to delete warranty record." },
+      { success: false, error: safeError },
       { status: 500 }
     );
   }

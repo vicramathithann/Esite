@@ -15,8 +15,6 @@ export interface WarrantyUpdatedEmailData {
   newExpiryDate: Date | string;
   updatedAt?: Date | string | null;
   isExtended: boolean;
-  reason?: string | null;
-  showReasonToCustomer?: boolean;
 }
 
 export function renderWarrantyUpdatedEmail(
@@ -57,14 +55,6 @@ export function renderWarrantyUpdatedEmail(
     { label: "New expiry date", value: newExpiryFormatted, isBold: true },
     { label: "Updated on", value: updatedOnFormatted },
   ];
-
-  // Include reason only if explicitly marked as customer-visible by admin
-  if (data.showReasonToCustomer && data.reason?.trim()) {
-    rows.push({
-      label: "Update note",
-      value: data.reason.trim(),
-    });
-  }
 
   const rowsHtml = rows
     .map((row, idx) => {

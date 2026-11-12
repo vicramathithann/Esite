@@ -49,9 +49,6 @@ export default function AdminWarrantiesPage() {
   const [durationValue, setDurationValue] = useState<string>("1");
   const [durationUnit, setDurationUnit] = useState<WarrantyDurationUnit>("YEARS");
   const [calculateFrom, setCalculateFrom] = useState<WarrantyCalculateFrom>("START_DATE");
-  const [reason, setReason] = useState<string>("");
-  const [showReasonToCustomer, setShowReasonToCustomer] = useState<boolean>(false);
-  const [notifyCustomer, setNotifyCustomer] = useState<boolean>(true);
   const [reductionConfirmed, setReductionConfirmed] = useState<boolean>(false);
   const [editLoading, setEditLoading] = useState<boolean>(false);
   const [editError, setEditError] = useState<string | null>(null);
@@ -120,9 +117,6 @@ export default function AdminWarrantiesPage() {
     setDurationValue(val);
     setDurationUnit(unit);
     setCalculateFrom("START_DATE");
-    setReason("");
-    setShowReasonToCustomer(false);
-    setNotifyCustomer(true);
     setReductionConfirmed(false);
     setEditError(null);
   };
@@ -148,10 +142,12 @@ export default function AdminWarrantiesPage() {
     }
   }, [editModalWarranty, durationValue, durationUnit, calculateFrom]);
 
+  const hasNoChange = Boolean(liveCalc && !liveCalc.isExtended && !liveCalc.isReduced);
+
   const handleSaveEditWarranty = async () => {
     if (!editModalWarranty || !liveCalc) return;
-    if (!reason.trim() || reason.trim().length < 3) {
-      setEditError("Please enter a valid reason for modifying warranty duration (min 3 characters).");
+    if (hasNoChange) {
+      setEditError("No change to save. The new expiration date is identical to the current one.");
       return;
     }
     if (liveCalc.isReduced && !reductionConfirmed) {
@@ -171,9 +167,6 @@ export default function AdminWarrantiesPage() {
           durationValue: parseInt(durationValue, 10),
           durationUnit,
           calculateFrom,
-          reason: reason.trim(),
-          showReasonToCustomer,
-          notifyCustomer,
         }),
       });
 
@@ -185,8 +178,8 @@ export default function AdminWarrantiesPage() {
       } else {
         setEditError(data.error || "Failed to update warranty duration.");
       }
-    } catch {
-      setEditError("Network error contacting server.");
+    } catch (err: any) {
+      setEditError(err?.message || "Network error contacting server.");
     } finally {
       setEditLoading(false);
     }
@@ -726,58 +719,6 @@ export default function AdminWarrantiesPage() {
                   </label>
                 </div>
               )}
-
-              {/* Reason */}
-              <div>
-                <label className="block text-foreground font-semibold mb-1">
-                  Reason for modification <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  placeholder="e.g. Goodwill extension, Corrected duration, Promotional upgrade"
-                  className="w-full px-3.5 py-2.5 bg-card border border-border rounded-xl text-foreground text-xs focus:outline-none focus:border-[#C9A66B]"
-                />
-              </div>
-
-              {/* Checkboxes */}
-              <div className="space-y-2 pt-1">
-                <label className="flex items-start gap-2.5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={showReasonToCustomer}
-                    onChange={(e) => setShowReasonToCustomer(e.target.checked)}
-                    className="w-4 h-4 accent-[#C9A66B] rounded cursor-pointer mt-0.5"
-                  />
-                  <div>
-                    <span className="font-semibold text-foreground text-xs block">
-                      Show reason to customer
-                    </span>
-                    <span className="text-[11px] text-muted block leading-relaxed">
-                      If checked, this explanation will be printed in the customer notification email.
-                    </span>
-                  </div>
-                </label>
-
-                <label className="flex items-start gap-2.5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={notifyCustomer}
-                    onChange={(e) => setNotifyCustomer(e.target.checked)}
-                    className="w-4 h-4 accent-[#C9A66B] rounded cursor-pointer mt-0.5"
-                  />
-                  <div>
-                    <span className="font-semibold text-foreground text-xs block">
-                      Notify customer by email
-                    </span>
-                    <span className="text-[11px] text-muted block leading-relaxed">
-                      Automatically sends updated certificate PDF and official notice to{" "}
-                      <span className="font-mono">{editModalWarranty.customerEmail}</span>.
-                    </span>
-                  </div>
-                </label>
-              </div>
             </div>
 
             {/* Actions */}
@@ -797,18 +738,24 @@ export default function AdminWarrantiesPage() {
                   editLoading ||
                   !durationValue ||
                   parseInt(durationValue, 10) <= 0 ||
-                  !reason.trim() ||
-                  reason.trim().length < 3 ||
+                  hasNoChange ||
                   (liveCalc?.isReduced && !reductionConfirmed)
                 }
                 className="px-5 py-2 bg-[#C9A66B] hover:bg-[#B8914A] active:bg-[#A8813B] text-white text-xs font-bold rounded-xl transition shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {editLoading ? (
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : hasNoChange ? (
+                  <span>No change to save</span>
                 ) : (
-                  <Check className="w-3.5 h-3.5" />
+                  <>
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Save Warranty Changes</span>
+                  </>
                 )}
-                Save Warranty Changes
               </button>
             </div>
           </div>
@@ -893,36 +840,17 @@ export default function AdminWarrantiesPage() {
                           </div>
                         </div>
 
-                        {/* Reason */}
-                        <div className="bg-card border border-border rounded-lg p-2.5 text-[11px]">
-                          <span className="text-muted font-semibold block text-[10px] uppercase">
-                            Reason:
-                          </span>
-                          <span className="text-foreground">{entry.reason}</span>
-                          <div className="mt-1">
-                            <span className="text-[10px] text-muted italic">
-                              {entry.showReasonToCustomer
-                                ? "✓ Customer visible in email notification"
-                                : "🔒 Internal admin note only"}
-                            </span>
-                          </div>
-                        </div>
-
                         {/* Email Dispatch Info & Resend Action */}
                         <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-border/40 text-[11px]">
                           <span className="text-muted">
-                            {entry.notifyCustomer ? (
-                              entry.emailSent ? (
-                                <span className="text-emerald-600 dark:text-emerald-400 font-semibold inline-flex items-center gap-1">
-                                  <Check className="w-3 h-3" /> Updated Certificate Emailed
-                                </span>
-                              ) : (
-                                <span className="text-[#8C6226] dark:text-[#E5CBA2] font-semibold">
-                                  Email notification queued
-                                </span>
-                              )
+                            {entry.emailSent ? (
+                              <span className="text-emerald-600 dark:text-emerald-400 font-semibold inline-flex items-center gap-1">
+                                <Check className="w-3 h-3" /> Updated Certificate Emailed
+                              </span>
                             ) : (
-                              <span className="text-muted">Email notification disabled</span>
+                              <span className="text-[#8C6226] dark:text-[#E5CBA2] font-semibold">
+                                Email notification sent
+                              </span>
                             )}
                           </span>
 
