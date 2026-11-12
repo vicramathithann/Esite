@@ -6,6 +6,7 @@ import { sendUserInvitationEmail } from "@/lib/email";
 import { enforceRateLimit } from "@/lib/rateLimit";
 import { logSecurityEvent } from "@/lib/securityLogger";
 import { getAppUrl } from "@/lib/appUrl";
+import { isEmailSuppressed } from "@/lib/bounce-handler";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,8 @@ export type DerivedInviteStatus =
   | "EXPIRED"
   | "REVOKED"
   | "ACCOUNT_DELETED"
-  | "SUPERSEDED";
+  | "SUPERSEDED"
+  | "BOUNCED";
 
 /**
  * GET /api/admin/invites
@@ -81,7 +83,15 @@ export async function GET(request: Request) {
           linkedUser = userByEmail.get(emailKey);
         }
 
-        if (storedStatus === "ACCOUNT_DELETED") {
+        // Check if email has hard bounced or is marked undeliverable
+        const isBounced =
+          storedStatus === "BOUNCED" ||
+          (storedStatus === "PENDING" && (await isEmailSuppressed(emailKey)));
+
+        if (isBounced) {
+          effectiveStatus = "BOUNCED";
+          statusReason = "Email bounced / marked undeliverable";
+        } else if (storedStatus === "ACCOUNT_DELETED") {
           effectiveStatus = "ACCOUNT_DELETED";
           statusReason = inv.deletedBy
             ? `${inv.deletedBy}`
@@ -207,16 +217,22 @@ export async function GET(request: Request) {
  */
 export async function POST(request: Request) {
   try {
-    const rateLimitError = enforceRateLimit(request, {
-      keyPrefix: "admin_invites_send",
-      maxRequests: 30,
-      windowSeconds: 60,
-    });
-    if (rateLimitError) return rateLimitError;
-
     const adminOrResponse = await requireAdmin(request);
     if (adminOrResponse instanceof NextResponse) return adminOrResponse;
     const admin = adminOrResponse;
+
+    // 1. Rate limit invites per admin: 20 per hour (3600s)
+    const adminRateLimitError = enforceRateLimit(request, {
+      keyPrefix: `admin_invites_quota_${admin.id || admin.email}`,
+      maxRequests: 20,
+      windowSeconds: 3600,
+    });
+    if (adminRateLimitError) {
+      return NextResponse.json(
+        { success: false, error: "Invitation rate limit reached (max 20 per hour). Please try again later." },
+        { status: 429 }
+      );
+    }
 
     const body = await request.json().catch(() => ({}));
     const rawEmail = body.email;
@@ -232,6 +248,30 @@ export async function POST(request: Request) {
     if (!isValidEmail(cleanEmail)) {
       return NextResponse.json(
         { success: false, error: "Please enter a valid email address." },
+        { status: 400 }
+      );
+    }
+
+    // 2. Cooldown: Block resends to the same recipient within 60 seconds
+    const recentInvite = await prisma.invitation.findFirst({
+      where: {
+        email: cleanEmail,
+        createdAt: { gte: new Date(Date.now() - 60 * 1000) },
+      },
+    });
+
+    if (recentInvite) {
+      return NextResponse.json(
+        { success: false, error: "An invitation was recently sent to this address. Please wait 60 seconds before sending another." },
+        { status: 429 }
+      );
+    }
+
+    // 3. Suppression check: Stop resending to hard bounced or complained addresses
+    const isSuppressed = await isEmailSuppressed(cleanEmail);
+    if (isSuppressed) {
+      return NextResponse.json(
+        { success: false, error: "This email address is marked as undeliverable due to a prior bounce or spam complaint." },
         { status: 400 }
       );
     }

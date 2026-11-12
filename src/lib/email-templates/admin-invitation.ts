@@ -1,7 +1,6 @@
 import {
   escapeHtml,
   renderEmailLayout,
-  renderPlainFooter,
 } from "./layout";
 
 export interface AdminInvitationData {
@@ -21,15 +20,22 @@ export function renderAdminInvitationEmail(
   preheader: string;
 } {
   const cleanUrl = siteUrl.replace(/\/$/, "");
-  const expiresAt = data.expiresAtFormatted || "Expires in 48 hours";
-  const accessLabel = (data.role || "").toUpperCase() === "ADMIN" ? "Team Member" : "Member";
+  let cleanDomain = "vnmobiles.in";
+  try {
+    cleanDomain = new URL(cleanUrl).hostname;
+  } catch {}
 
   const subject = "You're invited to join VN Mobiles";
-  const preheader = "You've been invited to join VN Mobiles. Set up your account and get started.";
+  const preheader = "You have been invited to create an account at VN Mobiles.";
+  const validityText = data.expiresAtFormatted || "48 hours";
 
   const contentHtml = `
-    <p style="margin:0 0 20px 0;font-size:14px;line-height:1.6;color:#475569;">
-      You've been invited to join VN Mobiles. Click the button below to set up your account and get started.
+    <p style="margin:0 0 16px 0;font-size:14px;line-height:1.6;color:#334155;">
+      Hello,
+    </p>
+
+    <p style="margin:0 0 20px 0;font-size:14px;line-height:1.6;color:#334155;">
+      You have been invited to create an account at VN Mobiles. Click the button below to complete your registration and get started.
     </p>
 
     <!-- Invitation Details Table -->
@@ -40,18 +46,18 @@ export function renderAdminInvitationEmail(
           <td style="padding:14px 18px;border-bottom:1px solid #E2E8F0;color:#0F172A;font-weight:700;">${escapeHtml(data.recipientEmail)}</td>
         </tr>
         <tr>
-          <td style="padding:14px 18px;border-bottom:1px solid #E2E8F0;color:#64748B;font-weight:600;">Access</td>
-          <td style="padding:14px 18px;border-bottom:1px solid #E2E8F0;color:#0F172A;font-weight:600;">${escapeHtml(accessLabel)}</td>
+          <td style="padding:14px 18px;border-bottom:1px solid #E2E8F0;color:#64748B;font-weight:600;">Access level</td>
+          <td style="padding:14px 18px;border-bottom:1px solid #E2E8F0;color:#0F172A;font-weight:600;">Member</td>
         </tr>
         <tr>
           <td style="padding:14px 18px;color:#64748B;font-weight:600;">Link validity</td>
-          <td style="padding:14px 18px;color:#0F172A;font-weight:600;">${escapeHtml(expiresAt)}</td>
+          <td style="padding:14px 18px;color:#0F172A;font-weight:600;">${escapeHtml(validityText)}</td>
         </tr>
       </tbody>
     </table>
 
-    <p style="margin:20px 0 0 0;font-size:12px;line-height:1.5;color:#64748B;">
-      If you weren't expecting this invitation, you can safely ignore this email.
+    <p style="margin:24px 0 0 0;font-size:12px;line-height:1.6;color:#64748B;">
+      Or open <a href="${cleanUrl}/invite" style="color:#C9A66B;text-decoration:underline;font-weight:600;">${cleanDomain}/invite</a> in your browser.
     </p>
   `;
 
@@ -63,7 +69,7 @@ export function renderAdminInvitationEmail(
       color: "#92400E",
       border: "#FDE68A",
     },
-    headline: "You're invited.",
+    headline: "You're invited to VN Mobiles",
     contentHtml,
     cta: {
       label: "Accept Invitation",
@@ -77,17 +83,24 @@ export function renderAdminInvitationEmail(
     "",
     "Hello,",
     "",
-    "You've been invited to join VN Mobiles. Click the link below to set up your account and get started:",
+    "You have been invited to create an account at VN Mobiles. Click the link below to accept your invitation:",
     data.inviteLink,
+    "",
+    `Or open ${cleanDomain}/invite in your browser.`,
     "",
     "INVITATION DETAILS:",
     `- Invited email: ${data.recipientEmail}`,
-    `- Access: ${accessLabel}`,
-    `- Link validity: ${expiresAt}`,
+    "- Access level: Member",
+    `- Link validity: ${validityText}`,
     "",
-    "If you weren't expecting this invitation, you can safely ignore this email.",
+    "You received this because an administrator invited this address to create a VN Mobiles account. If you were not expecting it, ignore this email.",
     "",
-    renderPlainFooter(cleanUrl),
+    "--------------------------------------------------",
+    "VN Mobiles India",
+    "Electronics City Phase 1, Hosur Road, Bengaluru, Karnataka 560100, India",
+    "Customer Support: support@vnmobiles.in",
+    `Website: ${cleanUrl}`,
+    "(c) 2026 VN Mobiles India. All rights reserved.",
   ].join("\n");
 
   return { subject, html, text, preheader };

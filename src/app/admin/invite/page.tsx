@@ -33,7 +33,8 @@ export type DerivedInviteStatus =
   | "EXPIRED"
   | "REVOKED"
   | "ACCOUNT_DELETED"
-  | "SUPERSEDED";
+  | "SUPERSEDED"
+  | "BOUNCED";
 
 export interface InviteRecord {
   id: string;
@@ -96,6 +97,7 @@ export default function AdminInvitePage() {
   const [sendError, setSendError] = useState<string | null>(null);
   const [sendSuccess, setSendSuccess] = useState<string | null>(null);
   const [lastGeneratedLink, setLastGeneratedLink] = useState<string | null>(null);
+  const [cachedLinks, setCachedLinks] = useState<Record<string, string>>({});
 
   // Action loading states
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
@@ -255,7 +257,10 @@ export default function AdminInvitePage() {
       }
 
       setSendSuccess(data.message || `Invitation successfully sent to ${cleanEmail}.`);
-      setLastGeneratedLink(data.inviteLink || null);
+      if (data.inviteLink) {
+        setLastGeneratedLink(data.inviteLink);
+        setCachedLinks((prev) => ({ ...prev, [cleanEmail]: data.inviteLink }));
+      }
       setRecipientEmail("");
       addToast(`Invitation sent to ${cleanEmail}`, "success");
       await loadInvites(true);
@@ -307,6 +312,7 @@ export default function AdminInvitePage() {
         addToast(`Fresh invitation dispatched to ${email}`, "success");
         if (data.inviteLink) {
           setLastGeneratedLink(data.inviteLink);
+          setCachedLinks((prev) => ({ ...prev, [email]: data.inviteLink }));
           setSendSuccess(`Fresh link dispatched to ${email}. You can also copy it below.`);
         }
         await loadInvites(true);
@@ -315,6 +321,42 @@ export default function AdminInvitePage() {
       }
     } catch {
       alert("Network error resending invitation.");
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  // Copy pending invite link (WhatsApp / SMS sharing)
+  const handleCopyPendingLink = async (inv: InviteRecord) => {
+    const existing =
+      cachedLinks[inv.email] ||
+      (lastGeneratedLink && inv.email === recipientEmail ? lastGeneratedLink : null);
+
+    if (existing) {
+      copyToClipboard(existing, inv.id);
+      addToast("Invite link copied to clipboard. Share via WhatsApp or SMS.", "success");
+      return;
+    }
+
+    try {
+      setActionLoadingId(inv.id);
+      const res = await fetch("/api/admin/invites", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: inv.email }),
+      });
+      const data = await res.json();
+      if (data.success && data.inviteLink) {
+        setCachedLinks((prev) => ({ ...prev, [inv.email]: data.inviteLink }));
+        copyToClipboard(data.inviteLink, inv.id);
+        addToast("Fresh invite link generated and copied to clipboard!", "success");
+        await loadInvites(true);
+      } else {
+        alert(data.error || "Failed to generate invite link.");
+      }
+    } catch {
+      alert("Network error copying invite link.");
     } finally {
       setActionLoadingId(null);
     }
@@ -338,6 +380,7 @@ export default function AdminInvitePage() {
       EXPIRED: 0,
       REVOKED: 0,
       ACCOUNT_DELETED: 0,
+      BOUNCED: 0,
     };
 
     invites.forEach((i) => {
@@ -347,6 +390,7 @@ export default function AdminInvitePage() {
       else if (st === "EXPIRED") counts.EXPIRED++;
       else if (st === "REVOKED") counts.REVOKED++;
       else if (st === "ACCOUNT_DELETED") counts.ACCOUNT_DELETED++;
+      else if (st === "BOUNCED") counts.BOUNCED++;
     });
 
     return counts;
@@ -493,6 +537,16 @@ export default function AdminInvitePage() {
             <span>Superseded</span>
           </span>
         );
+      case "BOUNCED":
+        return (
+          <span
+            className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20"
+            title={reason || "Email address bounced or reported spam"}
+          >
+            <AlertCircle className="w-3 h-3" />
+            <span>Bounced</span>
+          </span>
+        );
       default:
         return null;
     }
@@ -507,6 +561,26 @@ export default function AdminInvitePage() {
       <div className="flex items-center justify-end gap-2 flex-wrap">
         {st === "PENDING" && (
           <>
+            <button
+              type="button"
+              disabled={isLoading}
+              onClick={() => handleCopyPendingLink(inv)}
+              className="px-2.5 py-1 rounded-lg bg-[#C9A66B]/15 hover:bg-[#C9A66B]/25 text-[#8C6226] dark:text-[#E5CBA2] border border-[#C9A66B]/30 text-[11px] font-semibold transition cursor-pointer flex items-center gap-1"
+              title="Copy single-use invite link to share via WhatsApp or SMS"
+            >
+              {copiedId === inv.id ? (
+                <>
+                  <Check className="w-3 h-3 text-emerald-500" />
+                  <span>Copied!</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3 h-3" />
+                  <span>Copy invite link</span>
+                </>
+              )}
+            </button>
+
             <button
               type="button"
               disabled={isLoading}
@@ -889,6 +963,11 @@ export default function AdminInvitePage() {
             </button>
           </div>
 
+          <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-2 flex items-center gap-1.5 font-medium">
+            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+            <span>Ask the person to check Spam or Promotions and mark the email &ldquo;Not spam&rdquo;.</span>
+          </p>
+
           <div className="flex items-center gap-2 text-[11px] text-muted pt-1">
             <ShieldCheck className="w-3.5 h-3.5 text-[#C9A66B]" />
             <span>
@@ -908,6 +987,9 @@ export default function AdminInvitePage() {
             { key: "EXPIRED", label: "Expired", count: tabCounts.EXPIRED },
             { key: "REVOKED", label: "Revoked", count: tabCounts.REVOKED },
             { key: "ACCOUNT_DELETED", label: "Account Deleted", count: tabCounts.ACCOUNT_DELETED },
+            ...(tabCounts.BOUNCED > 0
+              ? [{ key: "BOUNCED", label: "Bounced", count: tabCounts.BOUNCED }]
+              : []),
           ].map((tab) => {
             const isActive = activeTab === tab.key;
 
