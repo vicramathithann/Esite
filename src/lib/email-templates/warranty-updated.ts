@@ -1,6 +1,7 @@
 import {
   escapeHtml,
   renderEmailLayout,
+  renderPlainFooter,
 } from "./layout";
 import { formatKolkataDateString } from "../warrantyDateHelpers";
 
@@ -132,8 +133,9 @@ export function renderWarrantyUpdatedEmail(
     "Updated Warranty Details:",
     textRows,
     "",
-    "If you have any questions, contact VN Mobiles support.",
-    `${cleanUrl}/account/warranties`,
+    `View your warranty: ${cleanUrl}/account/warranties`,
+    "",
+    renderPlainFooter(cleanUrl),
   ].join("\n");
 
   return {

@@ -279,6 +279,7 @@ export interface LayoutOptions {
   };
   siteUrl?: string;
   showNotificationPreferences?: boolean;
+  footerDisclaimer?: string;
 }
 
 export function renderEmailLayout(options: LayoutOptions): string {
@@ -376,13 +377,10 @@ export function renderEmailLayout(options: LayoutOptions): string {
                 VN Mobiles India
               </p>
               <p style="margin:0 0 8px 0;font-size:11px;color:#64748B;line-height:1.4;">
-                Electronics City Phase 1, Hosur Road, Bengaluru, Karnataka 560100, India
-              </p>
-              <p style="margin:0 0 8px 0;font-size:12px;color:#64748B;line-height:1.5;">
-                Need assistance? Our support team is here to help at <a href="mailto:support@vnmobiles.in" style="color:#C9A66B;text-decoration:none;font-weight:600;">support@vnmobiles.in</a>
+                Thiruparankundram, Madurai, Tamil Nadu 625001, India
               </p>
               <p style="margin:0 0 8px 0;font-size:11px;color:#94A3B8;line-height:1.4;">
-                You are receiving this automated transactional notification because you placed an order or created an account at VN Mobiles.
+                ${escapeHtml(options.footerDisclaimer || "You are receiving this automated transactional notification because you placed an order or created an account at VN Mobiles.")}
               </p>
               <p style="margin:0;font-size:11px;color:#94A3B8;">
                 &copy; 2026 VN Mobiles India. All rights reserved. &bull; <a href="${siteUrl}" style="color:#94A3B8;text-decoration:underline;">vnmobiles.in</a>
@@ -397,15 +395,18 @@ export function renderEmailLayout(options: LayoutOptions): string {
 </html>`;
 }
 
-export function renderPlainFooter(siteUrl = "https://vnmobiles.in"): string {
+export function renderPlainFooter(
+  siteUrl = "https://vnmobiles.in",
+  options?: { footerDisclaimer?: string }
+): string {
   const cleanUrl = siteUrl.replace(/\/$/, "");
   return [
     "--------------------------------------------------",
     "VN Mobiles India",
-    "Electronics City Phase 1, Hosur Road, Bengaluru, Karnataka 560100, India",
-    "Customer Support: support@vnmobiles.in",
+    "Thiruparankundram, Madurai, Tamil Nadu 625001, India",
     `Website: ${cleanUrl}`,
-    "You are receiving this automated transactional notification because you placed an order or created an account at VN Mobiles.",
+    options?.footerDisclaimer ||
+      "You are receiving this automated transactional notification because you placed an order or created an account at VN Mobiles.",
     "(c) 2026 VN Mobiles India. All rights reserved.",
   ].join("\n");
 }

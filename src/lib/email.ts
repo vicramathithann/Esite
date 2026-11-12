@@ -304,12 +304,11 @@ export function getEmailFooterHtml(options?: { showNotificationPreferences?: boo
         <td align="center">
           <p style="margin: 0 0 6px 0; font-weight: 600; color: #374151; font-size: 12px;">VN Mobiles India</p>
           <p style="margin: 0 0 8px 0; color: #6B7280;">
-            Electronics City Phase 1, Hosur Road, Bengaluru, Karnataka 560100, India
+            Thiruparankundram, Madurai, Tamil Nadu 625001, India
           </p>
           <p style="margin: 0 0 10px 0;">
             <a href="${siteUrl}/account" style="color: #4B5563; text-decoration: underline; margin: 0 8px;">Your Account</a> &bull;
-            <a href="${siteUrl}/orders" style="color: #4B5563; text-decoration: underline; margin: 0 8px;">Track Orders</a> &bull;
-            <a href="mailto:support@vnmobiles.in" style="color: #4B5563; text-decoration: underline; margin: 0 8px;">Customer Support</a>
+            <a href="${siteUrl}/orders" style="color: #4B5563; text-decoration: underline; margin: 0 8px;">Track Orders</a>
           </p>
           ${options?.showNotificationPreferences ? `
           <p style="margin: 0 0 8px 0; font-size: 10px; color: #9CA3AF;">
@@ -336,8 +335,8 @@ export function getEmailFooterText(options?: { showNotificationPreferences?: boo
     "",
     "---",
     "VN Mobiles India",
-    "Electronics City Phase 1, Hosur Road, Bengaluru, Karnataka 560100, India",
-    `Customer Support: support@vnmobiles.in | Your Account: ${siteUrl}/account`,
+    "Thiruparankundram, Madurai, Tamil Nadu 625001, India",
+    `Your Account: ${siteUrl}/account`,
     options?.showNotificationPreferences
       ? `Manage warranty notifications: ${siteUrl}/account/profile`
       : "This is an automated transactional message regarding your order or account on VN Mobiles.",

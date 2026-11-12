@@ -27,10 +27,10 @@ export default function EmailPreviewPage() {
   const sampleCustomer = {
     name: "Alex Rivera",
     email: "alex.rivera@example.com",
-    address: "Flat 402, Prestige Tower, Indiranagar 100ft Road",
-    city: "Bengaluru",
-    state: "Karnataka",
-    pincode: "560038",
+    address: "Flat 402, Prestige Tower, Anna Nagar Main Road",
+    city: "Madurai",
+    state: "Tamil Nadu",
+    pincode: "625020",
   };
 
   const sampleItem = {
@@ -82,7 +82,7 @@ export default function EmailPreviewPage() {
             items: [sampleItem],
           },
           "SHIPPED",
-          "Tamper-proof package dispatched from Bengaluru Central Warehouse.",
+          "Tamper-proof package dispatched from Central Warehouse.",
           undefined,
           siteUrl
         ),

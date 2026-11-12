@@ -127,7 +127,7 @@ export function renderAccountDeletionConfirmedEmail(
     </table>
 
     <p style="margin:20px 0 0 0;font-size:13px;color:#64748B;line-height:1.5;">
-      If you did not authorize this action or believe your account was compromised, please contact our support team immediately at <a href="mailto:support@vnmobiles.in" style="color:#C9A66B;text-decoration:none;font-weight:600;">support@vnmobiles.in</a>.
+      If you did not authorize this action or believe your account was compromised, please contact our support team immediately.
     </p>
   `;
 

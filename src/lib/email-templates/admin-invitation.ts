@@ -1,6 +1,7 @@
 import {
   escapeHtml,
   renderEmailLayout,
+  renderPlainFooter,
 } from "./layout";
 
 export interface AdminInvitationData {
@@ -61,6 +62,9 @@ export function renderAdminInvitationEmail(
     </p>
   `;
 
+  const inviteDisclaimer =
+    "You received this because an administrator invited this address to create a VN Mobiles account. If you were not expecting it, ignore this email.";
+
   const html = renderEmailLayout({
     preheader,
     badge: {
@@ -76,6 +80,7 @@ export function renderAdminInvitationEmail(
       url: data.inviteLink,
     },
     siteUrl: cleanUrl,
+    footerDisclaimer: inviteDisclaimer,
   });
 
   const text = [
@@ -93,14 +98,7 @@ export function renderAdminInvitationEmail(
     "- Access level: Member",
     `- Link validity: ${validityText}`,
     "",
-    "You received this because an administrator invited this address to create a VN Mobiles account. If you were not expecting it, ignore this email.",
-    "",
-    "--------------------------------------------------",
-    "VN Mobiles India",
-    "Electronics City Phase 1, Hosur Road, Bengaluru, Karnataka 560100, India",
-    "Customer Support: support@vnmobiles.in",
-    `Website: ${cleanUrl}`,
-    "(c) 2026 VN Mobiles India. All rights reserved.",
+    renderPlainFooter(cleanUrl, { footerDisclaimer: inviteDisclaimer }),
   ].join("\n");
 
   return { subject, html, text, preheader };

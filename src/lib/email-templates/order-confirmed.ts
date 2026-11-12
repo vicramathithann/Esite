@@ -1,6 +1,7 @@
 import {
   escapeHtml,
   renderEmailLayout,
+  renderPlainFooter,
   formatOrderProductsDisplayName,
   renderOrderDetailsTable,
 } from "./layout";
@@ -108,17 +109,16 @@ export function renderOrderConfirmedEmail(
     siteUrl: cleanUrl,
   });
 
-  const text = `
-${heading}
-
-Thank you! Your order for ${productName} has been placed successfully.
-Your warranty certificate is attached as a PDF.
-
-${table.text}
-
-Need assistance? Our support team is here to help at support@vnmobiles.in
-This is an automated transaction notification from VN Mobiles India.
-`.trim();
+  const text = [
+    heading,
+    "",
+    `Thank you! Your order for ${productName} has been placed successfully.`,
+    "Your warranty certificate is attached as a PDF.",
+    "",
+    table.text,
+    "",
+    renderPlainFooter(cleanUrl),
+  ].join("\n");
 
   return { subject, html, text, preheader };
 }
