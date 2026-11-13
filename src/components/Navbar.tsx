@@ -58,7 +58,6 @@ const BrandSubNav = React.memo(function BrandSubNav() {
 
         <div className="hidden lg:flex items-center gap-1.5 text-[11px] text-muted shrink-0">
           <ShieldCheck className="w-3.5 h-3.5 text-accent" />
-          <span>Authorized Hardware & 1-Year Brand Warranty</span>
         </div>
       </div>
     </div>
