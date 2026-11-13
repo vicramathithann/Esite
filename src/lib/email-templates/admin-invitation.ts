@@ -58,7 +58,7 @@ export function renderAdminInvitationEmail(
     </table>
 
     <p style="margin:24px 0 0 0;font-size:12px;line-height:1.6;color:#64748B;">
-      Or open <a href="${cleanUrl}/invite" style="color:#C9A66B;text-decoration:underline;font-weight:600;">${cleanDomain}/invite</a> in your browser.
+      Or open <a href="${cleanUrl}" style="color:#C9A66B;text-decoration:underline;font-weight:600;">${cleanDomain}</a> in your browser.
     </p>
   `;
 
@@ -91,7 +91,7 @@ export function renderAdminInvitationEmail(
     "You have been invited to create an account at VN Mobiles. Click the link below to accept your invitation:",
     data.inviteLink,
     "",
-    `Or open ${cleanDomain}/invite in your browser.`,
+    `Or open ${cleanDomain} in your browser.`,
     "",
     "INVITATION DETAILS:",
     `- Invited email: ${data.recipientEmail}`,
