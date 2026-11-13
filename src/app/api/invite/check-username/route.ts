@@ -1,33 +1,53 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { validateUsername, normalizeUsername } from "@/lib/username";
 
 export const dynamic = "force-dynamic";
 
 /**
- * GET /api/invite/check-username?name=...
+ * GET /api/invite/check-username?name=... or ?username=...
  * Live check for username availability during invite acceptance.
+ * Enforces:
+ * 1. 3 to 20 characters
+ * 2. Letters, numbers, dot, underscore
+ * 3. Reserved username blocking
+ * 4. Case-insensitive uniqueness
  */
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const name = (searchParams.get("name") || "").trim();
+    const rawUsername = (searchParams.get("name") || searchParams.get("username") || "").trim();
 
-    if (!name || name.length < 2) {
+    if (!rawUsername) {
       return NextResponse.json({
         available: false,
-        message: "Username must be at least 2 characters.",
+        error: "Username is required.",
       });
     }
 
-    const allUsers = await prisma.user.findMany({
-      select: { name: true },
+    const validation = validateUsername(rawUsername);
+    if (!validation.valid) {
+      return NextResponse.json({
+        available: false,
+        error: validation.error,
+      });
+    }
+
+    const normalized = validation.normalized || normalizeUsername(rawUsername);
+
+    // Check case-insensitively across existing users
+    const existing = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { normalizedUsername: normalized },
+          { username: rawUsername },
+          { name: rawUsername },
+        ],
+      },
+      select: { id: true },
     });
 
-    const isTaken = allUsers.some(
-      (u: { name: string | null }) => u.name && u.name.trim().toLowerCase() === name.toLowerCase()
-    );
-
-    if (isTaken) {
+    if (existing) {
       return NextResponse.json({
         available: false,
         error: "Username already taken",

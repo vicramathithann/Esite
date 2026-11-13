@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
-import { verifyOtp, ADMIN_EMAIL } from "@/lib/auth";
+import { verifyOtp, ADMIN_EMAIL, findUserByUsernameOrEmail } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/rateLimit";
+
+export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   try {
@@ -13,15 +15,16 @@ export async function POST(request: Request) {
     });
     if (rateLimitError) return rateLimitError;
 
-    const body = await request.json();
-    const { email, otp } = body;
+    const body = await request.json().catch(() => ({}));
+    const rawIdentifier = body.identifier || body.usernameOrEmail || body.email;
+    const rawOtp = body.otp;
 
-    const cleanEmail = (email || "").trim().toLowerCase();
-    const cleanOtp = String(otp || "").trim();
+    const cleanIdentifier = String(rawIdentifier || "").trim();
+    const cleanOtp = String(rawOtp || "").trim();
 
-    if (!cleanEmail) {
+    if (!cleanIdentifier) {
       return NextResponse.json(
-        { success: false, error: "Email address is required." },
+        { success: false, error: "Username or email address is required." },
         { status: 400 }
       );
     }
@@ -33,16 +36,16 @@ export async function POST(request: Request) {
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: cleanEmail },
-    });
+    const user = await findUserByUsernameOrEmail(cleanIdentifier);
 
     if (!user) {
       return NextResponse.json(
-        { success: false, error: "Invalid email or recovery code." },
+        { success: false, error: "Invalid username/email or recovery code." },
         { status: 400 }
       );
     }
+
+    const cleanEmail = user.email.toLowerCase();
 
     // Strict Separation: Block Admin accounts from customer recovery code verification
     if (user.role === "ADMIN" || cleanEmail === ADMIN_EMAIL.toLowerCase()) {

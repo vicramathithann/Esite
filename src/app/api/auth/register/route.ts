@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { sendOtpEmail, EmailFailureReason } from "@/lib/mailer";
 import { hashPassword, validatePasswordStrength } from "@/lib/auth";
+import { validateUsername, normalizeUsername, generateUniqueUsername } from "@/lib/username";
 import { enforceRateLimit } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
@@ -75,6 +76,40 @@ export async function POST(request: Request) {
     const codeHash = crypto.createHash("sha256").update(code).digest("hex");
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 
+    // Determine unique username and normalized copy
+    const validation = validateUsername(name.trim());
+    let chosenUsername: string;
+    let normalizedUser: string;
+
+    const allUsers = await prisma.user.findMany({
+      select: { username: true, normalizedUsername: true, name: true, email: true },
+    });
+    const existingSet = new Set(
+      allUsers
+        .flatMap((u: any) => [u.username, u.normalizedUsername, u.name])
+        .filter(Boolean)
+        .map((s: string) => s.toLowerCase())
+    );
+
+    if (validation.valid) {
+      const isTaken = allUsers.some(
+        (u: any) =>
+          ((u.normalizedUsername && u.normalizedUsername.toLowerCase() === validation.normalized) ||
+            (u.name && u.name.trim().toLowerCase() === name.trim().toLowerCase())) &&
+          u.email.toLowerCase() !== cleanEmail
+      );
+      if (isTaken) {
+        chosenUsername = generateUniqueUsername(name.trim(), existingSet);
+        normalizedUser = normalizeUsername(chosenUsername);
+      } else {
+        chosenUsername = name.trim();
+        normalizedUser = validation.normalized!;
+      }
+    } else {
+      chosenUsername = generateUniqueUsername(name.trim() || cleanEmail, existingSet);
+      normalizedUser = normalizeUsername(chosenUsername);
+    }
+
     let user;
 
     if (existingUser && !(existingUser.emailVerified || (existingUser as any).email_verified)) {
@@ -82,6 +117,8 @@ export async function POST(request: Request) {
         where: { id: existingUser.id },
         data: {
           name: name.trim(),
+          username: chosenUsername,
+          normalizedUsername: normalizedUser,
           password: hashedPassword,
           phone: cleanPhone,
           emailVerified: false,
@@ -107,6 +144,8 @@ export async function POST(request: Request) {
       user = await prisma.user.create({
         data: {
           name: name.trim(),
+          username: chosenUsername,
+          normalizedUsername: normalizedUser,
           email: cleanEmail,
           phone: cleanPhone,
           password: hashedPassword,

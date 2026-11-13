@@ -2,7 +2,13 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { sendPasswordResetEmail, sendAdminPasswordResetEmail } from "@/lib/email";
-import { generateSecureOtp, hashOtp, isValidEmail, ADMIN_EMAIL, ensureAdminUser } from "@/lib/auth";
+import {
+  generateSecureOtp,
+  hashOtp,
+  ADMIN_EMAIL,
+  ensureAdminUser,
+  findUserByUsernameOrEmail,
+} from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/rateLimit";
 import { logSecurityEvent, getClientIp } from "@/lib/securityLogger";
 import { getBaseUrl } from "@/lib/env";
@@ -11,7 +17,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
-const GENERIC_SUCCESS_MESSAGE = "If this email is registered, you will receive instructions shortly.";
+const GENERIC_SUCCESS_MESSAGE = "If this account is registered, you will receive instructions shortly.";
 
 export async function POST(request: Request) {
   try {
@@ -25,38 +31,29 @@ export async function POST(request: Request) {
     });
     if (ipRateLimitError) return ipRateLimitError;
 
-    const body = await request.json();
-    const rawEmail = body.email;
+    const body = await request.json().catch(() => ({}));
+    const rawIdentifier = body.identifier || body.usernameOrEmail || body.email;
 
-    if (!rawEmail || typeof rawEmail !== "string") {
+    if (!rawIdentifier || typeof rawIdentifier !== "string" || rawIdentifier.trim().length === 0) {
       return NextResponse.json(
-        { success: false, error: "Email address is required." },
+        { success: false, error: "Username or email address is required." },
         { status: 400 }
       );
     }
 
-    const cleanEmail = rawEmail.trim().toLowerCase();
-    if (!isValidEmail(cleanEmail)) {
+    if (rawIdentifier.length > 254) {
       return NextResponse.json(
-        { success: false, error: "Please enter a valid email address." },
+        { success: false, error: "Input is too long." },
         { status: 400 }
       );
     }
 
-    // Rate limit: 3 requests per hour (3600s) per email
-    const emailRateLimitError = enforceRateLimit(request, {
-      keyPrefix: `forgot_pw_email_${cleanEmail}`,
-      maxRequests: 3,
-      windowSeconds: 3600,
-    });
-    if (emailRateLimitError) return emailRateLimitError;
+    const cleanIdentifier = rawIdentifier.trim();
 
-    // Database lookup for user account
-    const user = await prisma.user.findUnique({
-      where: { email: cleanEmail },
-    });
+    // Database lookup for user account by normalized username or email
+    const user = await findUserByUsernameOrEmail(cleanIdentifier);
 
-    // Case 1: Unknown email -> Anti-enumeration silent success (do nothing)
+    // Case 1: Unknown account -> Anti-enumeration silent success (do nothing)
     if (!user) {
       return NextResponse.json({
         success: true,
@@ -64,6 +61,16 @@ export async function POST(request: Request) {
         cooldown: 60,
       });
     }
+
+    const cleanEmail = user.email.toLowerCase();
+
+    // Rate limit: 3 requests per hour (3600s) per registered email
+    const emailRateLimitError = enforceRateLimit(request, {
+      keyPrefix: `forgot_pw_email_${cleanEmail}`,
+      maxRequests: 3,
+      windowSeconds: 3600,
+    });
+    if (emailRateLimitError) return emailRateLimitError;
 
     // Enforce 60-second cooldown between resend requests for existing user
     if (user.lastResetOtpSentAt) {

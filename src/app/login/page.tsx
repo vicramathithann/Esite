@@ -32,10 +32,30 @@ function LoginForm() {
 
   const otpCodeParam = searchParams.get("code") || searchParams.get("otp") || "";
 
-  // Mode: "password" vs "otp"
+  // Mode: "password" vs "otp" (persisted in localStorage)
   const [loginMode, setLoginMode] = useState<"password" | "otp">(otpCodeParam ? "otp" : "password");
 
-  // Password Login State
+  // Read saved login method from localStorage on mount
+  useEffect(() => {
+    if (otpCodeParam) return;
+    try {
+      const saved = localStorage.getItem("vn_login_method");
+      if (saved === "password" || saved === "otp") {
+        setLoginMode(saved);
+      }
+    } catch {}
+  }, [otpCodeParam]);
+
+  const handleModeChange = (mode: "password" | "otp") => {
+    setLoginMode(mode);
+    setError(null);
+    setInfoMessage(null);
+    try {
+      localStorage.setItem("vn_login_method", mode);
+    } catch {}
+  };
+
+  // Shared Username or Email State for both tabs
   const [emailOrPhone, setEmailOrPhone] = useState(verifiedEmailParam || "");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -43,7 +63,7 @@ function LoginForm() {
 
   // OTP Login State
   const [otpStep, setOtpStep] = useState<"email" | "code">(otpCodeParam ? "code" : "email");
-  const [otpEmail, setOtpEmail] = useState(verifiedEmailParam || "");
+  const [otpMaskedEmail, setOtpMaskedEmail] = useState<string | null>(null);
   const [otpCode, setOtpCode] = useState(otpCodeParam.slice(0, 6));
   const [otpCooldown, setOtpCooldown] = useState(0);
   const [resendingOtp, setResendingOtp] = useState(false);
@@ -312,12 +332,12 @@ function LoginForm() {
     }
   };
 
-  // Handle OTP Step 1: Send OTP to Email
+  // Handle OTP Step 1: Send OTP to Registered Email
   const handleSendOtp = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    const cleanEmail = otpEmail.trim().toLowerCase();
-    if (!cleanEmail) {
-      setError("Please enter your registered email address.");
+    const identifier = emailOrPhone.trim();
+    if (!identifier) {
+      setError("Please enter your username or email address.");
       return;
     }
 
@@ -330,14 +350,15 @@ function LoginForm() {
       const res = await fetch("/api/auth/login-otp/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: cleanEmail }),
+        body: JSON.stringify({ identifier, email: identifier }),
       });
 
       const data = await res.json();
       if (data.success) {
         setOtpStep("code");
         setOtpCooldown(data.cooldown || 60);
-        setInfoMessage(data.message || `A 6-digit login code has been sent to ${cleanEmail}.`);
+        setOtpMaskedEmail(data.maskedEmail || null);
+        setInfoMessage(data.message || "If an account exists, a 6-digit login code has been sent to its registered email.");
       } else {
         setError(data.error || "Failed to send login code. Please try again.");
         if (data.cooldown) {
@@ -355,8 +376,8 @@ function LoginForm() {
   // Handle OTP Step 2: Resend Code
   const handleResendOtp = async () => {
     if (otpCooldown > 0 || resendingOtp) return;
-    const cleanEmail = otpEmail.trim().toLowerCase();
-    if (!cleanEmail) return;
+    const identifier = emailOrPhone.trim();
+    if (!identifier) return;
 
     try {
       setResendingOtp(true);
@@ -364,13 +385,14 @@ function LoginForm() {
       const res = await fetch("/api/auth/login-otp/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: cleanEmail }),
+        body: JSON.stringify({ identifier, email: identifier }),
       });
 
       const data = await res.json();
       if (data.success) {
         setOtpCooldown(data.cooldown || 60);
-        setInfoMessage("A fresh 6-digit login code has been sent to your email.");
+        setOtpMaskedEmail(data.maskedEmail || null);
+        setInfoMessage("If an account exists, a fresh login code has been sent to its registered email.");
         setRemainingAttempts(null);
       } else {
         setError(data.error || "Unable to resend login code.");
@@ -460,10 +482,10 @@ function LoginForm() {
   // Handle OTP Step 2: Verify OTP and Establish Session
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanEmail = otpEmail.trim().toLowerCase();
+    const identifier = emailOrPhone.trim();
     const cleanCode = otpCode.trim();
 
-    if (!cleanEmail || cleanCode.length !== 6) {
+    if (!identifier || cleanCode.length !== 6) {
       setError("Please enter the complete 6-digit verification code.");
       return;
     }
@@ -476,7 +498,7 @@ function LoginForm() {
       const res = await fetch("/api/auth/login-otp/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: cleanEmail, otp: cleanCode }),
+        body: JSON.stringify({ identifier, email: identifier, otp: cleanCode }),
       });
 
       const data = await res.json();
@@ -760,12 +782,8 @@ function LoginForm() {
         <div className="flex rounded-xl bg-tile p-1 mb-5 border border-border">
           <button
             type="button"
-            onClick={() => {
-              setLoginMode("password");
-              setError(null);
-              setInfoMessage(null);
-            }}
-            className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            onClick={() => handleModeChange("password")}
+            className={`flex-1 py-2.5 min-h-[44px] text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
               loginMode === "password"
                 ? "bg-card text-foreground shadow-xs border border-border/60"
                 : "text-muted hover:text-foreground"
@@ -776,12 +794,8 @@ function LoginForm() {
           </button>
           <button
             type="button"
-            onClick={() => {
-              setLoginMode("otp");
-              setError(null);
-              setInfoMessage(null);
-            }}
-            className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            onClick={() => handleModeChange("otp")}
+            className={`flex-1 py-2.5 min-h-[44px] text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
               loginMode === "otp"
                 ? "bg-card text-foreground shadow-xs border border-border/60"
                 : "text-muted hover:text-foreground"
@@ -813,7 +827,7 @@ function LoginForm() {
                 </span>
                 <Link
                   href={`/verify-email?email=${encodeURIComponent(unverifiedEmail)}`}
-                  className="px-2.5 py-1 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] text-[#FFFCFA] rounded-lg font-semibold text-xs transition-all"
+                  className="px-2.5 py-1.5 min-h-[36px] bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] text-[#FFFCFA] rounded-lg font-semibold text-xs transition-all flex items-center"
                 >
                   Verify Email Now →
                 </Link>
@@ -847,15 +861,19 @@ function LoginForm() {
           <form onSubmit={handlePasswordSubmit} className="space-y-4 text-xs">
             <div className="space-y-1.5">
               <label className="font-semibold text-foreground">
-                Email, Mobile number, or Admin Username
+                Username or email
               </label>
               <input
                 type="text"
+                name="username"
+                autoComplete="username"
+                autoCapitalize="none"
+                spellCheck="false"
                 required
                 value={emailOrPhone}
                 onChange={(e) => setEmailOrPhone(e.target.value)}
-                placeholder="e.g. customer@example.com, phone, or admin"
-                className="w-full bg-tile border border-border rounded-xl px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20 transition-all placeholder:text-muted"
+                placeholder="Enter your username or email"
+                className="w-full bg-tile border border-border rounded-xl px-3.5 py-3 text-base sm:text-sm text-foreground focus:outline-none focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20 transition-all placeholder:text-muted min-h-[44px]"
               />
             </div>
 
@@ -865,16 +883,17 @@ function LoginForm() {
                 <div className="flex items-center gap-3">
                   <Link
                     href="/forgot-password"
-                    className="text-[11px] text-[#8C6226] dark:text-[#E5CBA2] hover:underline font-medium cursor-pointer"
+                    className="text-[11px] text-[#8C6226] dark:text-[#E5CBA2] hover:underline font-medium cursor-pointer min-h-[44px] flex items-center"
                   >
                     Forgot Password?
                   </Link>
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="text-[11px] text-muted hover:text-foreground flex items-center gap-1 cursor-pointer"
+                    className="text-[11px] text-muted hover:text-foreground flex items-center gap-1 cursor-pointer min-h-[44px] px-1"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
                   >
-                    {showPassword ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                    {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                     {showPassword ? "Hide" : "Show"}
                   </button>
                 </div>
@@ -882,11 +901,13 @@ function LoginForm() {
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
+                  name="password"
+                  autoComplete="current-password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
-                  className="w-full bg-tile border border-border rounded-xl px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20 transition-all placeholder:text-muted"
+                  className="w-full bg-tile border border-border rounded-xl px-3.5 py-3 text-base sm:text-sm text-foreground focus:outline-none focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20 transition-all placeholder:text-muted min-h-[44px]"
                 />
               </div>
             </div>
@@ -894,7 +915,7 @@ function LoginForm() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] text-xs font-semibold rounded-xl mt-3 flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+              className="w-full py-3 min-h-[44px] bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] text-xs font-semibold rounded-xl mt-3 flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50"
             >
               {loading ? "Authenticating..." : "Sign In"}
               {!loading && <ArrowRight className="w-3.5 h-3.5" />}
@@ -906,35 +927,39 @@ function LoginForm() {
         {loginMode === "otp" && (
           <div className="text-xs">
             {otpStep === "email" ? (
-              /* OTP Step 1: Enter Email */
+              /* OTP Step 1: Enter Username or Email */
               <form onSubmit={handleSendOtp} className="space-y-4">
                 <div className="space-y-1.5">
                   <div className="flex justify-between items-center">
                     <label className="font-semibold text-foreground">
-                      Registered Email Address
+                      Username or email
                     </label>
-                    <span className="text-[10px] text-muted">Customer Accounts</span>
+                    <span className="text-[10px] text-muted">Customer & Admin</span>
                   </div>
                   <div className="relative">
                     <input
-                      type="email"
+                      type="text"
+                      name="username"
+                      autoComplete="username"
+                      autoCapitalize="none"
+                      spellCheck="false"
                       required
-                      value={otpEmail}
-                      onChange={(e) => setOtpEmail(e.target.value)}
-                      placeholder="e.g. customer@example.com"
-                      className="w-full bg-tile border border-border rounded-xl pl-9 pr-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20 transition-all placeholder:text-muted"
+                      value={emailOrPhone}
+                      onChange={(e) => setEmailOrPhone(e.target.value)}
+                      placeholder="Enter your username or email"
+                      className="w-full bg-tile border border-border rounded-xl pl-9 pr-3.5 py-3 text-base sm:text-sm text-foreground focus:outline-none focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20 transition-all placeholder:text-muted min-h-[44px]"
                     />
-                    <Mail className="w-4 h-4 text-muted absolute left-3 top-3" />
+                    <Mail className="w-4 h-4 text-muted absolute left-3 top-3.5" />
                   </div>
                   <p className="text-[11px] text-muted leading-relaxed">
-                    We will send a 6-digit one-time code to your inbox. No password needed!
+                    We will send a 6-digit one-time code to your registered email. No password needed!
                   </p>
                 </div>
 
                 <button
                   type="submit"
-                  disabled={loading || !otpEmail.trim()}
-                  className="w-full py-3 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] text-xs font-semibold rounded-xl mt-3 flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+                  disabled={loading || !emailOrPhone.trim()}
+                  className="w-full py-3 min-h-[44px] bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] text-xs font-semibold rounded-xl mt-3 flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50"
                 >
                   {loading ? (
                     <>
@@ -952,10 +977,12 @@ function LoginForm() {
             ) : (
               /* OTP Step 2: Enter 6-Digit Code */
               <form onSubmit={handleVerifyOtp} className="space-y-4">
-                <div className="p-3 bg-[#F9F9FB] dark:bg-[#1A1A1E] border border-[#E8E8ED] dark:border-[#2C2C30] rounded-xl flex items-center justify-between text-xs">
+                <div className="p-3 bg-[#F9F9FB] dark:bg-[#1A1A1E] border border-[#E8E8ED] dark:border-[#2C2C30] rounded-xl flex items-center justify-between text-xs min-h-[44px]">
                   <div className="flex items-center gap-2 overflow-hidden mr-2">
                     <Mail className="w-3.5 h-3.5 text-[#C9A66B] shrink-0" />
-                    <span className="text-foreground/80 font-mono truncate">{otpEmail}</span>
+                    <span className="text-foreground/80 font-mono truncate">
+                      {otpMaskedEmail ? `Sent to ${otpMaskedEmail}` : `Sent to registered email for ${emailOrPhone}`}
+                    </span>
                   </div>
                   <button
                     type="button"
@@ -965,7 +992,7 @@ function LoginForm() {
                       setError(null);
                       setInfoMessage(null);
                     }}
-                    className="text-[11px] text-[#8C6226] dark:text-[#E5CBA2] hover:underline font-semibold cursor-pointer shrink-0"
+                    className="text-[11px] text-[#8C6226] dark:text-[#E5CBA2] hover:underline font-semibold cursor-pointer shrink-0 min-h-[44px] px-2 flex items-center"
                   >
                     Change
                   </button>

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { 
   KeyRound, 
   Mail, 
@@ -16,9 +16,11 @@ import {
 
 function ForgotPasswordContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialIdentifier = searchParams.get("identifier") || searchParams.get("email") || "";
 
   const [step, setStep] = useState<"request" | "verify">("request");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(initialIdentifier);
   const [otp, setOtp] = useState("");
 
   const [loading, setLoading] = useState(false);
@@ -40,9 +42,9 @@ function ForgotPasswordContent() {
   // Step 1: Request Password Recovery Code
   const handleRequestReset = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    const cleanEmail = email.trim().toLowerCase();
-    if (!cleanEmail) {
-      setError("Please enter your registered email address.");
+    const cleanIdentifier = email.trim();
+    if (!cleanIdentifier) {
+      setError("Please enter your username or registered email address.");
       return;
     }
 
@@ -55,7 +57,7 @@ function ForgotPasswordContent() {
       const res = await fetch("/api/auth/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: cleanEmail }),
+        body: JSON.stringify({ identifier: cleanIdentifier, email: cleanIdentifier }),
       });
 
       const data = await res.json();
@@ -63,7 +65,7 @@ function ForgotPasswordContent() {
         setCooldown(data.cooldown || 60);
         setStep("verify");
         setSuccessMessage(
-          data.message || "If this email is registered, you will receive instructions shortly."
+          data.message || "If this account is registered, you will receive instructions shortly."
         );
       } else {
         setError(data.error || "Unable to send recovery instructions. Please try again.");
@@ -81,8 +83,8 @@ function ForgotPasswordContent() {
   // Step 2: Resend Recovery Code
   const handleResend = async () => {
     if (cooldown > 0 || resending) return;
-    const cleanEmail = email.trim().toLowerCase();
-    if (!cleanEmail) return;
+    const cleanIdentifier = email.trim();
+    if (!cleanIdentifier) return;
 
     try {
       setResending(true);
@@ -90,7 +92,7 @@ function ForgotPasswordContent() {
       const res = await fetch("/api/auth/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: cleanEmail }),
+        body: JSON.stringify({ identifier: cleanIdentifier, email: cleanIdentifier }),
       });
 
       const data = await res.json();
@@ -114,11 +116,11 @@ function ForgotPasswordContent() {
   // Step 2: Verify Recovery OTP and Redirect to Login Page
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanEmail = email.trim().toLowerCase();
+    const cleanIdentifier = email.trim();
     const cleanOtp = otp.trim();
 
-    if (!cleanEmail) {
-      setError("Please enter your email address.");
+    if (!cleanIdentifier) {
+      setError("Please enter your username or email address.");
       return;
     }
 
@@ -136,7 +138,8 @@ function ForgotPasswordContent() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: cleanEmail,
+          identifier: cleanIdentifier,
+          email: cleanIdentifier,
           otp: cleanOtp,
         }),
       });
@@ -146,10 +149,11 @@ function ForgotPasswordContent() {
         setSuccessMessage(
           "Recovery code verified successfully! Taking you to the sign in page..."
         );
+        const redirectEmail = data.email || cleanIdentifier;
         // After user enters a valid OTP, redirect them to the login page
         setTimeout(() => {
           router.push(
-            `/login?forgotVerified=true&email=${encodeURIComponent(cleanEmail)}&token=${encodeURIComponent(data.token)}`
+            `/login?forgotVerified=true&email=${encodeURIComponent(redirectEmail)}&token=${encodeURIComponent(data.token)}`
           );
         }, 500);
       } else {
@@ -224,25 +228,29 @@ function ForgotPasswordContent() {
           <form onSubmit={handleRequestReset} className="space-y-4 text-xs">
             <div className="space-y-1.5">
               <label className="font-semibold text-foreground">
-                Registered Email Address
+                Username or registered email
               </label>
               <div className="relative">
                 <input
-                  type="email"
+                  type="text"
+                  name="username"
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  spellCheck="false"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="e.g. customer@example.com"
-                  className="w-full bg-tile border border-border rounded-xl pl-9 pr-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20 transition-all placeholder:text-muted"
+                  placeholder="e.g. username or customer@example.com"
+                  className="w-full bg-tile border border-border rounded-xl pl-9 pr-3.5 py-3 text-base sm:text-sm text-foreground focus:outline-none focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20 transition-all placeholder:text-muted min-h-[44px]"
                 />
-                <Mail className="w-4 h-4 text-muted absolute left-3 top-3" />
+                <Mail className="w-4 h-4 text-muted absolute left-3 top-3.5" />
               </div>
             </div>
 
             <button
               type="submit"
               disabled={loading || !email.trim()}
-              className="w-full py-3 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] text-xs font-semibold rounded-xl mt-3 flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+              className="w-full py-3 min-h-[44px] bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] text-xs font-semibold rounded-xl mt-3 flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50"
             >
               {loading ? (
                 <>

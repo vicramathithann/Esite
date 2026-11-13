@@ -1,9 +1,17 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendLoginOtpEmail, sendAdminLoginOtpEmail } from "@/lib/email";
-import { generateSecureOtp, hashOtp, isValidEmail, ADMIN_EMAIL } from "@/lib/auth";
+import {
+  generateSecureOtp,
+  hashOtp,
+  ADMIN_EMAIL,
+  findUserByUsernameOrEmail,
+} from "@/lib/auth";
+import { maskEmail } from "@/lib/username";
 import { enforceRateLimit } from "@/lib/rateLimit";
 import { logSecurityEvent, getClientIp } from "@/lib/securityLogger";
+
+export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   try {
@@ -14,38 +22,48 @@ export async function POST(request: Request) {
     });
     if (rateLimitError) return rateLimitError;
 
-    const body = await request.json();
-    const rawEmail = body.email;
+    const body = await request.json().catch(() => ({}));
+    const rawIdentifier = body.identifier || body.usernameOrEmail || body.email;
 
-    if (!rawEmail || typeof rawEmail !== "string") {
+    if (!rawIdentifier || typeof rawIdentifier !== "string" || rawIdentifier.trim().length === 0) {
       return NextResponse.json(
-        { success: false, error: "Email address is required." },
+        { success: false, error: "Username or email is required." },
         { status: 400 }
       );
     }
 
-    const cleanEmail = rawEmail.trim().toLowerCase();
-    if (!isValidEmail(cleanEmail)) {
+    if (rawIdentifier.length > 254) {
       return NextResponse.json(
-        { success: false, error: "Please enter a valid email address." },
+        { success: false, error: "Input is too long." },
         { status: 400 }
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: cleanEmail },
+    const cleanIdentifier = rawIdentifier.trim();
+
+    // Rate limit per account identifier to prevent SMS/email bombing
+    const accountRateLimitError = enforceRateLimit(request, {
+      keyPrefix: `auth_login_otp_send_acc_${cleanIdentifier.toLowerCase()}`,
+      maxRequests: 3,
+      windowSeconds: 60,
     });
+    if (accountRateLimitError) return accountRateLimitError;
+
+    // Resolve user account by either normalized username or email
+    const user = await findUserByUsernameOrEmail(cleanIdentifier);
 
     // Generic response if account doesn't exist (prevents user enumeration)
     if (!user) {
       return NextResponse.json({
         success: true,
-        message: "If an account with that email exists, a 6-digit login code has been sent.",
+        message: "If an account exists, a code has been sent to its registered email.",
         cooldown: 60,
+        maskedEmail: cleanIdentifier.includes("@") ? maskEmail(cleanIdentifier) : null,
       });
     }
 
-    const isAdmin = user.role === "ADMIN" || cleanEmail === ADMIN_EMAIL.toLowerCase();
+    const isAdmin =
+      user.role === "ADMIN" || user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
     // Enforce 60-second cooldown between OTP requests
     if (user.lastLoginOtpSentAt) {
@@ -80,7 +98,7 @@ export async function POST(request: Request) {
       },
     });
 
-    // Dispatch OTP via Gmail SMTP: Admin receives dedicated Admin OTP, User receives User OTP
+    // Dispatch OTP strictly to registered email: Admin receives dedicated Admin OTP, User receives User OTP
     let emailResult = null;
     try {
       if (isAdmin) {
@@ -114,14 +132,15 @@ export async function POST(request: Request) {
       route: "/api/auth/login-otp/send",
       method: "POST",
       userId: user.id,
-      email: cleanEmail,
+      email: user.email,
     });
 
-    // Never return the OTP in the API response
+    // Return neutral message with masked email strictly for verification UX
     return NextResponse.json({
       success: true,
-      message: `A 6-digit login code has been sent to ${cleanEmail}. Valid for 5 minutes.`,
+      message: "If an account exists, a code has been sent to its registered email.",
       cooldown: 60,
+      maskedEmail: maskEmail(user.email),
     });
   } catch (error) {
     console.error("Login OTP send error:", error);

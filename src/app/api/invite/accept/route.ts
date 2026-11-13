@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, createSessionToken, validatePasswordStrength } from "@/lib/auth";
+import { validateUsername, normalizeUsername } from "@/lib/username";
 import { enforceRateLimit } from "@/lib/rateLimit";
 import { logSecurityEvent, getClientIp } from "@/lib/securityLogger";
 
@@ -36,12 +37,14 @@ export async function POST(request: Request) {
     }
 
     const cleanName = (name || "").trim();
-    if (!cleanName || cleanName.length < 2) {
+    const usernameValidation = validateUsername(cleanName);
+    if (!usernameValidation.valid) {
       return NextResponse.json(
-        { success: false, error: "Username must be at least 2 characters long." },
+        { success: false, error: usernameValidation.error },
         { status: 400 }
       );
     }
+    const normalizedUsername = usernameValidation.normalized || normalizeUsername(cleanName);
 
     if (!password || typeof password !== "string") {
       return NextResponse.json(
@@ -126,19 +129,19 @@ export async function POST(request: Request) {
       );
     }
 
-    // 4. Username uniqueness check across all users
-    const allUsers = await prisma.user.findMany({
-      select: { id: true, name: true, email: true },
+    // 4. Username uniqueness check across all users (case-insensitive)
+    const existingUsername = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { normalizedUsername },
+          { username: cleanName },
+          { name: cleanName },
+        ],
+      },
+      select: { id: true, email: true },
     });
 
-    const isNameTaken = allUsers.some(
-      (u: { id: string; name: string | null; email: string }) =>
-        u.name &&
-        u.name.trim().toLowerCase() === cleanName.toLowerCase() &&
-        u.email.toLowerCase() !== cleanEmail
-    );
-
-    if (isNameTaken) {
+    if (existingUsername && existingUsername.email.toLowerCase() !== cleanEmail) {
       return NextResponse.json(
         { success: false, error: "Username already taken" },
         { status: 400 }
@@ -181,6 +184,8 @@ export async function POST(request: Request) {
         where: { id: existingUser.id },
         data: {
           name: cleanName,
+          username: cleanName,
+          normalizedUsername,
           password: hashedPassword,
           role: userRole,
           emailVerified: true,
@@ -197,6 +202,8 @@ export async function POST(request: Request) {
       newUser = await prisma.user.create({
         data: {
           name: cleanName,
+          username: cleanName,
+          normalizedUsername,
           email: cleanEmail,
           phone: uniquePhone,
           password: hashedPassword,

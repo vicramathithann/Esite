@@ -77,6 +77,13 @@ function mapRowFromDb(tableName: string, row: any): any {
         (row.role || "").toUpperCase() === "ADMIN";
       row.signupSource = isAdm ? "admin" : "self";
     }
+    // Ensure username and normalizedUsername are always populated and normalized
+    if (!row.username && row.name) {
+      row.username = row.name;
+    }
+    if (!row.normalizedUsername && (row.username || row.name)) {
+      row.normalizedUsername = (row.username || row.name || "").trim().toLowerCase();
+    }
   }
   if (tableName === "invitations") {
     if (typeof row.token === "string" && row.token.includes(":meta:")) {
@@ -181,6 +188,13 @@ function applyWhere(query: any, where: Record<string, any> | undefined, tableNam
       if (orClauses.length > 0) {
         query = query.or(orClauses.join(","));
       }
+      continue;
+    }
+
+    // Handle username & normalizedUsername lookups for User
+    if (tableName === "User" && (rawCol === "normalizedUsername" || rawCol === "username")) {
+      const matchVal = typeof val === "string" ? val.trim() : String(val);
+      query = query.ilike("name", matchVal);
       continue;
     }
 
@@ -312,6 +326,19 @@ export class SupabaseModelDelegate {
           const baseToken = clean.token.split(":meta:")[0];
           clean.token = `${baseToken}:meta:${Buffer.from(JSON.stringify(metaObj)).toString("base64")}`;
         }
+      }
+    }
+
+    // For User records, synchronize name and username fields
+    if (this.tableName === "User") {
+      if (clean.username && !clean.name) {
+        clean.name = clean.username;
+      }
+      if (clean.name && !clean.username) {
+        clean.username = clean.name;
+      }
+      if ((clean.username || clean.name) && !clean.normalizedUsername) {
+        clean.normalizedUsername = String(clean.username || clean.name).trim().toLowerCase();
       }
     }
 
@@ -779,11 +806,17 @@ export class SupabaseModelDelegate {
 
     if (
       error &&
-      (error.code === "42703" || error.code === "PGRST204" || error.message?.includes("signupSource")) &&
-      "signupSource" in insertData
+      (error.code === "42703" ||
+        error.code === "PGRST204" ||
+        error.message?.includes("signupSource") ||
+        error.message?.includes("username") ||
+        error.message?.includes("normalizedUsername")) &&
+      ("signupSource" in insertData || "username" in insertData || "normalizedUsername" in insertData)
     ) {
       const fallbackData = { ...insertData };
       delete fallbackData.signupSource;
+      delete fallbackData.username;
+      delete fallbackData.normalizedUsername;
       const retry = await client
         .from(this.tableName)
         .insert(fallbackData)
@@ -950,11 +983,17 @@ export class SupabaseModelDelegate {
 
     if (
       error &&
-      (error.code === "42703" || error.code === "PGRST204" || error.message?.includes("signupSource")) &&
-      "signupSource" in updateData
+      (error.code === "42703" ||
+        error.code === "PGRST204" ||
+        error.message?.includes("signupSource") ||
+        error.message?.includes("username") ||
+        error.message?.includes("normalizedUsername")) &&
+      ("signupSource" in updateData || "username" in updateData || "normalizedUsername" in updateData)
     ) {
       const fallbackData = { ...updateData };
       delete fallbackData.signupSource;
+      delete fallbackData.username;
+      delete fallbackData.normalizedUsername;
       let retryQuery = client.from(this.tableName).update(fallbackData);
       retryQuery = applyWhere(retryQuery, options.where, this.tableName);
       const retry = await retryQuery.select();
@@ -1044,11 +1083,17 @@ export class SupabaseModelDelegate {
 
     if (
       error &&
-      (error.code === "42703" || error.code === "PGRST204" || error.message?.includes("signupSource")) &&
-      "signupSource" in updateData
+      (error.code === "42703" ||
+        error.code === "PGRST204" ||
+        error.message?.includes("signupSource") ||
+        error.message?.includes("username") ||
+        error.message?.includes("normalizedUsername")) &&
+      ("signupSource" in updateData || "username" in updateData || "normalizedUsername" in updateData)
     ) {
       const fallbackData = { ...updateData };
       delete fallbackData.signupSource;
+      delete fallbackData.username;
+      delete fallbackData.normalizedUsername;
       let retryQuery = client.from(this.tableName).update(fallbackData);
       retryQuery = applyWhere(retryQuery, options.where, this.tableName);
       const retry = await retryQuery.select();

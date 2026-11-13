@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
+import { normalizeUsername } from "@/lib/username";
 
 const PBKDF2_ITERATIONS = 100000;
 const PBKDF2_KEYLEN = 64;
@@ -147,6 +148,38 @@ export function isValidEmail(email: string): boolean {
   if (!email || typeof email !== "string") return false;
   const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
   return emailRegex.test(email.trim());
+}
+
+/**
+ * Safely looks up a user by username or email.
+ * - Detects type: if identifier contains "@", queries by email (case-insensitive).
+ * - Otherwise: queries by normalized username (case-insensitive).
+ * - Strict type and length checks to prevent injection.
+ */
+export async function findUserByUsernameOrEmail(rawIdentifier: unknown): Promise<any | null> {
+  if (!rawIdentifier || typeof rawIdentifier !== "string") {
+    return null;
+  }
+  const identifier = rawIdentifier.trim();
+  if (!identifier || identifier.length > 100) {
+    return null;
+  }
+
+  // If identifier contains "@", treat as email
+  if (identifier.includes("@")) {
+    const cleanEmail = identifier.toLowerCase();
+    return prisma.user.findFirst({
+      where: { email: cleanEmail },
+    });
+  }
+
+  // Otherwise, treat as username (compare case-insensitively via normalized copy)
+  const norm = normalizeUsername(identifier);
+  if (!norm) return null;
+
+  return prisma.user.findFirst({
+    where: { normalizedUsername: norm },
+  });
 }
 
 /**

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import {
   verifyPassword,
   createSessionToken,
+  findUserByUsernameOrEmail,
   ADMIN_EMAIL,
   ADMIN_COOKIE_NAME,
   CUSTOMER_COOKIE_NAME,
@@ -12,7 +13,7 @@ import {
 import { enforceRateLimit } from "@/lib/rateLimit";
 import { logSecurityEvent, getClientIp } from "@/lib/securityLogger";
 
-const GENERIC_LOGIN_ERROR = "Invalid email/phone or password. Please check and try again.";
+const GENERIC_LOGIN_ERROR = "Invalid username/email or password.";
 const DUMMY_PBKDF2_HASH = "100000:0123456789abcdef0123456789abcdef:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
 export async function POST(request: Request) {
@@ -24,29 +25,44 @@ export async function POST(request: Request) {
     });
     if (rateLimitError) return rateLimitError;
 
-    const body = await request.json();
-    const { emailOrPhone, email, phone, password, requiredRole } = body;
-    const targetIdentifier = (emailOrPhone || email || phone || "").trim();
-
-    if (!targetIdentifier || !password) {
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== "object") {
       return NextResponse.json(
-        { success: false, error: "Please provide email/phone and password." },
+        { success: false, error: GENERIC_LOGIN_ERROR },
         { status: 400 }
       );
     }
 
-    const query = targetIdentifier.trim();
-    const cleanEmail = query.toLowerCase();
+    const { identifier, usernameOrEmail, emailOrPhone, email, phone, password, requiredRole } = body;
+    const rawTarget = identifier ?? usernameOrEmail ?? emailOrPhone ?? email ?? phone;
 
-    // Find user by email or phone
-    const user = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { email: cleanEmail },
-          { phone: query },
-        ],
-      },
+    // Strict validation: target must be string between 1 and 100 chars, no objects/operators
+    if (typeof rawTarget !== "string" || !rawTarget.trim() || rawTarget.length > 100) {
+      return NextResponse.json(
+        { success: false, error: "Please enter your username or email and password." },
+        { status: 400 }
+      );
+    }
+
+    if (typeof password !== "string" || !password || password.length > 128) {
+      return NextResponse.json(
+        { success: false, error: "Please enter your username or email and password." },
+        { status: 400 }
+      );
+    }
+
+    const targetIdentifier = rawTarget.trim();
+
+    // Enforce rate limiting per account identifier
+    const accountRateLimitError = enforceRateLimit(request, {
+      keyPrefix: `auth_login_acc_${targetIdentifier.toLowerCase()}`,
+      maxRequests: 5,
+      windowSeconds: 60,
     });
+    if (accountRateLimitError) return accountRateLimitError;
+
+    // Find user by username or email
+    const user = await findUserByUsernameOrEmail(targetIdentifier);
 
     if (!user) {
       // Timing attack mitigation: run constant-time hash calculation
@@ -55,7 +71,6 @@ export async function POST(request: Request) {
         ip: getClientIp(request),
         route: "/api/auth/login",
         method: "POST",
-        email: cleanEmail,
         details: { reason: "User not found" },
       });
       return NextResponse.json(

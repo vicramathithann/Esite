@@ -8,9 +8,12 @@ import {
   CUSTOMER_COOKIE_NAME,
   LEGACY_COOKIE_NAME,
   getSessionCookieOptions,
+  findUserByUsernameOrEmail,
 } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/rateLimit";
 import { logSecurityEvent, getClientIp } from "@/lib/securityLogger";
+
+export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   try {
@@ -21,18 +24,19 @@ export async function POST(request: Request) {
     });
     if (rateLimitError) return rateLimitError;
 
-    const body = await request.json();
-    const { email, otp } = body;
+    const body = await request.json().catch(() => ({}));
+    const rawIdentifier = body.identifier || body.usernameOrEmail || body.email;
+    const rawOtp = body.otp;
 
-    const cleanEmail = (email || "").trim().toLowerCase();
-    const cleanOtp = String(otp || "").trim();
-
-    if (!cleanEmail) {
+    if (!rawIdentifier || typeof rawIdentifier !== "string" || rawIdentifier.trim().length === 0) {
       return NextResponse.json(
-        { success: false, error: "Email address is required." },
+        { success: false, error: "Username or email is required." },
         { status: 400 }
       );
     }
+
+    const cleanIdentifier = rawIdentifier.trim();
+    const cleanOtp = String(rawOtp || "").trim();
 
     if (!cleanOtp || cleanOtp.length !== 6 || !/^\d{6}$/.test(cleanOtp)) {
       return NextResponse.json(
@@ -41,19 +45,17 @@ export async function POST(request: Request) {
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: cleanEmail },
-    });
+    const user = await findUserByUsernameOrEmail(cleanIdentifier);
 
     if (!user) {
       return NextResponse.json(
-        { success: false, error: "Invalid email or verification code." },
+        { success: false, error: "Invalid username/email or verification code." },
         { status: 400 }
       );
     }
 
     // Maximum 5 failed attempts allowed
-    if (user.loginOtpAttempts >= 5) {
+    if ((user.loginOtpAttempts || 0) >= 5) {
       return NextResponse.json(
         {
           success: false,
@@ -65,7 +67,7 @@ export async function POST(request: Request) {
     }
 
     // Check expiry (5 minutes)
-    if (!user.loginOtpHash || !user.loginOtpExpires || user.loginOtpExpires < new Date()) {
+    if (!user.loginOtpHash || !user.loginOtpExpires || new Date(user.loginOtpExpires) < new Date()) {
       return NextResponse.json(
         {
           success: false,
@@ -80,7 +82,7 @@ export async function POST(request: Request) {
     const isValid = verifyOtp(cleanOtp, user.loginOtpHash);
 
     if (!isValid) {
-      const newAttempts = user.loginOtpAttempts + 1;
+      const newAttempts = (user.loginOtpAttempts || 0) + 1;
       await prisma.user.update({
         where: { id: user.id },
         data: { loginOtpAttempts: newAttempts },
@@ -91,7 +93,7 @@ export async function POST(request: Request) {
         route: "/api/auth/login-otp/verify",
         method: "POST",
         userId: user.id,
-        email: cleanEmail,
+        email: user.email,
         details: { attempts: newAttempts },
       });
 
@@ -101,7 +103,7 @@ export async function POST(request: Request) {
           success: false,
           error:
             remaining > 0
-              ? `Invalid verification code. ${remaining} attempt${remaining === 1 ? "" : "s"} remaining.`
+              ? `Invalid username/email or verification code. ${remaining} attempt${remaining === 1 ? "" : "s"} remaining.`
               : "Too many failed attempts. Please request a new verification code.",
           remainingAttempts: remaining,
         },
@@ -110,7 +112,7 @@ export async function POST(request: Request) {
     }
 
     // IMPORTANT: OTP login must NEVER change or reset the user's password!
-    // The user's password field is untouched.
+    // If an unverified user signs in via OTP, mark their email as verified automatically.
     const updatedUser = await prisma.user.update({
       where: { id: user.id },
       data: {
@@ -139,7 +141,7 @@ export async function POST(request: Request) {
     });
 
     const isMainAdmin =
-      cleanEmail === ADMIN_EMAIL.toLowerCase() ||
+      updatedUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase() ||
       (user.role || "").toUpperCase() === "ADMIN";
 
     const sanitizedRole: "ADMIN" | "USER" = isMainAdmin ? "ADMIN" : "USER";
@@ -149,7 +151,7 @@ export async function POST(request: Request) {
       role: sanitizedRole,
     };
 
-    // Generate authenticated session token with explicit scope
+    // Generate authenticated session token with explicit scope & rotation
     const sessionToken = createSessionToken(sanitizedUser, isMainAdmin ? "admin" : "customer");
     const response = NextResponse.json({
       success: true,
