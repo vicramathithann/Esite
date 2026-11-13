@@ -95,7 +95,7 @@ export function renderAdminInvitationEmail(
     "",
     "INVITATION DETAILS:",
     `- Invited email: ${data.recipientEmail}`,
-    "- Access level: Member",
+    "- Access level: Owner",
     `- Link validity: ${validityText}`,
     "",
     renderPlainFooter(cleanUrl, { footerDisclaimer: inviteDisclaimer }),
