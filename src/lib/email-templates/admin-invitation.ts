@@ -48,7 +48,7 @@ export function renderAdminInvitationEmail(
         </tr>
         <tr>
           <td style="padding:14px 18px;border-bottom:1px solid #E2E8F0;color:#64748B;font-weight:600;">Access level</td>
-          <td style="padding:14px 18px;border-bottom:1px solid #E2E8F0;color:#0F172A;font-weight:600;">Member</td>
+          <td style="padding:14px 18px;border-bottom:1px solid #E2E8F0;color:#0F172A;font-weight:600;">Head</td>
         </tr>
         <tr>
           <td style="padding:14px 18px;color:#64748B;font-weight:600;">Link validity</td>
@@ -95,7 +95,7 @@ export function renderAdminInvitationEmail(
     "",
     "INVITATION DETAILS:",
     `- Invited email: ${data.recipientEmail}`,
-    "- Access level: Owner",
+    "- Access level: Head",
     `- Link validity: ${validityText}`,
     "",
     renderPlainFooter(cleanUrl, { footerDisclaimer: inviteDisclaimer }),
