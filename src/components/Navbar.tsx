@@ -6,7 +6,6 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { 
   Search, 
-  ShieldCheck, 
   Menu
 } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -23,8 +22,8 @@ const BrandSubNav = React.memo(function BrandSubNav() {
   const isAllPhones = !brandParam || brandParam === "All Mobiles" || brandParam === "All Phones";
 
   return (
-    <div className="bg-card/90 border-t border-border px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between text-xs overflow-x-auto scrollbar-none">
-      <div className="max-w-[1280px] mx-auto w-full flex items-center justify-between gap-3">
+    <div className="bg-card/90 border-t border-border px-4 sm:px-6 lg:px-8 py-2 flex items-center text-xs overflow-x-auto scrollbar-none">
+      <div className="max-w-[1280px] mx-auto w-full flex items-center">
         <div className="flex items-center gap-1 shrink-0">
           <Link 
             href="/" 
@@ -54,10 +53,6 @@ const BrandSubNav = React.memo(function BrandSubNav() {
               </Link>
             );
           })}
-        </div>
-
-        <div className="hidden lg:flex items-center gap-1.5 text-[11px] text-muted shrink-0">
-          <ShieldCheck className="w-3.5 h-3.5 text-accent" />
         </div>
       </div>
     </div>
@@ -177,7 +172,7 @@ export default function Navbar() {
 
       {/* Sub-Navigation Brand Strip */}
       <Suspense fallback={
-        <div className="bg-card/90 border-t border-border px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between text-xs overflow-x-auto scrollbar-none">
+        <div className="bg-card/90 border-t border-border px-4 sm:px-6 lg:px-8 py-2 flex items-center text-xs overflow-x-auto scrollbar-none">
           <div className="max-w-[1280px] mx-auto w-full flex items-center gap-1">
             <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA]">
               <Menu className="w-3 h-3" />
