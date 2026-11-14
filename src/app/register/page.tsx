@@ -3,7 +3,7 @@
 import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, AlertCircle, RefreshCw, CheckCircle2 } from "lucide-react";
+import { ArrowRight, AlertCircle, RefreshCw, CheckCircle2, User } from "lucide-react";
 import { isValidInternalRedirect } from "@/lib/redirect";
 
 function getFriendlyReasonMessage(reason: string | null): string {
@@ -40,6 +40,13 @@ function RegisterForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Live Username Validation State
+  const [usernameCheck, setUsernameCheck] = useState<{
+    status: "idle" | "checking" | "available" | "unavailable";
+    reason: string | null;
+    message: string | null;
+  }>({ status: "idle", reason: null, message: null });
+
   // Email delivery failure & resend code state
   const [emailDeliveryFailed, setEmailDeliveryFailed] = useState(false);
   const [deliveryReason, setDeliveryReason] = useState<string | null>(null);
@@ -56,10 +63,62 @@ function RegisterForm() {
     return () => clearInterval(interval);
   }, [resendCooldown]);
 
+  // Debounced Live Username Availability Check (400ms)
+  useEffect(() => {
+    const clean = formData.name.trim();
+    if (!clean) {
+      setUsernameCheck({ status: "idle", reason: null, message: null });
+      return;
+    }
+
+    if (clean.length < 3) {
+      setUsernameCheck({
+        status: "unavailable",
+        reason: "too short",
+        message: "Username must be at least 3 characters long.",
+      });
+      return;
+    }
+
+    setUsernameCheck((prev) => ({ ...prev, status: "checking" }));
+    const timeout = setTimeout(async () => {
+      try {
+        const queryUrl = `/api/invite/check-username?name=${encodeURIComponent(clean)}${
+          formData.email ? `&email=${encodeURIComponent(formData.email.trim())}` : ""
+        }`;
+        const res = await fetch(queryUrl);
+        const data = await res.json();
+        if (data.available) {
+          setUsernameCheck({ status: "available", reason: null, message: "Username is available" });
+        } else {
+          setUsernameCheck({
+            status: "unavailable",
+            reason: data.reason || "taken",
+            message: data.message || "Username already taken",
+          });
+        }
+      } catch {
+        setUsernameCheck({ status: "idle", reason: null, message: null });
+      }
+    }, 400);
+
+    return () => clearTimeout(timeout);
+  }, [formData.name, formData.email]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.email || !formData.password || !formData.confirmPassword) {
       setError("Please fill in all required fields.");
+      return;
+    }
+
+    if (formData.name.trim().length < 3) {
+      setError("Username must be at least 3 characters long.");
+      return;
+    }
+
+    if (usernameCheck.status === "unavailable") {
+      setError(usernameCheck.message || "Please choose an available username.");
       return;
     }
 
@@ -223,15 +282,61 @@ function RegisterForm() {
 
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
           <div className="space-y-1.5">
-            <label className="font-semibold text-foreground">Your name</label>
-            <input
-              type="text"
-              required
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="First and last name"
-              className="w-full bg-tile border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20 transition-all placeholder:text-muted"
-            />
+            <div className="flex items-center justify-between">
+              <label className="font-semibold text-foreground flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5 text-[#C9A66B]" />
+                <span>Name (Username)</span>
+              </label>
+              <span className="text-[10px] text-muted">Unique handle</span>
+            </div>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-muted font-bold text-xs">
+                @
+              </div>
+              <input
+                type="text"
+                required
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="e.g. johndoe or techlover"
+                autoComplete="username"
+                className={`w-full bg-tile border text-foreground rounded-xl pl-8 pr-10 py-2.5 text-sm focus:outline-none transition-all placeholder:text-muted ${
+                  usernameCheck.status === "unavailable"
+                    ? "border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20"
+                    : usernameCheck.status === "available"
+                    ? "border-emerald-500 focus:border-emerald-500 ring-1 ring-emerald-500/20"
+                    : "border-border focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20"
+                }`}
+              />
+              <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                {usernameCheck.status === "checking" && (
+                  <div className="w-3.5 h-3.5 border-2 border-[#C9A66B] border-t-transparent rounded-full animate-spin" />
+                )}
+                {usernameCheck.status === "available" && (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                )}
+                {usernameCheck.status === "unavailable" && (
+                  <AlertCircle className="w-4 h-4 text-rose-500" />
+                )}
+              </div>
+            </div>
+
+            {/* Username feedback message */}
+            {usernameCheck.status === "unavailable" ? (
+              <p className="mt-1 text-[11px] font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{usernameCheck.message}</span>
+              </p>
+            ) : usernameCheck.status === "available" ? (
+              <p className="mt-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                <span>✓ Username is available</span>
+              </p>
+            ) : (
+              <p className="text-[10px] text-muted">
+                Must be unique across VN Mobiles. Letters, numbers, dot, and underscore allowed (3–20 characters).
+              </p>
+            )}
           </div>
 
           <div className="space-y-1.5">
@@ -285,7 +390,7 @@ function RegisterForm() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || usernameCheck.status === "checking" || usernameCheck.status === "unavailable"}
             className="w-full py-3.5 px-4 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] font-semibold rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs mt-2 disabled:opacity-50 text-xs"
           >
             <span>{loading ? "Creating account..." : "Continue to Verification"}</span>

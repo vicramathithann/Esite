@@ -167,6 +167,8 @@ function applyWhere(query: any, where: Record<string, any> | undefined, tableNam
           } else if (typeof cVal === "object" && cVal !== null) {
             if ("contains" in cVal) {
               orClauses.push(`${cCol}.ilike.%${(cVal as any).contains}%`);
+            } else if ("mode" in cVal && (cVal as any).mode === "insensitive" && "equals" in cVal) {
+              orClauses.push(`${cCol}.ilike.${serializeValue((cVal as any).equals)}`);
             } else if ("in" in cVal && Array.isArray((cVal as any).in)) {
               orClauses.push(`${cCol}.in.(${(cVal as any).in.join(",")})`);
             } else if ("equals" in cVal) {
@@ -191,13 +193,6 @@ function applyWhere(query: any, where: Record<string, any> | undefined, tableNam
       continue;
     }
 
-    // Handle username & normalizedUsername lookups for User
-    if (tableName === "User" && (rawCol === "normalizedUsername" || rawCol === "username")) {
-      const matchVal = typeof val === "string" ? val.trim() : String(val);
-      query = query.ilike("name", matchVal);
-      continue;
-    }
-
     const col = mapColumnToDb(tableName, rawCol);
 
     if (val === null) {
@@ -207,7 +202,9 @@ function applyWhere(query: any, where: Record<string, any> | undefined, tableNam
 
     // Complex operator objects: { in, notIn, not, contains, gte, lte, gt, lt, equals }
     if (typeof val === "object" && !(val instanceof Date)) {
-      if ("equals" in val) {
+      if ("mode" in val && (val as any).mode === "insensitive" && "equals" in val) {
+        query = query.ilike(col, serializeValue((val as any).equals));
+      } else if ("equals" in val) {
         query = query.eq(col, serializeValue(val.equals));
       }
       if ("contains" in val) {
@@ -804,31 +801,50 @@ export class SupabaseModelDelegate {
       .select()
       .single();
 
-    if (
-      error &&
-      (error.code === "42703" ||
-        error.code === "PGRST204" ||
-        error.message?.includes("signupSource") ||
-        error.message?.includes("username") ||
-        error.message?.includes("normalizedUsername")) &&
-      ("signupSource" in insertData || "username" in insertData || "normalizedUsername" in insertData)
-    ) {
+    // Fallback retry ONLY for true missing column errors (e.g. 42703 or PGRST204)
+    // NEVER strip columns on unique constraint violations (code 23505) or not-null (23502)
+    const isMissingColumnError = (err: any) => {
+      if (!err || err.code === "23505" || err.code === "23502") return false;
+      if (err.code === "42703" || err.code === "PGRST204") return true;
+      const msg = typeof err.message === "string" ? err.message.toLowerCase() : "";
+      return (
+        (msg.includes("does not exist") || msg.includes("could not find the")) &&
+        msg.includes("column") &&
+        !msg.includes("unique") &&
+        !msg.includes("violat")
+      );
+    };
+
+    if (error && isMissingColumnError(error)) {
       const fallbackData = { ...insertData };
-      delete fallbackData.signupSource;
-      delete fallbackData.username;
-      delete fallbackData.normalizedUsername;
-      const retry = await client
-        .from(this.tableName)
-        .insert(fallbackData)
-        .select()
-        .single();
-      data = retry.data;
-      error = retry.error;
+      const msg = (error.message || "").toLowerCase();
+      let modified = false;
+      if (msg.includes("signupsource") && "signupSource" in fallbackData) {
+        delete fallbackData.signupSource;
+        modified = true;
+      }
+      if (msg.includes("normalizedusername") && "normalizedUsername" in fallbackData) {
+        delete fallbackData.normalizedUsername;
+        modified = true;
+      }
+      if (modified) {
+        const retry = await client
+          .from(this.tableName)
+          .insert(fallbackData)
+          .select()
+          .single();
+        data = retry.data;
+        error = retry.error;
+      }
     }
 
     if (error) {
       logSupabaseError(this.tableName, "create", error);
-      throw new Error(`Database error in ${this.tableName}.create: ${error.message} (${error.code})`);
+      const dbErr: any = new Error(`Database error in ${this.tableName}.create: ${error.message} (${error.code})`);
+      dbErr.code = error.code;
+      dbErr.details = error.details;
+      dbErr.hint = error.hint;
+      throw dbErr;
     }
 
     const createdRecord = deserializeRow(data, this.tableName);
@@ -961,7 +977,8 @@ export class SupabaseModelDelegate {
     let retryAttempts = 0;
     while (
       error &&
-      (error.code === "42703" || error.code === "PGRST204" || error.message?.includes("column")) &&
+      error.code !== "23505" &&
+      (error.code === "42703" || error.code === "PGRST204" || (error.message?.includes("column") && !error.message?.includes("violat"))) &&
       retryAttempts < 5
     ) {
       retryAttempts++;
@@ -983,16 +1000,12 @@ export class SupabaseModelDelegate {
 
     if (
       error &&
-      (error.code === "42703" ||
-        error.code === "PGRST204" ||
-        error.message?.includes("signupSource") ||
-        error.message?.includes("username") ||
-        error.message?.includes("normalizedUsername")) &&
-      ("signupSource" in updateData || "username" in updateData || "normalizedUsername" in updateData)
+      error.code !== "23505" &&
+      (error.code === "42703" || error.code === "PGRST204") &&
+      ("signupSource" in updateData || "normalizedUsername" in updateData)
     ) {
       const fallbackData = { ...updateData };
       delete fallbackData.signupSource;
-      delete fallbackData.username;
       delete fallbackData.normalizedUsername;
       let retryQuery = client.from(this.tableName).update(fallbackData);
       retryQuery = applyWhere(retryQuery, options.where, this.tableName);
@@ -1003,7 +1016,11 @@ export class SupabaseModelDelegate {
 
     if (error) {
       logSupabaseError(this.tableName, "update", error);
-      throw new Error(`Database error in ${this.tableName}.update: ${error.message} (${error.code})`);
+      const dbErr: any = new Error(`Database error in ${this.tableName}.update: ${error.message} (${error.code})`);
+      dbErr.code = error.code;
+      dbErr.details = error.details;
+      dbErr.hint = error.hint;
+      throw dbErr;
     }
 
     const updatedRecord = (data && data.length > 0) ? deserializeRow(data[0], this.tableName) : null;

@@ -178,7 +178,13 @@ export async function findUserByUsernameOrEmail(rawIdentifier: unknown): Promise
   if (!norm) return null;
 
   return prisma.user.findFirst({
-    where: { normalizedUsername: norm },
+    where: {
+      OR: [
+        { normalizedUsername: norm },
+        { username: norm },
+        { name: { equals: norm, mode: "insensitive" } },
+      ],
+    },
   });
 }
 

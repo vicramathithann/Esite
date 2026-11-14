@@ -76,99 +76,115 @@ export async function POST(request: Request) {
     const codeHash = crypto.createHash("sha256").update(code).digest("hex");
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 
-    // Determine unique username and normalized copy
+    // Validate chosen username / display handle
     const validation = validateUsername(name.trim());
-    let chosenUsername: string;
-    let normalizedUser: string;
+    if (!validation.valid) {
+      return NextResponse.json({ success: false, error: validation.error }, { status: 400 });
+    }
+    const normalizedUser = validation.normalized || normalizeUsername(name);
 
+    // Uniqueness check: taken only if ANOTHER user with a different email holds it
     const allUsers = await prisma.user.findMany({
+      where: {
+        OR: [
+          { normalizedUsername: normalizedUser },
+          { username: normalizedUser },
+        ],
+      },
       select: { username: true, normalizedUsername: true, name: true, email: true },
     });
-    const existingSet = new Set(
-      allUsers
-        .flatMap((u: any) => [u.username, u.normalizedUsername, u.name])
-        .filter(Boolean)
-        .map((s: string) => s.toLowerCase())
+
+    const isTakenByOther = allUsers.some(
+      (u: any) =>
+        u.email &&
+        u.email.toLowerCase() !== cleanEmail &&
+        ((u.normalizedUsername && u.normalizedUsername.trim().toLowerCase() === normalizedUser) ||
+          (u.username && u.username.trim().toLowerCase() === normalizedUser))
     );
 
-    if (validation.valid) {
-      const isTaken = allUsers.some(
-        (u: any) =>
-          ((u.normalizedUsername && u.normalizedUsername.toLowerCase() === validation.normalized) ||
-            (u.name && u.name.trim().toLowerCase() === name.trim().toLowerCase())) &&
-          u.email.toLowerCase() !== cleanEmail
-      );
-      if (isTaken) {
-        chosenUsername = generateUniqueUsername(name.trim(), existingSet);
-        normalizedUser = normalizeUsername(chosenUsername);
-      } else {
-        chosenUsername = name.trim();
-        normalizedUser = validation.normalized!;
-      }
-    } else {
-      chosenUsername = generateUniqueUsername(name.trim() || cleanEmail, existingSet);
-      normalizedUser = normalizeUsername(chosenUsername);
+    if (isTakenByOther) {
+      return NextResponse.json({ success: false, error: "Username already taken" }, { status: 400 });
     }
 
     let user;
 
-    if (existingUser && !(existingUser.emailVerified || (existingUser as any).email_verified)) {
-      user = await prisma.user.update({
-        where: { id: existingUser.id },
-        data: {
-          name: name.trim(),
-          username: chosenUsername,
-          normalizedUsername: normalizedUser,
-          password: hashedPassword,
-          phone: cleanPhone,
-          emailVerified: false,
-          signupSource: "self",
-          verificationToken,
-          tokenExpires,
-          otpHash: codeHash,
-          otpExpires: expiresAt,
-          otpAttempts: 0,
-          lastOtpSentAt: new Date(),
-        },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          phone: true,
-          role: true,
-          emailVerified: true,
-          signupSource: true,
-        },
-      });
-    } else {
-      user = await prisma.user.create({
-        data: {
-          name: name.trim(),
-          username: chosenUsername,
-          normalizedUsername: normalizedUser,
-          email: cleanEmail,
-          phone: cleanPhone,
-          password: hashedPassword,
-          role: "USER",
-          emailVerified: false,
-          signupSource: "self",
-          verificationToken,
-          tokenExpires,
-          otpHash: codeHash,
-          otpExpires: expiresAt,
-          otpAttempts: 0,
-          lastOtpSentAt: new Date(),
-        },
-        select: {
-          id: true,
-          name: true,
-          email: cleanEmail,
-          phone: true,
-          role: true,
-          emailVerified: true,
-          signupSource: true,
-        },
-      });
+    try {
+      if (existingUser && !(existingUser.emailVerified || (existingUser as any).email_verified)) {
+        user = await prisma.user.update({
+          where: { id: existingUser.id },
+          data: {
+            name: name.trim(),
+            username: normalizedUser,
+            normalizedUsername: normalizedUser,
+            password: hashedPassword,
+            phone: cleanPhone,
+            emailVerified: false,
+            signupSource: "self",
+            verificationToken,
+            tokenExpires,
+            otpHash: codeHash,
+            otpExpires: expiresAt,
+            otpAttempts: 0,
+            lastOtpSentAt: new Date(),
+          },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            role: true,
+            emailVerified: true,
+            signupSource: true,
+          },
+        });
+      } else {
+        user = await prisma.user.create({
+          data: {
+            name: name.trim(),
+            username: normalizedUser,
+            normalizedUsername: normalizedUser,
+            email: cleanEmail,
+            phone: cleanPhone,
+            password: hashedPassword,
+            role: "USER",
+            emailVerified: false,
+            signupSource: "self",
+            verificationToken,
+            tokenExpires,
+            otpHash: codeHash,
+            otpExpires: expiresAt,
+            otpAttempts: 0,
+            lastOtpSentAt: new Date(),
+          },
+          select: {
+            id: true,
+            name: true,
+            email: cleanEmail,
+            phone: true,
+            role: true,
+            emailVerified: true,
+            signupSource: true,
+          },
+        });
+      }
+    } catch (createErr: any) {
+      const errMsg = createErr?.message || "";
+      if (
+        createErr?.code === "23505" ||
+        createErr?.code === "P2002" ||
+        errMsg.includes("duplicate") ||
+        errMsg.includes("unique")
+      ) {
+        return NextResponse.json(
+          { success: false, error: "Username already taken" },
+          { status: 409 }
+        );
+      }
+      console.error("Registration database error:", createErr);
+      return NextResponse.json(
+        { success: false, error: "Failed to create account. Please try again." },
+        { status: 500 }
+      );
     }
 
     // 3. Store SHA-256 hash in dedicated email_otps table

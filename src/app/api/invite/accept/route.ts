@@ -130,18 +130,25 @@ export async function POST(request: Request) {
     }
 
     // 4. Username uniqueness check across all users (case-insensitive)
-    const existingUsername = await prisma.user.findFirst({
+    const existingUsers = await prisma.user.findMany({
       where: {
         OR: [
           { normalizedUsername },
-          { username: cleanName },
-          { name: cleanName },
+          { username: normalizedUsername },
         ],
       },
-      select: { id: true, email: true },
+      select: { id: true, email: true, username: true, normalizedUsername: true },
     });
 
-    if (existingUsername && existingUsername.email.toLowerCase() !== cleanEmail) {
+    const isConflict = existingUsers.some(
+      (u: any) =>
+        u.email &&
+        u.email.toLowerCase() !== cleanEmail &&
+        ((u.normalizedUsername && u.normalizedUsername.trim().toLowerCase() === normalizedUsername) ||
+          (u.username && u.username.trim().toLowerCase() === normalizedUsername))
+    );
+
+    if (isConflict) {
       return NextResponse.json(
         { success: false, error: "Username already taken" },
         { status: 400 }
@@ -178,40 +185,60 @@ export async function POST(request: Request) {
     // 9. Create or update user record
     // Admin-invited users must be created with emailVerified = true, signupSource = "admin", and role from invite
     let newUser;
-    if (existingUser && !existingUser.emailVerified) {
-      // Clean up / activate half-created unverified user record from earlier failed attempt
-      newUser = await prisma.user.update({
-        where: { id: existingUser.id },
-        data: {
-          name: cleanName,
-          username: cleanName,
-          normalizedUsername,
-          password: hashedPassword,
-          role: userRole,
-          emailVerified: true,
-          signupSource: "admin",
-          verificationToken: null,
-          tokenExpires: null,
-          otpHash: null,
-          otpExpires: null,
-          otpAttempts: 0,
-        },
-      });
-    } else {
-      // Create fresh user record with role from invite
-      newUser = await prisma.user.create({
-        data: {
-          name: cleanName,
-          username: cleanName,
-          normalizedUsername,
-          email: cleanEmail,
-          phone: uniquePhone,
-          password: hashedPassword,
-          role: userRole,
-          emailVerified: true,
-          signupSource: "admin",
-        },
-      });
+    try {
+      if (existingUser && !existingUser.emailVerified) {
+        // Clean up / activate half-created unverified user record from earlier failed attempt
+        newUser = await prisma.user.update({
+          where: { id: existingUser.id },
+          data: {
+            name: cleanName,
+            username: normalizedUsername,
+            normalizedUsername,
+            password: hashedPassword,
+            role: userRole,
+            emailVerified: true,
+            signupSource: "admin",
+            verificationToken: null,
+            tokenExpires: null,
+            otpHash: null,
+            otpExpires: null,
+            otpAttempts: 0,
+          },
+        });
+      } else {
+        // Create fresh user record with role from invite
+        newUser = await prisma.user.create({
+          data: {
+            name: cleanName,
+            username: normalizedUsername,
+            normalizedUsername,
+            email: cleanEmail,
+            phone: uniquePhone,
+            password: hashedPassword,
+            role: userRole,
+            emailVerified: true,
+            signupSource: "admin",
+          },
+        });
+      }
+    } catch (createErr: any) {
+      const errMsg = createErr?.message || "";
+      if (
+        createErr?.code === "23505" ||
+        createErr?.code === "P2002" ||
+        errMsg.includes("duplicate") ||
+        errMsg.includes("unique")
+      ) {
+        return NextResponse.json(
+          { success: false, error: "Username already taken" },
+          { status: 409 }
+        );
+      }
+      console.error("Account creation error:", createErr);
+      return NextResponse.json(
+        { success: false, error: "Failed to create account. Please try again." },
+        { status: 500 }
+      );
     }
 
     // 10. Mark invitation as ACCEPTED and invalidate token ONLY after user creation succeeds

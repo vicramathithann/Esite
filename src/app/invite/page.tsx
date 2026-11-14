@@ -37,7 +37,11 @@ function InviteAcceptanceContent() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Live Username Validation State
-  const [usernameStatus, setUsernameStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
+  const [usernameCheck, setUsernameCheck] = useState<{
+    status: "idle" | "checking" | "available" | "unavailable";
+    reason: string | null;
+    message: string | null;
+  }>({ status: "idle", reason: null, message: null });
 
   // Submission State
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -83,36 +87,47 @@ function InviteAcceptanceContent() {
     };
   }, [token]);
 
-  // 2. Debounced Live Username Check (Instagram style)
+  // 2. Debounced Live Username Check (Instagram style, 400ms)
   useEffect(() => {
     const clean = name.trim();
     if (!clean) {
-      setUsernameStatus("idle");
+      setUsernameCheck({ status: "idle", reason: null, message: null });
       return;
     }
 
-    if (clean.length < 2) {
-      setUsernameStatus("idle");
+    if (clean.length < 3) {
+      setUsernameCheck({
+        status: "unavailable",
+        reason: "too short",
+        message: "Username must be at least 3 characters long.",
+      });
       return;
     }
 
-    setUsernameStatus("checking");
+    setUsernameCheck((prev) => ({ ...prev, status: "checking" }));
     const timeout = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/invite/check-username?name=${encodeURIComponent(clean)}`);
+        const queryUrl = `/api/invite/check-username?name=${encodeURIComponent(clean)}${
+          recipientEmail ? `&email=${encodeURIComponent(recipientEmail)}` : ""
+        }${token ? `&token=${encodeURIComponent(token)}` : ""}`;
+        const res = await fetch(queryUrl);
         const data = await res.json();
         if (data.available) {
-          setUsernameStatus("available");
+          setUsernameCheck({ status: "available", reason: null, message: "Username is available" });
         } else {
-          setUsernameStatus("taken");
+          setUsernameCheck({
+            status: "unavailable",
+            reason: data.reason || "taken",
+            message: data.message || "Username already taken",
+          });
         }
       } catch {
-        setUsernameStatus("idle");
+        setUsernameCheck({ status: "idle", reason: null, message: null });
       }
-    }, 350);
+    }, 400);
 
     return () => clearTimeout(timeout);
-  }, [name]);
+  }, [name, recipientEmail, token]);
 
   // 3. Form Submit Handler
   const handleSubmit = async (e: React.FormEvent) => {
@@ -126,13 +141,13 @@ function InviteAcceptanceContent() {
       return;
     }
 
-    if (cleanName.length < 2) {
-      setSubmitError("Username must be at least 2 characters long.");
+    if (cleanName.length < 3) {
+      setSubmitError("Username must be at least 3 characters long.");
       return;
     }
 
-    if (usernameStatus === "taken") {
-      setSubmitError("This name is already taken");
+    if (usernameCheck.status === "unavailable") {
+      setSubmitError(usernameCheck.message || "Please choose an available username.");
       return;
     }
 
@@ -169,7 +184,11 @@ function InviteAcceptanceContent() {
 
       if (!res.ok || !data.success) {
         if (data.error === "This name is already taken" || data.error === "Username already taken") {
-          setUsernameStatus("taken");
+          setUsernameCheck({
+            status: "unavailable",
+            reason: "taken",
+            message: "Username already taken",
+          });
         }
         setSubmitError(data.error || "Failed to accept invitation. Please try again.");
         setIsSubmitting(false);
@@ -330,38 +349,40 @@ function InviteAcceptanceContent() {
                   autoComplete="username"
                   required
                   className={`w-full pl-8 pr-10 py-2.5 text-xs bg-background border rounded-xl focus:outline-none transition-all ${
-                    usernameStatus === "taken" || submitError === "This name is already taken" || submitError === "Username already taken"
+                    usernameCheck.status === "unavailable" || submitError === "This name is already taken" || submitError === "Username already taken"
                       ? "border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20"
-                      : usernameStatus === "available"
+                      : usernameCheck.status === "available"
                       ? "border-emerald-500 focus:border-emerald-500 ring-1 ring-emerald-500/20"
                       : "border-border focus:border-[#C9A66B]"
                   }`}
                 />
                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                  {usernameStatus === "checking" && (
+                  {usernameCheck.status === "checking" && (
                     <div className="w-3.5 h-3.5 border-2 border-[#C9A66B] border-t-transparent rounded-full animate-spin" />
                   )}
-                  {usernameStatus === "available" && (
+                  {usernameCheck.status === "available" && (
                     <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                   )}
-                  {(usernameStatus === "taken" || submitError === "This name is already taken" || submitError === "Username already taken") && (
+                  {(usernameCheck.status === "unavailable" || submitError === "This name is already taken" || submitError === "Username already taken") && (
                     <AlertCircle className="w-4 h-4 text-rose-500" />
                   )}
                 </div>
               </div>
 
               {/* Username feedback message */}
-              {(usernameStatus === "taken" || submitError === "This name is already taken" || submitError === "Username already taken") ? (
+              {(usernameCheck.status === "unavailable" || submitError === "This name is already taken" || submitError === "Username already taken") ? (
                 <p className="mt-1.5 text-[11px] font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1">
-                  <span>Username already taken</span>
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{usernameCheck.message || submitError || "Username already taken"}</span>
                 </p>
-              ) : usernameStatus === "available" ? (
-                <p className="mt-1.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
-                  ✓ Username is available
+              ) : usernameCheck.status === "available" ? (
+                <p className="mt-1.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                  <span>✓ Username is available</span>
                 </p>
               ) : (
                 <p className="mt-1 text-[10px] text-muted">
-                  Must be unique across VN Mobiles. Letters, numbers, and underscores allowed.
+                  Must be unique across VN Mobiles. Letters, numbers, dot, and underscore allowed (3–20 characters).
                 </p>
               )}
             </div>
@@ -445,7 +466,7 @@ function InviteAcceptanceContent() {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={isSubmitting || usernameStatus === "checking" || usernameStatus === "taken"}
+              disabled={isSubmitting || usernameCheck.status === "checking" || usernameCheck.status === "unavailable"}
               className="w-full py-3 px-4 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] active:bg-[#A67C3D] disabled:opacity-50 text-[#FFFCFA] font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
             >
               {isSubmitting ? (
