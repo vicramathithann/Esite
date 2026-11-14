@@ -98,56 +98,96 @@ export default function WishlistPage() {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 sm:gap-4">
             {products.map((product) => (
               <div
                 key={product.id}
-                className="bg-card border border-border rounded-2xl p-5 flex flex-col justify-between hover:-translate-y-1 hover:shadow-lg hover:border-[#C9A66B]/50 transition-all duration-300"
+                className="bg-card border border-border rounded-xl sm:rounded-2xl p-2.5 sm:p-5 flex flex-col justify-between hover:-translate-y-1 hover:shadow-lg hover:border-[#C9A66B]/50 transition-all duration-300"
               >
-                <div className="flex gap-4">
-                  <div className="relative w-24 h-24 bg-tile border border-border rounded-xl p-2 shrink-0 flex items-center justify-center">
-                    <Image
-                      src={product.imageUrl || "/images/placeholder.png"}
-                      alt={product.name}
-                      fill
-                      className="object-contain p-1"
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <span className="text-[10px] uppercase font-bold text-[#8C6226] dark:text-[#E5CBA2] tracking-wider">
+                {/* Mobile View (sm:hidden) - Compact Vertical 2-Column Card */}
+                <div className="sm:hidden flex flex-col flex-1 justify-between">
+                  <div className="relative">
+                    <div className="relative aspect-square w-full bg-tile border border-border/60 rounded-lg p-1.5 mb-2 flex items-center justify-center">
+                      <Image
+                        src={product.imageUrl || "/images/placeholder.png"}
+                        alt={product.name}
+                        fill
+                        className="object-contain p-1"
+                      />
+                    </div>
+                    <button
+                      onClick={() => toggleWishlist(product.id)}
+                      className="absolute top-1 right-1 p-1 rounded-full bg-card/90 border border-border text-muted hover:text-red-500 shadow-xs cursor-pointer"
+                      title="Remove from wishlist"
+                      aria-label="Remove from wishlist"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                    <span className="text-[9px] uppercase font-bold text-[#8C6226] dark:text-[#E5CBA2] tracking-wider block">
                       {product.brand}
                     </span>
-                    <h3 className="text-sm font-semibold text-foreground line-clamp-1 mt-0.5">
+                    <h3 className="text-xs font-semibold text-foreground line-clamp-2 leading-tight mt-0.5">
                       {product.name}
                     </h3>
-                    <p className="text-xs text-muted mt-0.5 truncate">
-                      {product.processor || "Octa Core"} • {product.ram || "8GB RAM"}
-                    </p>
-                    <div className="text-base font-bold text-foreground mt-2">
+                    <div className="text-sm font-bold text-foreground mt-1">
                       {formatINR(product.basePrice)}
                     </div>
                   </div>
-                </div>
 
-                <div className="flex items-center gap-2 mt-4 pt-3.5 border-t border-border">
-                  {/* Move to Cart button: Solid gold with high contrast */}
                   <button
                     onClick={() => handleAddToCart(product)}
-                    className="flex-1 py-2.5 px-4 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] text-[#FFFCFA] text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-xs hover:shadow-md cursor-pointer"
+                    className="w-full mt-2.5 h-9 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] active:bg-[#A67C3D] text-[#FFFCFA] text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer"
                   >
-                    <ShoppingBag className="w-3.5 h-3.5 text-[#FFFCFA]" />
+                    <ShoppingBag className="w-3 h-3 text-[#FFFCFA]" />
                     <span>Move to Cart</span>
                   </button>
+                </div>
 
-                  {/* Delete icon: Muted by default, red on hover */}
-                  <button
-                    onClick={() => toggleWishlist(product.id)}
-                    className="p-2.5 rounded-xl border border-border bg-tile text-muted hover:text-red-600 dark:hover:text-red-400 hover:border-red-500/40 hover:bg-red-500/10 transition-all flex items-center justify-center cursor-pointer"
-                    title="Remove from wishlist"
-                    aria-label="Remove from wishlist"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                {/* Desktop View (hidden sm:flex) - Horizontal Row Card */}
+                <div className="hidden sm:flex flex-col flex-1 justify-between">
+                  <div className="flex gap-4">
+                    <div className="relative w-24 h-24 bg-tile border border-border rounded-xl p-2 shrink-0 flex items-center justify-center">
+                      <Image
+                        src={product.imageUrl || "/images/placeholder.png"}
+                        alt={product.name}
+                        fill
+                        className="object-contain p-1"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[10px] uppercase font-bold text-[#8C6226] dark:text-[#E5CBA2] tracking-wider">
+                        {product.brand}
+                      </span>
+                      <h3 className="text-sm font-semibold text-foreground line-clamp-1 mt-0.5">
+                        {product.name}
+                      </h3>
+                      <p className="text-xs text-muted mt-0.5 truncate">
+                        {product.processor || "Octa Core"} • {product.ram || "8GB RAM"}
+                      </p>
+                      <div className="text-base font-bold text-foreground mt-2">
+                        {formatINR(product.basePrice)}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 mt-4 pt-3.5 border-t border-border">
+                    <button
+                      onClick={() => handleAddToCart(product)}
+                      className="flex-1 py-2.5 px-4 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] text-[#FFFCFA] text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-xs hover:shadow-md cursor-pointer"
+                    >
+                      <ShoppingBag className="w-3.5 h-3.5 text-[#FFFCFA]" />
+                      <span>Move to Cart</span>
+                    </button>
+
+                    <button
+                      onClick={() => toggleWishlist(product.id)}
+                      className="p-2.5 rounded-xl border border-border bg-tile text-muted hover:text-red-600 dark:hover:text-red-400 hover:border-red-500/40 hover:bg-red-500/10 transition-all flex items-center justify-center cursor-pointer"
+                      title="Remove from wishlist"
+                      aria-label="Remove from wishlist"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}

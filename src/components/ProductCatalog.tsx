@@ -2,12 +2,15 @@
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
+import Link from "next/link";
+import Image from "next/image";
 import { useSearchParams } from "next/navigation";
-import MobileCard from "@/components/MobileCard";
+import MobileCard, { MobileCardSkeleton } from "@/components/MobileCard";
 import { MobileProductData } from "@/lib/types";
 import { DEFAULT_PRODUCTS } from "@/lib/catalogData";
 import {
   SlidersHorizontal,
+  ArrowUpDown,
   Check,
   X,
   RotateCcw,
@@ -23,6 +26,8 @@ import {
   Cpu,
   Monitor,
   Battery,
+  Flame,
+  Tag,
 } from "lucide-react";
 
 export const FAMOUS_BRANDS = [
@@ -63,6 +68,47 @@ const BRAND_BADGES: Record<string, string> = {
   "Tecno": "T",
   "Nokia": "N",
 };
+
+const MOBILE_HERO_SLIDES = [
+  {
+    id: 1,
+    tag: "FESTIVE FLAGSHIP DROP",
+    title: "Apple iPhone 16 Pro",
+    desc: "Grade 5 Titanium • A18 Pro Chip • 48MP Fusion Camera",
+    offer: "Up to ₹10,000 Instant Bank Discount + No Cost EMI",
+    badge: "1-Year Shield Included",
+    gradient: "from-amber-950/80 via-stone-900 to-black",
+    accent: "#C9A66B",
+  },
+  {
+    id: 2,
+    tag: "NEXT-GEN GALAXY AI",
+    title: "Samsung Galaxy S24 Ultra",
+    desc: "200MP Quad Telephoto • Snapdragon 8 Gen 3 • S-Pen",
+    offer: "No Cost EMI from ₹4,166/mo + Free Express Delivery",
+    badge: "Official Brand Warranty",
+    gradient: "from-blue-950/80 via-slate-900 to-black",
+    accent: "#60a5fa",
+  },
+  {
+    id: 3,
+    tag: "FLAGSHIP PERFORMANCE",
+    title: "OnePlus 12 & Pixel 9",
+    desc: "Hasselblad Camera • Google Tensor G4 • Gemini AI",
+    offer: "Extra ₹6,000 Trade-in Exchange Bonus Today",
+    badge: "100% Genuine PAN-India",
+    gradient: "from-emerald-950/80 via-zinc-900 to-black",
+    accent: "#34d399",
+  },
+];
+
+const BUDGET_TIERS = [
+  { label: "All Budgets", maxPrice: 200000 },
+  { label: "Under 15K", maxPrice: 15000 },
+  { label: "15-25K", maxPrice: 25000 },
+  { label: "25-40K", maxPrice: 40000 },
+  { label: "40K+", maxPrice: 200000, minPrice: 40000 },
+];
 
 const RAM_OPTIONS = ["All", "4GB", "6GB", "8GB", "12GB", "16GB"];
 const STORAGE_OPTIONS = ["All", "128GB", "256GB", "512GB", "1TB"];
@@ -175,6 +221,14 @@ export default function ProductCatalog({
   const [inStockOnly, setInStockOnly] = useState<boolean>(false);
   const [sortBy, setSortBy] = useState<string>("featured");
 
+  // Mobile specific UI states (Sort bottom sheet, 2-column Filter full sheet, Carousel index)
+  const [isMobileSortOpen, setIsMobileSortOpen] = useState(false);
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+  const [mobileFilterTab, setMobileFilterTab] = useState<
+    "brand" | "price" | "ram" | "storage" | "battery" | "camera" | "os" | "display" | "processor" | "rating" | "5g" | "stock"
+  >("brand");
+  const [carouselIndex, setCarouselIndex] = useState(0);
+
   // Popover & Drawer Open States
   const [openPopover, setOpenPopover] = useState<"brand" | "price" | "ram" | "more" | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
@@ -182,6 +236,26 @@ export default function ProductCatalog({
 
   const filterBarRef = useRef<HTMLDivElement>(null);
   const popoverContentRef = useRef<HTMLDivElement>(null);
+
+  // Auto-advance hero carousel on phone
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCarouselIndex((prev) => (prev + 1) % 3);
+    }, 4500);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Body scroll lock when mobile sheets are open
+  useEffect(() => {
+    if (isMobileSortOpen || isMobileFilterOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isMobileSortOpen, isMobileFilterOpen]);
 
   useEffect(() => {
     setMounted(true);
@@ -620,8 +694,317 @@ function getProductEffectivePrice(p: MobileProductData): number {
     setOpenPopover((prev) => (prev === name ? null : name));
   };
 
+  const featuredPhones = useMemo(() => {
+    return (products || []).filter((p) => p.isFeatured).slice(0, 8);
+  }, [products]);
+
+  const dealPhones = useMemo(() => {
+    return (products || [])
+      .filter((p) => (p.originalPrice || 0) > (p.basePrice || 0))
+      .slice(0, 8);
+  }, [products]);
+
   return (
     <div className="w-full text-foreground">
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* PHONE HOME SECTIONS (<sm): Carousel -> Brands -> Budget -> Featured -> Deals */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      <div className="sm:hidden space-y-4 mb-4">
+        {/* 1. Swipeable Banner Carousel with Dots */}
+        <div className="relative overflow-hidden rounded-2xl bg-card border border-border shadow-xs">
+          <div
+            className="flex transition-transform duration-300 ease-out"
+            style={{ transform: `translateX(-${carouselIndex * 100}%)` }}
+          >
+            {MOBILE_HERO_SLIDES.map((slide) => (
+              <div
+                key={slide.id}
+                className={`w-full shrink-0 p-4 bg-gradient-to-br ${slide.gradient} text-white flex flex-col justify-between min-h-[160px]`}
+              >
+                <div>
+                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#C9A66B] px-2 py-0.5 rounded-full bg-black/40 border border-[#C9A66B]/30 inline-block mb-1.5">
+                    {slide.tag}
+                  </span>
+                  <h3 className="text-lg font-bold tracking-tight text-white leading-tight">
+                    {slide.title}
+                  </h3>
+                  <p className="text-[11px] text-white/80 line-clamp-1 mt-0.5">
+                    {slide.desc}
+                  </p>
+                </div>
+                <div className="pt-3 flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-emerald-400">
+                    {slide.offer}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const el = document.getElementById("smartphones-grid");
+                      el?.scrollIntoView({ behavior: "smooth" });
+                    }}
+                    className="px-3 py-1 bg-[#C9A66B] text-black text-[11px] font-bold rounded-full shadow-xs shrink-0 cursor-pointer"
+                  >
+                    View Deals
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Carousel Pagination Dots */}
+          <div className="absolute bottom-2 left-0 right-0 flex items-center justify-center gap-1.5 pointer-events-none">
+            {MOBILE_HERO_SLIDES.map((_, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => setCarouselIndex(idx)}
+                className={`h-1.5 rounded-full transition-all pointer-events-auto ${
+                  carouselIndex === idx ? "w-5 bg-[#C9A66B]" : "w-1.5 bg-white/40"
+                }`}
+                aria-label={`Go to slide ${idx + 1}`}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* 2. Brand Category Circles */}
+        <div className="overflow-x-auto scrollbar-none -mx-4 px-4 py-1">
+          <div className="flex items-center gap-3 w-max">
+            {/* All Phones Circle */}
+            <button
+              type="button"
+              onClick={() => handleBrandSelect("All Mobiles")}
+              className="flex flex-col items-center gap-1 text-center shrink-0 w-13 cursor-pointer group"
+            >
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
+                selectedBrand === "All Mobiles"
+                  ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] ring-2 ring-[#C9A66B]/50 shadow-xs"
+                  : "bg-tile border border-border text-foreground group-active:scale-95"
+              }`}>
+                <Smartphone className="w-5 h-5" />
+              </div>
+              <span className={`text-[10px] font-semibold truncate w-full ${
+                selectedBrand === "All Mobiles" ? "text-[#C9A66B] dark:text-[#D4B483]" : "text-muted"
+              }`}>
+                All
+              </span>
+            </button>
+
+            {/* Individual Brands */}
+            {FAMOUS_BRANDS.filter((b) => b !== "All Mobiles").map((b) => {
+              const isSelected = selectedBrandList.some((sel) => sel.toLowerCase() === b.toLowerCase());
+              const badge = BRAND_BADGES[b] || b.charAt(0);
+              return (
+                <button
+                  key={b}
+                  type="button"
+                  onClick={() => handleBrandToggle(b)}
+                  className="flex flex-col items-center gap-1 text-center shrink-0 w-13 cursor-pointer group"
+                >
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-xs transition-all ${
+                    isSelected
+                      ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] ring-2 ring-[#C9A66B]/50 shadow-xs"
+                      : "bg-tile border border-border text-foreground group-active:scale-95"
+                  }`}>
+                    {badge}
+                  </div>
+                  <span className={`text-[10px] font-semibold truncate w-full ${
+                    isSelected ? "text-[#C9A66B] dark:text-[#D4B483]" : "text-muted"
+                  }`}>
+                    {b.split(" ")[0]}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 3. "Shop by budget" chips */}
+        <div className="space-y-1.5 pt-1">
+          <span className="text-[11px] font-bold text-muted uppercase tracking-wider block">
+            Shop By Budget
+          </span>
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none -mx-4 px-4 py-0.5">
+            {BUDGET_TIERS.map((chip) => {
+              const isSelected = chip.label === "All Budgets" 
+                ? priceRange === 200000 
+                : priceRange === chip.maxPrice;
+              return (
+                <button
+                  key={chip.label}
+                  type="button"
+                  onClick={() => setPriceRange(chip.maxPrice)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold shrink-0 transition-all cursor-pointer ${
+                    isSelected
+                      ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] shadow-xs"
+                      : "bg-tile border border-border text-foreground hover:bg-tile/80"
+                  }`}
+                >
+                  {chip.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 4. "Featured" horizontal scroll row (cards ~150px wide) */}
+        {featuredPhones.length > 0 && (
+          <div className="space-y-2 pt-1">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-[#C9A66B]" />
+                <h3 className="text-xs font-bold text-foreground uppercase tracking-wide">Featured Smartphones</h3>
+              </div>
+              <span className="text-[10px] text-muted">Scroll →</span>
+            </div>
+
+            <div className="flex items-stretch gap-2.5 overflow-x-auto scrollbar-none -mx-4 px-4 py-1">
+              {featuredPhones.map((p) => (
+                <Link
+                  key={p.id}
+                  href={`/mobile/${p.id}`}
+                  className="w-[150px] shrink-0 bg-card border border-border rounded-xl p-2.5 flex flex-col justify-between shadow-2xs group active:scale-[0.98] transition-transform"
+                >
+                  <div className="relative aspect-square w-full rounded-lg bg-white dark:bg-zinc-900/60 p-2 flex items-center justify-center overflow-hidden mb-1.5 border border-border/40">
+                    <Image src={p.imageUrl} alt={p.name} fill unoptimized className="object-contain group-hover:scale-105 transition-transform" />
+                  </div>
+                  <div className="space-y-0.5">
+                    <span className="text-[9px] uppercase font-bold text-muted">{p.brand}</span>
+                    <h4 className="text-xs font-bold text-foreground line-clamp-1 leading-snug">{p.name}</h4>
+                    <div className="flex items-center gap-1 text-[10px]">
+                      <span className="bg-emerald-600 text-white px-1 py-0.2 rounded font-bold text-[9px] inline-flex items-center gap-0.5">
+                        {p.rating || 4.7} <Star className="w-2 h-2 fill-white text-white" />
+                      </span>
+                      <span className="text-muted text-[10px]">({p.reviewCount || 120})</span>
+                    </div>
+                    <div className="text-xs font-bold text-foreground pt-0.5">
+                      ₹{(p.basePrice || 49999).toLocaleString("en-IN")}
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 5. "Top Deals" horizontal scroll row (cards ~150px wide) */}
+        {dealPhones.length > 0 && (
+          <div className="space-y-2 pt-1">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Flame className="w-3.5 h-3.5 text-amber-500" />
+                <h3 className="text-xs font-bold text-foreground uppercase tracking-wide">Top Deals & Discounts</h3>
+              </div>
+              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">Limited Time</span>
+            </div>
+
+            <div className="flex items-stretch gap-2.5 overflow-x-auto scrollbar-none -mx-4 px-4 py-1">
+              {dealPhones.map((p) => {
+                const discount = Math.round((((p.originalPrice || 0) - (p.basePrice || 0)) / (p.originalPrice || 1)) * 100);
+                return (
+                  <Link
+                    key={p.id}
+                    href={`/mobile/${p.id}`}
+                    className="w-[150px] shrink-0 bg-card border border-border rounded-xl p-2.5 flex flex-col justify-between shadow-2xs group relative active:scale-[0.98] transition-transform"
+                  >
+                    {discount > 0 && (
+                      <span className="absolute top-2 left-2 z-10 text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-600 text-white shadow-2xs pointer-events-none">
+                        {discount}% off
+                      </span>
+                    )}
+                    <div className="relative aspect-square w-full rounded-lg bg-white dark:bg-zinc-900/60 p-2 flex items-center justify-center overflow-hidden mb-1.5 border border-border/40">
+                      <Image src={p.imageUrl} alt={p.name} fill unoptimized className="object-contain group-hover:scale-105 transition-transform" />
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="text-[9px] uppercase font-bold text-muted">{p.brand}</span>
+                      <h4 className="text-xs font-bold text-foreground line-clamp-1 leading-snug">{p.name}</h4>
+                      <div className="flex items-baseline gap-1 pt-0.5 flex-wrap">
+                        <span className="text-xs font-bold text-foreground">₹{(p.basePrice || 49999).toLocaleString("en-IN")}</span>
+                        <span className="text-[10px] text-muted line-through font-normal">₹{(p.originalPrice || 0).toLocaleString("en-IN")}</span>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* 6. "ALL SMARTPHONES" GRID HEADER & STICKY FILTER/SORT ROW */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      <div id="smartphones-grid" className="scroll-mt-16" />
+
+      {/* Phone Sticky Filter & Sort Row (Flipkart-style: [Sort ⇅] | [Filter ⚲ (N)]) */}
+      <div className="sm:hidden sticky top-14 z-20 bg-card/95 backdrop-blur-md border-y border-border -mx-4 px-4 py-2 flex items-center justify-between text-xs font-semibold shadow-xs">
+        <button
+          type="button"
+          onClick={() => setIsMobileSortOpen(true)}
+          className="flex-1 flex items-center justify-center gap-1.5 py-1 text-foreground active:text-[#C9A66B] cursor-pointer"
+        >
+          <ArrowUpDown className="w-3.5 h-3.5 text-[#C9A66B]" />
+          <span>Sort</span>
+          <ChevronDown className="w-3 h-3 text-muted" />
+        </button>
+        
+        <div className="w-[1px] h-5 bg-border shrink-0" />
+
+        <button
+          type="button"
+          onClick={() => setIsMobileFilterOpen(true)}
+          className="flex-1 flex items-center justify-center gap-1.5 py-1 text-foreground active:text-[#C9A66B] cursor-pointer relative"
+        >
+          <SlidersHorizontal className="w-3.5 h-3.5 text-[#C9A66B]" />
+          <span>Filter</span>
+          {activeFilterCount > 0 && (
+            <span className="w-4 h-4 rounded-full bg-[#C9A66B] text-white text-[10px] font-bold flex items-center justify-center ml-0.5">
+              {activeFilterCount}
+            </span>
+          )}
+        </button>
+
+        <span className="text-[11px] text-muted font-normal pl-2 shrink-0 border-l border-border/60">
+          {filteredProducts.length} devices
+        </span>
+      </div>
+
+      {/* Phone Active Filter Chips (Removable with X) */}
+      {activeFilterCount > 0 && (
+        <div className="sm:hidden flex items-center gap-1.5 overflow-x-auto scrollbar-none py-2 -mx-4 px-4 bg-tile/40 border-b border-border mb-3">
+          {selectedBrandList.map((b) => (
+            <span key={b} className="shrink-0 bg-[#C9A66B] text-white text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-2xs">
+              <span>{b}</span>
+              <button type="button" onClick={() => handleBrandToggle(b)}><X className="w-3 h-3" /></button>
+            </span>
+          ))}
+          {isPriceActive && (
+            <span className="shrink-0 bg-card border border-[#C9A66B]/40 text-[#8C6226] dark:text-[#D4B483] text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-2xs">
+              <span>Under ₹{priceRange.toLocaleString("en-IN")}</span>
+              <button type="button" onClick={() => setPriceRange(200000)}><X className="w-3 h-3" /></button>
+            </span>
+          )}
+          {selectedRamList.map((r) => (
+            <span key={r} className="shrink-0 bg-card border border-[#C9A66B]/40 text-[#8C6226] dark:text-[#D4B483] text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-2xs">
+              <span>{r} RAM</span>
+              <button type="button" onClick={() => handleRamToggle(r)}><X className="w-3 h-3" /></button>
+            </span>
+          ))}
+          {isStorageActive && (
+            <span className="shrink-0 bg-card border border-[#C9A66B]/40 text-[#8C6226] dark:text-[#D4B483] text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-2xs">
+              <span>{selectedStorage}</span>
+              <button type="button" onClick={() => setSelectedStorage("All")}><X className="w-3 h-3" /></button>
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={handleResetFilters}
+            className="shrink-0 text-[10px] font-bold text-red-500 underline ml-1 cursor-pointer"
+          >
+            Clear All
+          </button>
+        </div>
+      )}
       {/* 1. Header Banner */}
       {showHeaderBanner && (
         <div className="bg-card border border-border rounded-[20px] p-6 sm:p-8 mb-8 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6 transition-colors duration-200">
@@ -676,8 +1059,8 @@ function getProductEffectivePrice(p: MobileProductData): number {
         </div>
       )}
 
-      {/* 2. Heading Row: "Explore Smartphones (N devices)" + Active Filter Tags + Sort Dropdown */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+      {/* 2. Desktop Heading Row: "Explore Smartphones (N devices)" + Active Filter Tags + Sort Dropdown */}
+      <div className="hidden sm:flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-2 flex-wrap">
           <h2 className="text-xl sm:text-2xl font-bold text-foreground">
             Explore Smartphones
@@ -936,11 +1319,11 @@ function getProductEffectivePrice(p: MobileProductData): number {
         </div>
       </div>
 
-      {/* 4. Horizontal Filter Bar */}
+      {/* 4. Desktop Horizontal Filter Bar (Hidden on phone, active on tablet/laptop) */}
       {/* Important: sm:overflow-visible ensures desktop dropdown popovers are NEVER clipped */}
       <div
         ref={filterBarRef}
-        className="relative z-30 bg-card/85 dark:bg-card/60 border border-[#C9A66B]/25 dark:border-[#D4B483]/25 bg-gradient-to-r from-[#C9A66B]/8 via-[#C9A66B]/3 to-transparent rounded-2xl p-2 sm:p-2.5 mb-6 shadow-xs flex items-center justify-between gap-3 overflow-x-auto sm:overflow-visible scrollbar-none"
+        className="hidden sm:flex relative z-30 bg-card/85 dark:bg-card/60 border border-[#C9A66B]/25 dark:border-[#D4B483]/25 bg-gradient-to-r from-[#C9A66B]/8 via-[#C9A66B]/3 to-transparent rounded-2xl p-2 sm:p-2.5 mb-6 shadow-xs items-center justify-between gap-3 overflow-x-auto sm:overflow-visible scrollbar-none"
       >
         <div className="flex items-center gap-2 flex-nowrap shrink-0">
           {/* "All Filters" Button: Pinned at left on mobile */}
@@ -2122,15 +2505,403 @@ function getProductEffectivePrice(p: MobileProductData): number {
         document.body
       )}
 
+      {/* Mobile 2-Column Full-Screen Filter Sheet (Flipkart-style) */}
+      {mounted && isMobileFilterOpen && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-[1000] bg-card flex flex-col sm:hidden animate-in fade-in duration-150">
+          {/* Header */}
+          <div className="h-14 px-4 border-b border-border flex items-center justify-between shrink-0 bg-card">
+            <div className="flex items-center gap-2">
+              <h3 className="text-base font-bold text-foreground">Filters</h3>
+              {activeFilterCount > 0 && (
+                <span className="px-2 py-0.5 rounded-full bg-[#C9A66B] text-white text-[10px] font-bold">
+                  {activeFilterCount}
+                </span>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsMobileFilterOpen(false)}
+              className="w-9 h-9 rounded-full flex items-center justify-center text-muted hover:text-foreground hover:bg-tile cursor-pointer"
+              aria-label="Close filters"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Body: Left Group List + Right Options List */}
+          <div className="flex-1 flex overflow-hidden">
+            {/* Left List of Groups */}
+            <div className="w-[110px] bg-tile/70 border-r border-border overflow-y-auto divide-y divide-border/40 text-xs font-semibold shrink-0">
+              {[
+                { id: "brand", label: "Brand", active: isBrandActive },
+                { id: "price", label: "Price", active: isPriceActive },
+                { id: "ram", label: "RAM", active: isRamActive },
+                { id: "storage", label: "Storage", active: isStorageActive },
+                { id: "battery", label: "Battery", active: isBatteryActive },
+                { id: "camera", label: "Camera", active: isCameraActive },
+                { id: "os", label: "OS", active: isOSActive },
+                { id: "display", label: "Display", active: isDisplayActive },
+                { id: "processor", label: "Processor", active: isProcessorActive },
+                { id: "rating", label: "Rating", active: isRatingActive },
+                { id: "5g", label: "5G Only", active: is5GActive },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setMobileFilterTab(tab.id as any)}
+                  className={`w-full text-left px-3 py-3.5 flex items-center justify-between transition-colors cursor-pointer ${
+                    mobileFilterTab === tab.id
+                      ? "bg-card text-[#C9A66B] dark:text-[#D4B483] border-l-4 border-[#C9A66B] font-bold"
+                      : "text-muted hover:text-foreground"
+                  }`}
+                >
+                  <span className="truncate">{tab.label}</span>
+                  {tab.active && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#C9A66B] shrink-0" />
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Right List of Options */}
+            <div className="flex-1 p-4 overflow-y-auto bg-card">
+              {mobileFilterTab === "brand" && (
+                <div className="space-y-2">
+                  <span className="text-xs font-bold text-muted uppercase tracking-wider block mb-2">Select Brands</span>
+                  {FAMOUS_BRANDS.filter((b) => b !== "All Mobiles").map((b) => {
+                    const checked = selectedBrandList.some((sel) => sel.toLowerCase() === b.toLowerCase());
+                    return (
+                      <label
+                        key={b}
+                        className="flex items-center justify-between p-2.5 rounded-xl border border-border bg-tile/40 active:bg-tile cursor-pointer text-xs font-medium"
+                      >
+                        <span className="text-foreground">{b}</span>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => handleBrandToggle(b)}
+                          className="w-4 h-4 accent-[#C9A66B] rounded cursor-pointer"
+                        />
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+
+              {mobileFilterTab === "price" && (
+                <div className="space-y-4">
+                  <span className="text-xs font-bold text-muted uppercase tracking-wider block">Price Range</span>
+                  <div className="p-3 rounded-xl bg-tile/60 border border-border text-center">
+                    <span className="text-sm font-bold text-[#C9A66B] dark:text-[#D4B483]">
+                      Under ₹{priceRange.toLocaleString("en-IN")}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={10000}
+                    max={200000}
+                    step={5000}
+                    value={priceRange}
+                    onChange={(e) => setPriceRange(Number(e.target.value))}
+                    className="w-full accent-[#C9A66B]"
+                  />
+                  <div className="grid grid-cols-2 gap-2 pt-2">
+                    {[15000, 25000, 40000, 75000, 100000, 200000].map((pr) => (
+                      <button
+                        key={pr}
+                        type="button"
+                        onClick={() => setPriceRange(pr)}
+                        className={`p-2 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                          priceRange === pr
+                            ? "bg-[#C9A66B] text-white border-[#C9A66B]"
+                            : "bg-tile text-foreground border-border"
+                        }`}
+                      >
+                        {pr === 200000 ? "All Prices" : `Under ₹${(pr / 1000).toFixed(0)}K`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {mobileFilterTab === "ram" && (
+                <div className="space-y-2">
+                  <span className="text-xs font-bold text-muted uppercase tracking-wider block mb-2">RAM Capacity</span>
+                  {RAM_OPTIONS.map((r) => {
+                    const isSelected = r === "All" ? selectedRam === "All" : selectedRamList.includes(r);
+                    return (
+                      <button
+                        key={r}
+                        type="button"
+                        onClick={() => handleRamToggle(r)}
+                        className={`w-full p-2.5 rounded-xl border text-left text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                          isSelected
+                            ? "bg-[#C9A66B] text-white border-[#C9A66B]"
+                            : "bg-tile text-foreground border-border"
+                        }`}
+                      >
+                        <span>{r === "All" ? "All RAM Sizes" : `${r} Unified RAM`}</span>
+                        {isSelected && <Check className="w-4 h-4 text-white" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {mobileFilterTab === "storage" && (
+                <div className="space-y-2">
+                  <span className="text-xs font-bold text-muted uppercase tracking-wider block mb-2">Internal Storage</span>
+                  {STORAGE_OPTIONS.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setSelectedStorage(s)}
+                      className={`w-full p-2.5 rounded-xl border text-left text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                        selectedStorage === s
+                          ? "bg-[#C9A66B] text-white border-[#C9A66B]"
+                          : "bg-tile text-foreground border-border"
+                      }`}
+                    >
+                      <span>{s === "All" ? "All Storage Sizes" : s}</span>
+                      {selectedStorage === s && <Check className="w-4 h-4 text-white" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {mobileFilterTab === "battery" && (
+                <div className="space-y-2">
+                  <span className="text-xs font-bold text-muted uppercase tracking-wider block mb-2">Battery Capacity</span>
+                  {BATTERY_OPTIONS.map((b) => (
+                    <button
+                      key={b.value}
+                      type="button"
+                      onClick={() => setSelectedBattery(b.value)}
+                      className={`w-full p-2.5 rounded-xl border text-left text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                        selectedBattery === b.value
+                          ? "bg-[#C9A66B] text-white border-[#C9A66B]"
+                          : "bg-tile text-foreground border-border"
+                      }`}
+                    >
+                      <span>{b.label}</span>
+                      {selectedBattery === b.value && <Check className="w-4 h-4 text-white" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {mobileFilterTab === "camera" && (
+                <div className="space-y-2">
+                  <span className="text-xs font-bold text-muted uppercase tracking-wider block mb-2">Camera Specs</span>
+                  {CAMERA_OPTIONS.map((c) => (
+                    <button
+                      key={c.value}
+                      type="button"
+                      onClick={() => setSelectedCamera(c.value)}
+                      className={`w-full p-2.5 rounded-xl border text-left text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                        selectedCamera === c.value
+                          ? "bg-[#C9A66B] text-white border-[#C9A66B]"
+                          : "bg-tile text-foreground border-border"
+                      }`}
+                    >
+                      <span>{c.label}</span>
+                      {selectedCamera === c.value && <Check className="w-4 h-4 text-white" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {mobileFilterTab === "os" && (
+                <div className="space-y-2">
+                  <span className="text-xs font-bold text-muted uppercase tracking-wider block mb-2">Operating System</span>
+                  {OS_OPTIONS.map((os) => (
+                    <button
+                      key={os}
+                      type="button"
+                      onClick={() => setSelectedOS(os)}
+                      className={`w-full p-2.5 rounded-xl border text-left text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                        selectedOS === os
+                          ? "bg-[#C9A66B] text-white border-[#C9A66B]"
+                          : "bg-tile text-foreground border-border"
+                      }`}
+                    >
+                      <span>{os === "All" ? "All Operating Systems" : os}</span>
+                      {selectedOS === os && <Check className="w-4 h-4 text-white" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {mobileFilterTab === "display" && (
+                <div className="space-y-2">
+                  <span className="text-xs font-bold text-muted uppercase tracking-wider block mb-2">Display Type</span>
+                  {DISPLAY_OPTIONS.map((d) => (
+                    <button
+                      key={d.value}
+                      type="button"
+                      onClick={() => setSelectedDisplay(d.value)}
+                      className={`w-full p-2.5 rounded-xl border text-left text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                        selectedDisplay === d.value
+                          ? "bg-[#C9A66B] text-white border-[#C9A66B]"
+                          : "bg-tile text-foreground border-border"
+                      }`}
+                    >
+                      <span>{d.label}</span>
+                      {selectedDisplay === d.value && <Check className="w-4 h-4 text-white" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {mobileFilterTab === "processor" && (
+                <div className="space-y-2">
+                  <span className="text-xs font-bold text-muted uppercase tracking-wider block mb-2">Processor Family</span>
+                  {PROCESSOR_OPTIONS.map((pr) => (
+                    <button
+                      key={pr.value}
+                      type="button"
+                      onClick={() => setSelectedProcessor(pr.value)}
+                      className={`w-full p-2.5 rounded-xl border text-left text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                        selectedProcessor === pr.value
+                          ? "bg-[#C9A66B] text-white border-[#C9A66B]"
+                          : "bg-tile text-foreground border-border"
+                      }`}
+                    >
+                      <span>{pr.label}</span>
+                      {selectedProcessor === pr.value && <Check className="w-4 h-4 text-white" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {mobileFilterTab === "rating" && (
+                <div className="space-y-2">
+                  <span className="text-xs font-bold text-muted uppercase tracking-wider block mb-2">Customer Rating</span>
+                  {RATING_OPTIONS.map((r) => (
+                    <button
+                      key={r.value}
+                      type="button"
+                      onClick={() => setSelectedRating(r.value)}
+                      className={`w-full p-2.5 rounded-xl border text-left text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                        selectedRating === r.value
+                          ? "bg-[#C9A66B] text-white border-[#C9A66B]"
+                          : "bg-tile text-foreground border-border"
+                      }`}
+                    >
+                      <span>{r.label}</span>
+                      {selectedRating === r.value && <Check className="w-4 h-4 text-white" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {mobileFilterTab === "5g" && (
+                <div className="space-y-2">
+                  <span className="text-xs font-bold text-muted uppercase tracking-wider block mb-2">5G Connectivity</span>
+                  {NETWORK_OPTIONS.map((net) => (
+                    <button
+                      key={net}
+                      type="button"
+                      onClick={() => setSelected5G(net)}
+                      className={`w-full p-2.5 rounded-xl border text-left text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                        selected5G === net
+                          ? "bg-[#C9A66B] text-white border-[#C9A66B]"
+                          : "bg-tile text-foreground border-border"
+                      }`}
+                    >
+                      <span>{net}</span>
+                      {selected5G === net && <Check className="w-4 h-4 text-white" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Sticky Footer */}
+          <div className="p-3 border-t border-border bg-card flex items-center gap-3 shrink-0 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              className="flex-1 py-2.5 px-4 rounded-xl border border-border bg-tile text-foreground text-xs font-bold active:bg-tile/70 cursor-pointer"
+            >
+              Clear all
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsMobileFilterOpen(false)}
+              className="flex-2 py-2.5 px-4 rounded-xl bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] text-xs font-bold shadow-xs active:bg-[#B8914A] cursor-pointer"
+            >
+              Apply ({filteredProducts.length} results)
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Mobile Sort Bottom Sheet */}
+      {mounted && isMobileSortOpen && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-[1000] flex items-end sm:hidden animate-in fade-in duration-150">
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-2xs"
+            onClick={() => setIsMobileSortOpen(false)}
+            aria-hidden="true"
+          />
+          <div className="relative w-full bg-card rounded-t-3xl border-t border-border p-4 z-10 space-y-3 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-2xl animate-in slide-in-from-bottom duration-200">
+            <div className="w-10 h-1 bg-muted/40 rounded-full mx-auto" />
+            <div className="flex items-center justify-between pb-2 border-b border-border">
+              <h3 className="text-sm font-bold text-foreground">Sort By</h3>
+              <button
+                type="button"
+                onClick={() => setIsMobileSortOpen(false)}
+                className="p-1 text-muted hover:text-foreground cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-1">
+              {[
+                { id: "featured", label: "Featured First" },
+                { id: "price-asc", label: "Price: Low to High" },
+                { id: "price-desc", label: "Price: High to Low" },
+                { id: "rating", label: "Customer Rating" },
+                { id: "newest", label: "New Releases" },
+              ].map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => {
+                    setSortBy(opt.id);
+                    setIsMobileSortOpen(false);
+                  }}
+                  className={`w-full p-3 rounded-xl text-left text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                    sortBy === opt.id
+                      ? "bg-[#C9A66B]/15 text-[#8C6226] dark:text-[#E5CBA2]"
+                      : "text-foreground hover:bg-tile"
+                  }`}
+                >
+                  <span>{opt.label}</span>
+                  <input
+                    type="radio"
+                    name="mobile-sort"
+                    checked={sortBy === opt.id}
+                    onChange={() => {}}
+                    className="accent-[#C9A66B]"
+                  />
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {/* 7. Product Grid: Full width beside vertical sidebar */}
       <div className="space-y-4">
         {loading ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-6">
             {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
-              <div
-                key={n}
-                className="h-80 bg-card border border-border rounded-[20px] animate-pulse p-4 shadow-xs"
-              />
+              <MobileCardSkeleton key={n} />
             ))}
           </div>
         ) : filteredProducts.length === 0 ? (
@@ -2151,7 +2922,7 @@ function getProductEffectivePrice(p: MobileProductData): number {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 animate-fade-in">
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-6 animate-fade-in">
             {filteredProducts.map((product) => (
               <MobileCard key={product.id} product={product} />
             ))}

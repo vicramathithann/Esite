@@ -11,7 +11,8 @@ import {
   X,
   ShoppingBag,
   Heart,
-  Star
+  Star,
+  Layers
 } from "lucide-react";
 import { calculateEMI } from "@/lib/formatters";
 
@@ -94,6 +95,7 @@ function MobileCardComponent({ product }: MobileCardProps) {
 
   const currentPrice = selectedVariant?.basePrice || product.basePrice || 49999;
   const originalPrice = selectedVariant?.originalPrice || product.originalPrice || currentPrice + 10000;
+  const discountPercent = originalPrice > currentPrice ? Math.round(((originalPrice - currentPrice) / originalPrice) * 100) : 0;
   const emiAmount = calculateEMI(currentPrice);
   const isCompared = compareList.some((p) => p.id === product.id);
 
@@ -138,10 +140,10 @@ function MobileCardComponent({ product }: MobileCardProps) {
   };
 
   return (
-    <div className="bg-card border border-border rounded-[20px] p-4 sm:p-5 flex flex-col justify-between shadow-xs hover:-translate-y-1 hover:shadow-md transition-all duration-200 group relative">
+    <div className="bg-card border border-border rounded-xl sm:rounded-[20px] p-2 sm:p-5 flex flex-col justify-between shadow-2xs sm:shadow-xs hover:-translate-y-0.5 sm:hover:-translate-y-1 hover:shadow-md transition-all duration-200 group relative">
       <div>
-        {/* Top Minimalist Tag & Wishlist Button */}
-        <div className="flex items-center justify-between w-full mb-2.5">
+        {/* Desktop Top Minimalist Tag & Wishlist Button (sm and up) */}
+        <div className="hidden sm:flex items-center justify-between w-full mb-2.5">
           <span className="text-[11px] font-semibold tracking-tight text-accent uppercase">
             {product.brand}
           </span>
@@ -172,7 +174,7 @@ function MobileCardComponent({ product }: MobileCardProps) {
           </div>
         </div>
 
-        {/* Product Image Frame: in dark mode, tile is slightly lighter than card */}
+        {/* Product Image Frame */}
         {(() => {
           const primaryImg = product.images?.find((img) => img.isPrimary)?.url || product.imageUrl;
           const activeColorImage = selectedColor
@@ -181,24 +183,69 @@ function MobileCardComponent({ product }: MobileCardProps) {
           const displayImage = activeColorImage || primaryImg;
 
           return (
-            <Link 
-              href={`/mobile/${product.id}`}
-              className="block relative aspect-square w-full mb-3.5 p-4 rounded-[16px] bg-tile border border-border/50 group-hover:border-border transition-colors duration-200 flex items-center justify-center overflow-hidden"
-            >
-              <MobileImage
-                src={displayImage}
-                alt={product.name}
-                phoneId={product.id}
-                brand={product.brand}
-                sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
-                className="object-contain group-hover:scale-105 transition-transform duration-200 ease-out"
-              />
-            </Link>
+            <div className="relative aspect-square w-full mb-2 sm:mb-3.5">
+              {/* Phone Overlay: Discount Badge top-left */}
+              {discountPercent > 0 && (
+                <span className="sm:hidden absolute top-1.5 left-1.5 z-10 text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-600 text-white shadow-2xs pointer-events-none">
+                  {discountPercent}% off
+                </span>
+              )}
+
+              {/* Phone Overlay: Compare & Wishlist top-right */}
+              <div className="sm:hidden absolute top-1.5 right-1.5 z-10 flex items-center gap-1">
+                {siteSettings.showCompare === "true" && (
+                  <button
+                    type="button"
+                    onClick={handleToggleCompare}
+                    title={isCompared ? "Remove from Compare" : "Add to Compare"}
+                    className={`w-7 h-7 rounded-full flex items-center justify-center shadow-xs backdrop-blur-md transition-colors cursor-pointer ${
+                      isCompared
+                        ? "bg-[#C9A66B] text-white"
+                        : "bg-white/90 dark:bg-card/90 text-muted hover:text-foreground border border-border/50"
+                    }`}
+                  >
+                    <Layers className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                {siteSettings.showWishlist === "true" && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      toggleWishlist(product.id);
+                    }}
+                    className={`w-7 h-7 rounded-full flex items-center justify-center shadow-xs backdrop-blur-md transition-colors cursor-pointer ${
+                      isInWishlist(product.id)
+                        ? "bg-rose-50 dark:bg-rose-950/60 text-rose-500 border border-rose-200 dark:border-rose-800/40"
+                        : "bg-white/90 dark:bg-card/90 text-muted hover:text-rose-500 border border-border/50"
+                    }`}
+                    title={isInWishlist(product.id) ? "Remove from wishlist" : "Add to wishlist"}
+                  >
+                    <Heart className={`w-3.5 h-3.5 ${isInWishlist(product.id) ? "fill-rose-500 text-rose-500" : ""}`} />
+                  </button>
+                )}
+              </div>
+
+              <Link 
+                href={`/mobile/${product.id}`}
+                className="block w-full h-full p-2 sm:p-4 rounded-lg sm:rounded-[16px] bg-white dark:bg-zinc-900/60 border border-border/50 group-hover:border-border transition-colors duration-200 flex items-center justify-center overflow-hidden"
+              >
+                <MobileImage
+                  src={displayImage}
+                  alt={product.name}
+                  phoneId={product.id}
+                  brand={product.brand}
+                  sizes="(max-width: 640px) 45vw, (max-width: 1200px) 33vw, 25vw"
+                  className="object-contain group-hover:scale-105 transition-transform duration-200 ease-out"
+                />
+              </Link>
+            </div>
           );
         })()}
 
-        {/* Color Swatch Dots */}
-        <div className="flex items-center justify-center gap-1.5 mb-3">
+        {/* Color Swatch Dots: Desktop (up to 5) */}
+        <div className="hidden sm:flex items-center justify-center gap-1.5 mb-3">
           {(product.colors || safeColorsList).slice(0, 5).map((color) => (
             <button
               key={color.name}
@@ -215,8 +262,31 @@ function MobileCardComponent({ product }: MobileCardProps) {
           ))}
         </div>
 
-        {/* Product Name & Details */}
-        <div className="space-y-1">
+        {/* Color Swatch Dots: Phone (max 4 then +N) */}
+        <div className="flex sm:hidden items-center justify-center gap-1 mb-1.5">
+          {(product.colors || safeColorsList).slice(0, 4).map((color) => (
+            <button
+              key={color.name}
+              type="button"
+              onClick={() => setSelectedColor(color)}
+              className={`w-2.5 h-2.5 rounded-full transition-all duration-150 cursor-pointer ${
+                selectedColor?.name === color.name
+                  ? "ring-1.5 ring-offset-1 ring-[#C9A66B] dark:ring-[#D4B483] scale-110"
+                  : "opacity-70 hover:opacity-100"
+              }`}
+              style={{ backgroundColor: color.hex }}
+              title={color.name}
+            />
+          ))}
+          {(product.colors || safeColorsList).length > 4 && (
+            <span className="text-[8px] text-muted font-medium ml-0.5">
+              +{(product.colors || safeColorsList).length - 4}
+            </span>
+          )}
+        </div>
+
+        {/* Desktop Product Name & Details (sm and up) */}
+        <div className="hidden sm:block space-y-1">
           <Link 
             href={`/mobile/${product.id}`}
             className="text-sm sm:text-base font-bold text-foreground hover:text-[#C9A66B] dark:hover:text-[#D4B483] transition-colors duration-200 line-clamp-1 block leading-snug"
@@ -279,10 +349,99 @@ function MobileCardComponent({ product }: MobileCardProps) {
             })}
           </div>
         </div>
+
+        {/* Phone Product Name & Details (<sm) */}
+        <div className="sm:hidden space-y-0.5">
+          <span className="text-[10px] font-semibold tracking-wider text-muted uppercase block leading-none">
+            {product.brand}
+          </span>
+
+          <Link 
+            href={`/mobile/${product.id}`}
+            className="text-xs font-bold text-foreground hover:text-[#C9A66B] dark:hover:text-[#D4B483] transition-colors line-clamp-2 block leading-tight pt-0.5"
+          >
+            {product.name}
+          </Link>
+
+          {/* Green rating pill + review count */}
+          {siteSettings.showReviews === "true" && (
+            <div className="flex items-center gap-1 text-[10px] text-muted pt-0.5">
+              <span className="inline-flex items-center gap-0.5 font-bold bg-emerald-600 dark:bg-emerald-700 text-white text-[9px] px-1.5 py-0.5 rounded leading-none">
+                {product.rating || 4.7} <Star className="w-2.5 h-2.5 fill-white text-white" />
+              </span>
+              <span>({product.reviewCount || 120})</span>
+            </div>
+          )}
+
+          {/* Price Row: Bold current, struck original, % off */}
+          <div className="pt-0.5 flex items-baseline gap-1.5 flex-wrap">
+            <span className="text-sm font-bold text-foreground">
+              ₹{currentPrice.toLocaleString("en-IN")}
+            </span>
+            {originalPrice > currentPrice && (
+              <span className="text-[10px] text-muted line-through font-normal">
+                ₹{originalPrice.toLocaleString("en-IN")}
+              </span>
+            )}
+            {discountPercent > 0 && (
+              <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                {discountPercent}% off
+              </span>
+            )}
+          </div>
+
+          {/* EMI and Stock status */}
+          <div className="text-[10px] text-muted flex items-center justify-between">
+            <span>EMI from ₹{emiAmount.toLocaleString("en-IN")}/mo</span>
+            {selectedVariant?.stock !== undefined && selectedVariant.stock > 0 && selectedVariant.stock <= 5 && (
+              <span className="text-amber-600 dark:text-amber-400 font-semibold text-[9px]">Only {selectedVariant.stock} left</span>
+            )}
+          </div>
+
+          {/* Storage summary text line (instead of bulky chips) */}
+          <div className="text-[10px] text-muted truncate pt-0.5">
+            {variantsList.map((v) => (v.storage || "").split(" ")[0]).slice(0, 2).join(", ")}
+            {variantsList.length > 2 ? ` +${variantsList.length - 2} more` : ""}
+          </div>
+        </div>
       </div>
 
-      {/* Action Buttons */}
-      <div className="pt-3.5 space-y-2">
+      {/* Phone Action Button: ONE primary 38-40px Add to Cart button */}
+      <div className="sm:hidden pt-2">
+        {isOutOfStock ? (
+          <button
+            type="button"
+            onClick={handleAddToCart}
+            className="w-full h-9 text-[11px] font-medium rounded-lg bg-[#C9A66B]/15 text-[#8C6226] dark:text-[#D4B483] border border-[#C9A66B]/30 flex items-center justify-center gap-1 cursor-pointer"
+          >
+            <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+            <span>Out of Stock</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={handleAddToCart}
+            className={`w-full h-9 text-xs font-semibold rounded-lg transition-all duration-150 flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer ${
+              isAdded
+                ? "bg-[#A67C3D] text-[#FFFCFA]"
+                : "bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] active:scale-[0.98] text-[#FFFCFA]"
+            }`}
+          >
+            {isAdded ? (
+              <>
+                <Check className="w-3.5 h-3.5" /> Added
+              </>
+            ) : (
+              <>
+                <ShoppingBag className="w-3.5 h-3.5" /> Add to Cart
+              </>
+            )}
+          </button>
+        )}
+      </div>
+
+      {/* Desktop Action Buttons (sm and up) */}
+      <div className="hidden sm:block pt-3.5 space-y-2">
         {/* Add to Cart Button */}
         <div>
           {isOutOfStock ? (
@@ -398,3 +557,19 @@ function MobileCardComponent({ product }: MobileCardProps) {
 
 const MobileCard = React.memo(MobileCardComponent);
 export default MobileCard;
+
+export function MobileCardSkeleton() {
+  return (
+    <div className="bg-card border border-border rounded-xl sm:rounded-[20px] p-2 sm:p-5 flex flex-col justify-between animate-pulse">
+      <div>
+        <div className="aspect-square w-full rounded-lg sm:rounded-[16px] bg-tile mb-2" />
+        <div className="h-2.5 w-12 bg-tile rounded mb-1" />
+        <div className="h-3.5 w-full bg-tile rounded mb-1" />
+        <div className="h-3.5 w-3/4 bg-tile rounded mb-2" />
+        <div className="h-3 w-16 bg-tile rounded mb-2" />
+        <div className="h-4 w-20 bg-tile rounded" />
+      </div>
+      <div className="h-9 w-full bg-tile rounded-lg mt-2" />
+    </div>
+  );
+}

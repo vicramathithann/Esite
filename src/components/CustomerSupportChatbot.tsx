@@ -51,7 +51,16 @@ export default function CustomerSupportChatbot() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Reusable Draggable FAB Hook
+  const isHiddenPage =
+    pathname?.startsWith("/mobile/") ||
+    pathname?.startsWith("/products/") ||
+    pathname === "/cart" ||
+    pathname === "/checkout" ||
+    pathname?.startsWith("/admin");
+
+  if (isHiddenPage) {
+    return null;
+  }
   const {
     position,
     isDragging,
@@ -209,7 +218,26 @@ export default function CustomerSupportChatbot() {
 
   return (
     <>
-      {/* Floating Trigger Button: Draggable via Pointer Events, Luxurious Gold Styling */}
+      {/* Phone (<sm): Fixed 48px round thumb button anchored cleanly above bottom tab bar */}
+      {!isOpen && (
+        <div className="sm:hidden fixed bottom-[72px] right-4 z-[9990]">
+          <button
+            type="button"
+            onClick={() => setIsOpen(true)}
+            aria-label="Open VN Mobiles AI Support Agent"
+            className="w-12 h-12 rounded-full bg-[#C9A66B] active:bg-[#B8914A] text-[#FFFCFA] shadow-[0_4px_16px_rgba(201,166,107,0.45)] flex items-center justify-center border border-white/25 active:scale-95 transition-transform cursor-pointer"
+          >
+            <div className="relative">
+              <MessageCircle className="w-5 h-5 text-[#FFFCFA]" />
+              {hasUnread && (
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-white animate-pulse" />
+              )}
+            </div>
+          </button>
+        </div>
+      )}
+
+      {/* Desktop/Tablet (>=sm): Draggable FAB with Gold Shimmer & Label */}
       {!isOpen && (
         <div
           ref={fabRef}
@@ -228,7 +256,7 @@ export default function CustomerSupportChatbot() {
                 }
               : { touchAction: "none" }
           }
-          className={`fixed z-[9999] select-none ${
+          className={`hidden sm:block fixed z-[9999] select-none ${
             !position ? "bottom-6 right-6" : ""
           } ${
             isDragging

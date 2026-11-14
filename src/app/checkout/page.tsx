@@ -16,7 +16,14 @@ import {
   Mail,
   X,
   Pencil,
-  MapPin
+  MapPin,
+  ChevronDown,
+  ChevronRight,
+  CreditCard,
+  Smartphone,
+  Building2,
+  Banknote,
+  ShoppingBag
 } from "lucide-react";
 import { formatINR } from "@/lib/formatters";
 import confetti from "canvas-confetti";
@@ -56,6 +63,7 @@ export default function CheckoutPage() {
   // Saved Profile Address detection & toggle
   const [savedDeliveryAddress, setSavedDeliveryAddress] = useState<SavedDeliveryAddress | null>(null);
   const [isUsingSavedAddress, setIsUsingSavedAddress] = useState<boolean>(false);
+  const [orderSummaryExpanded, setOrderSummaryExpanded] = useState<boolean>(false);
 
   // Idempotency key per checkout session to prevent duplicate orders from fast double-clicks
   const idempotencyKeyRef = useRef<string>(
@@ -711,7 +719,7 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="min-h-screen pb-20 bg-background text-foreground">
+    <div className="min-h-screen pb-28 sm:pb-20 bg-background text-foreground">
       {/* Premium Minimalist Checkout Header */}
       <div className="bg-card/80 backdrop-blur-md border-b border-border py-3.5 px-4 sm:px-8 sticky top-0 z-30">
         <div className="max-w-[800px] mx-auto flex items-center justify-between">
@@ -735,11 +743,93 @@ export default function CheckoutPage() {
         </div>
       </div>
 
+      {/* Collapsible Order Total Bar at Top */}
+      <div className="bg-card border-b border-border">
+        <div className="max-w-[800px] mx-auto px-4 py-3">
+          <button
+            type="button"
+            onClick={() => setOrderSummaryExpanded(!orderSummaryExpanded)}
+            className="w-full flex items-center justify-between text-left cursor-pointer group"
+          >
+            <div className="flex items-center gap-2">
+              <ShoppingBag className="w-4 h-4 text-[#C9A66B] dark:text-[#D4B483]" />
+              <div className="text-xs">
+                <span className="text-muted">Order Total: </span>
+                <span className="font-bold text-base text-foreground">
+                  ₹{cartTotal.toLocaleString("en-IN")}
+                </span>
+                <span className="text-muted text-[11px] ml-1.5">
+                  ({cart.reduce((sum, item) => sum + item.quantity, 0)} items)
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-1 text-xs text-[#8C6226] dark:text-[#E5CBA2] font-medium">
+              <span>{orderSummaryExpanded ? "Hide details" : "Show details"}</span>
+              <ChevronDown
+                className={`w-4 h-4 transition-transform duration-200 ${
+                  orderSummaryExpanded ? "rotate-180" : ""
+                }`}
+              />
+            </div>
+          </button>
+
+          {/* Expanded Breakdown */}
+          {orderSummaryExpanded && (
+            <div className="mt-3 pt-3 border-t border-border space-y-2 text-xs animate-in slide-in-from-top-2 duration-150">
+              {cart.map((item) => (
+                <div key={item.id} className="flex justify-between items-center text-muted">
+                  <span className="truncate pr-2 max-w-[240px] text-foreground">
+                    {item.name} <span className="text-[11px]">× {item.quantity}</span>
+                  </span>
+                  <span className="font-medium text-foreground">
+                    ₹{(item.price * item.quantity).toLocaleString("en-IN")}
+                  </span>
+                </div>
+              ))}
+              <div className="flex justify-between items-center text-muted pt-1">
+                <span>Standard Express Delivery</span>
+                <span className="text-emerald-500 font-semibold uppercase text-[11px]">FREE</span>
+              </div>
+              <div className="flex justify-between items-center text-muted">
+                <span>GST (18% inclusive)</span>
+                <span className="text-emerald-500 font-medium">Included</span>
+              </div>
+              <div className="flex justify-between items-center font-bold text-foreground pt-1.5 border-t border-border">
+                <span>Total Payable</span>
+                <span className="text-sm text-[#C9A66B] dark:text-[#D4B483]">
+                  ₹{cartTotal.toLocaleString("en-IN")}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 3-Step Progress Indicator */}
+      <div className="max-w-[800px] mx-auto px-4 pt-4 sm:pt-6">
+        <div className="flex items-center justify-between sm:justify-center sm:gap-8 bg-card border border-border rounded-xl p-3 text-xs">
+          <div className="flex items-center gap-2 font-semibold text-[#8C6226] dark:text-[#E5CBA2]">
+            <span className="w-5 h-5 rounded-full bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] flex items-center justify-center text-[10px] font-bold">1</span>
+            <span>1. Address</span>
+          </div>
+          <ChevronRight className="w-3.5 h-3.5 text-muted shrink-0" />
+          <div className="flex items-center gap-2 font-medium text-foreground">
+            <span className="w-5 h-5 rounded-full bg-tile border border-border text-foreground flex items-center justify-center text-[10px] font-bold">2</span>
+            <span>2. Payment</span>
+          </div>
+          <ChevronRight className="w-3.5 h-3.5 text-muted shrink-0" />
+          <div className="flex items-center gap-2 font-medium text-foreground">
+            <span className="w-5 h-5 rounded-full bg-tile border border-border text-foreground flex items-center justify-center text-[10px] font-bold">3</span>
+            <span>3. Review</span>
+          </div>
+        </div>
+      </div>
+
       {/* Centered Single-Column Checkout Layout */}
-      <div className="max-w-[800px] mx-auto px-4 py-8">
+      <div className="max-w-[800px] mx-auto px-4 py-6">
         <form onSubmit={handleSubmitOrder} className="space-y-5">
               {/* Step 1: Delivery Address */}
-              <div className="bg-card border border-border rounded-2xl p-6 space-y-5 shadow-xs">
+              <div className="bg-card border border-border rounded-2xl p-4 sm:p-6 space-y-5 shadow-xs">
                 <div className="flex items-center justify-between border-b border-border pb-3">
                   <div className="flex items-center gap-2.5 font-bold text-base text-foreground">
                     <span className="w-6 h-6 rounded-full bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] flex items-center justify-center text-xs font-bold">1</span>
@@ -765,7 +855,7 @@ export default function CheckoutPage() {
                         type="text"
                         readOnly
                         value={currentUser?.name || formData.customerName}
-                        className="w-full bg-tile/70 border border-border text-foreground font-medium rounded-xl px-3.5 py-2.5 text-sm cursor-not-allowed select-none opacity-90 focus:outline-none"
+                        className="w-full h-12 bg-tile/70 border border-border text-foreground font-medium rounded-xl px-3.5 text-sm cursor-not-allowed select-none opacity-90 focus:outline-none"
                       />
                     </div>
 
@@ -786,7 +876,7 @@ export default function CheckoutPage() {
                       <button
                         type="button"
                         onClick={() => setIsUsingSavedAddress(false)}
-                        className="self-start sm:self-auto px-3.5 py-2 bg-tile hover:bg-tile/80 border border-border hover:border-[#C9A66B] text-foreground text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+                        className="self-start sm:self-auto px-3.5 py-2.5 min-h-[44px] bg-tile hover:bg-tile/80 border border-border hover:border-[#C9A66B] text-foreground text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
                       >
                         <Pencil className="w-3.5 h-3.5 text-[#C9A66B] dark:text-[#D4B483]" />
                         <span>Use a different address / Edit</span>
@@ -809,7 +899,7 @@ export default function CheckoutPage() {
                           type="text"
                           readOnly
                           value={currentUser?.name || formData.customerName}
-                          className="w-full bg-tile/70 border border-border text-foreground font-medium rounded-xl px-3.5 py-2.5 text-sm cursor-not-allowed select-none opacity-90 focus:outline-none"
+                          className="w-full h-12 bg-tile/70 border border-border text-foreground font-medium rounded-xl px-3.5 text-sm cursor-not-allowed select-none opacity-90 focus:outline-none"
                         />
                       </div>
 
@@ -823,9 +913,10 @@ export default function CheckoutPage() {
                           name="address"
                           type="text"
                           autoComplete="street-address"
+                          inputMode="text"
                           value={formData.address}
                           onChange={(e) => handleAddressFieldChange("address", e.target.value)}
-                          className={`w-full bg-tile border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none transition-all placeholder:text-muted ${
+                          className={`w-full h-12 bg-tile border text-foreground rounded-xl px-3.5 text-sm focus:outline-none transition-all placeholder:text-muted ${
                             fieldErrors.address
                               ? "border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
                               : "border-border focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20"
@@ -850,9 +941,10 @@ export default function CheckoutPage() {
                           name="city"
                           type="text"
                           autoComplete="address-level2"
+                          inputMode="text"
                           value={formData.city}
                           onChange={(e) => handleAddressFieldChange("city", e.target.value)}
-                          className={`w-full bg-tile border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none transition-all placeholder:text-muted ${
+                          className={`w-full h-12 bg-tile border text-foreground rounded-xl px-3.5 text-sm focus:outline-none transition-all placeholder:text-muted ${
                             fieldErrors.city
                               ? "border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
                               : "border-border focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20"
@@ -877,9 +969,10 @@ export default function CheckoutPage() {
                           name="state"
                           type="text"
                           autoComplete="address-level1"
+                          inputMode="text"
                           value={formData.state}
                           onChange={(e) => handleAddressFieldChange("state", e.target.value)}
-                          className={`w-full bg-tile border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none transition-all placeholder:text-muted ${
+                          className={`w-full h-12 bg-tile border text-foreground rounded-xl px-3.5 text-sm focus:outline-none transition-all placeholder:text-muted ${
                             fieldErrors.state
                               ? "border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
                               : "border-border focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20"
@@ -908,7 +1001,7 @@ export default function CheckoutPage() {
                           maxLength={6}
                           value={formData.pincode}
                           onChange={(e) => handleAddressFieldChange("pincode", e.target.value)}
-                          className={`w-full bg-tile border text-foreground rounded-xl px-3.5 py-2.5 text-sm font-mono focus:outline-none transition-all placeholder:text-muted ${
+                          className={`w-full h-12 bg-tile border text-foreground rounded-xl px-3.5 text-sm font-mono focus:outline-none transition-all placeholder:text-muted ${
                             fieldErrors.pincode
                               ? "border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
                               : "border-border focus:border-[#C9A66B] dark:focus:border-[#D4B483] focus:ring-2 focus:ring-[#C9A66B]/20 dark:focus:ring-[#D4B483]/20"
@@ -950,7 +1043,7 @@ export default function CheckoutPage() {
               </div>
 
               {/* Step 2: Payment Method */}
-              <div className="bg-card border border-border rounded-2xl p-6 space-y-4 text-xs shadow-xs">
+              <div className="bg-card border border-border rounded-2xl p-4 sm:p-6 space-y-4 text-xs shadow-xs">
                 <div className="font-bold text-base text-foreground border-b border-border pb-3 flex items-center gap-2.5">
                   <span className="w-6 h-6 rounded-full bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] flex items-center justify-center text-xs font-bold">2</span>
                   <span>Payment Method</span>
@@ -958,18 +1051,42 @@ export default function CheckoutPage() {
 
                 <div className="space-y-2.5">
                   {[
-                    "Amazon Pay UPI / PhonePe / GPay",
-                    "Credit or debit card (Visa, Mastercard, RuPay)",
-                    "Net Banking (All Indian Banks)",
-                    "Cash on Delivery / Pay on Delivery"
-                  ].map((method) => {
+                    {
+                      method: "Amazon Pay UPI / PhonePe / GPay",
+                      title: "UPI (Google Pay, PhonePe, Paytm, Amazon Pay)",
+                      desc: "Instant authorization, zero processing fee",
+                      icon: Smartphone,
+                      recommended: true,
+                    },
+                    {
+                      method: "Credit or debit card (Visa, Mastercard, RuPay)",
+                      title: "Credit or Debit Card",
+                      desc: "Visa, Mastercard, RuPay, Maestro & Amex",
+                      icon: CreditCard,
+                      recommended: false,
+                    },
+                    {
+                      method: "Net Banking (All Indian Banks)",
+                      title: "Net Banking",
+                      desc: "SBI, HDFC, ICICI, Axis and 50+ other banks",
+                      icon: Building2,
+                      recommended: false,
+                    },
+                    {
+                      method: "Cash on Delivery / Pay on Delivery",
+                      title: "Cash on Delivery / Pay on Delivery",
+                      desc: "Pay cash or UPI upon package doorstep handover",
+                      icon: Banknote,
+                      recommended: false,
+                    },
+                  ].map(({ method, title, desc, icon: Icon, recommended }) => {
                     const isSelected = formData.paymentMethod === method;
                     return (
                       <label
                         key={method}
-                        className={`flex items-center gap-3 p-3.5 border rounded-xl cursor-pointer transition-all ${
+                        className={`flex items-center gap-3.5 p-3.5 sm:p-4 min-h-[58px] border rounded-xl cursor-pointer transition-all ${
                           isSelected
-                            ? "border-[#C9A66B] dark:border-[#D4B483] bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 text-foreground font-semibold"
+                            ? "border-[#C9A66B] dark:border-[#D4B483] bg-[#C9A66B]/10 dark:bg-[#D4B483]/10 text-foreground ring-1 ring-[#C9A66B]/40"
                             : "border-border bg-tile/40 hover:bg-tile text-foreground font-normal"
                         }`}
                       >
@@ -978,9 +1095,22 @@ export default function CheckoutPage() {
                           name="payment"
                           checked={isSelected}
                           onChange={() => setFormData({ ...formData, paymentMethod: method })}
-                          className="accent-[#C9A66B] dark:accent-[#D4B483]"
+                          className="w-4 h-4 accent-[#C9A66B] dark:accent-[#D4B483] shrink-0"
                         />
-                        <span>{method}</span>
+                        <div className="w-9 h-9 rounded-lg bg-card border border-border flex items-center justify-center shrink-0 text-[#C9A66B] dark:text-[#D4B483]">
+                          <Icon className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-xs sm:text-sm text-foreground">{title}</span>
+                            {recommended && (
+                              <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                Fastest
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-muted truncate mt-0.5">{desc}</p>
+                        </div>
                       </label>
                     );
                   })}
@@ -988,7 +1118,7 @@ export default function CheckoutPage() {
               </div>
 
               {/* Step 3: Review items & Delivery */}
-              <div className="bg-card border border-border rounded-2xl p-6 space-y-4 text-xs shadow-xs">
+              <div className="bg-card border border-border rounded-2xl p-4 sm:p-6 space-y-4 text-xs shadow-xs">
                 <div className="font-bold text-base text-foreground border-b border-border pb-3 flex items-center gap-2.5">
                   <span className="w-6 h-6 rounded-full bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] flex items-center justify-center text-xs font-bold">3</span>
                   <span>Review Items and Delivery</span>
@@ -1031,11 +1161,11 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              {/* Place Order Button */}
+              {/* Desktop Place Order Button */}
               <button
                 type="submit"
                 disabled={loading || hasOutOfStock}
-                className={`w-full py-3.5 px-6 text-sm font-semibold rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 ${
+                className={`hidden sm:flex w-full py-3.5 px-6 text-sm font-semibold rounded-xl shadow-xs transition-all items-center justify-center gap-2 ${
                   hasOutOfStock || loading
                     ? "bg-tile text-muted cursor-not-allowed border border-border"
                     : "bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] cursor-pointer shadow-md"
@@ -1053,6 +1183,31 @@ export default function CheckoutPage() {
                 )}
               </button>
             </form>
+      </div>
+
+      {/* Sticky Bottom Bar for Mobile Only */}
+      <div className="sm:hidden fixed bottom-0 left-0 right-0 p-3 bg-card/95 backdrop-blur-md border-t border-border z-30 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-lg">
+        <button
+          type="button"
+          onClick={executeOrderPlacement}
+          disabled={loading || hasOutOfStock}
+          className={`w-full h-12 px-5 text-sm font-semibold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer ${
+            hasOutOfStock || loading
+              ? "bg-tile text-muted cursor-not-allowed border border-border"
+              : "bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA]"
+          }`}
+        >
+          {loading ? (
+            <>
+              <RefreshCw className="w-4 h-4 animate-spin text-[#FFFCFA]" />
+              <span>Placing your order...</span>
+            </>
+          ) : hasOutOfStock ? (
+            "Cannot Place Order (Out of Stock)"
+          ) : (
+            `Place order and pay (₹${cartTotal.toLocaleString("en-IN")})`
+          )}
+        </button>
       </div>
     </div>
   );

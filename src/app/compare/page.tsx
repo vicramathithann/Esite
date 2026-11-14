@@ -106,7 +106,7 @@ export default function ComparePage() {
             <div className="min-w-[760px]">
               {/* Product Header Cards Row */}
               <div className="grid grid-cols-4 gap-6 pb-8 border-b border-border">
-                <div className="flex flex-col justify-end">
+                <div className="flex flex-col justify-end sticky left-0 bg-card z-10 pr-4">
                   <span className="text-xs uppercase tracking-wider font-bold text-muted">
                     Comparing {compareList.length} of 3
                   </span>
@@ -176,7 +176,7 @@ export default function ComparePage() {
               <div className="divide-y divide-border text-xs">
                 {/* Display */}
                 <div className="grid grid-cols-4 gap-6 py-4 items-center">
-                  <div className="font-bold text-foreground flex items-center gap-2">
+                  <div className="font-bold text-foreground flex items-center gap-2 sticky left-0 bg-card z-10 pr-4">
                     <Smartphone className="w-4 h-4 text-accent" />
                     <span>Display</span>
                   </div>
@@ -187,7 +187,7 @@ export default function ComparePage() {
 
                 {/* Processor */}
                 <div className="grid grid-cols-4 gap-6 py-4 items-center">
-                  <div className="font-bold text-foreground flex items-center gap-2">
+                  <div className="font-bold text-foreground flex items-center gap-2 sticky left-0 bg-card z-10 pr-4">
                     <Cpu className="w-4 h-4 text-accent" />
                     <span>Processor</span>
                   </div>
@@ -198,7 +198,7 @@ export default function ComparePage() {
 
                 {/* Camera */}
                 <div className="grid grid-cols-4 gap-6 py-4 items-center">
-                  <div className="font-bold text-foreground flex items-center gap-2">
+                  <div className="font-bold text-foreground flex items-center gap-2 sticky left-0 bg-card z-10 pr-4">
                     <Camera className="w-4 h-4 text-accent" />
                     <span>Camera System</span>
                   </div>
@@ -209,7 +209,7 @@ export default function ComparePage() {
 
                 {/* Battery */}
                 <div className="grid grid-cols-4 gap-6 py-4 items-center">
-                  <div className="font-bold text-foreground flex items-center gap-2">
+                  <div className="font-bold text-foreground flex items-center gap-2 sticky left-0 bg-card z-10 pr-4">
                     <Battery className="w-4 h-4 text-accent" />
                     <span>Battery & Charging</span>
                   </div>
@@ -220,7 +220,7 @@ export default function ComparePage() {
 
                 {/* RAM & Storage */}
                 <div className="grid grid-cols-4 gap-6 py-4 items-center">
-                  <div className="font-bold text-foreground">RAM & Storage</div>
+                  <div className="font-bold text-foreground sticky left-0 bg-card z-10 pr-4">RAM & Storage</div>
                   {compareList.map((item) => (
                     <div key={item.id} className="text-foreground">
                       {item.ram} | {item.storageOptions.map((s) => s.size).join(", ")}
@@ -230,7 +230,7 @@ export default function ComparePage() {
 
                 {/* Operating System */}
                 <div className="grid grid-cols-4 gap-6 py-4 items-center">
-                  <div className="font-bold text-foreground">Operating System</div>
+                  <div className="font-bold text-foreground sticky left-0 bg-card z-10 pr-4">Operating System</div>
                   {compareList.map((item) => (
                     <div key={item.id} className="text-foreground">{item.os}</div>
                   ))}
@@ -238,7 +238,7 @@ export default function ComparePage() {
 
                 {/* 5G Support */}
                 <div className="grid grid-cols-4 gap-6 py-4 items-center">
-                  <div className="font-bold text-foreground">Cellular</div>
+                  <div className="font-bold text-foreground sticky left-0 bg-card z-10 pr-4">Cellular</div>
                   {compareList.map((item) => (
                     <div key={item.id} className="text-foreground">{item.network5G}</div>
                   ))}
@@ -246,7 +246,7 @@ export default function ComparePage() {
 
                 {/* Warranty & Device Protection */}
                 <div className="grid grid-cols-4 gap-6 py-4 items-center bg-tile rounded-[14px] px-3">
-                  <div className="font-bold text-foreground flex items-center gap-2">
+                  <div className="font-bold text-foreground flex items-center gap-2 sticky left-0 bg-tile z-10 pr-4">
                     <ShieldCheck className="w-4 h-4 text-accent" />
                     <span>Warranty & Protection</span>
                   </div>

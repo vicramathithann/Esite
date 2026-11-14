@@ -24,7 +24,16 @@ import {
   RefreshCw, 
   ShoppingBag,
   Heart,
-  Star
+  Star,
+  ArrowLeft,
+  Share2,
+  ZoomIn,
+  Truck,
+  RotateCcw,
+  CheckCircle2,
+  MapPin,
+  Flame,
+  BadgePercent
 } from "lucide-react";
 import { calculateEMI } from "@/lib/formatters";
 
@@ -43,8 +52,53 @@ export default function MobileDetailPage({
     compareList, 
     toggleWishlist, 
     isInWishlist, 
+    cartCount,
     siteSettings 
   } = useApp();
+
+  const [allProducts, setAllProducts] = useState<MobileProductData[]>([]);
+  const [pinCode, setPinCode] = useState("625001");
+  const [isPinChecked, setIsPinChecked] = useState(false);
+  const [isEmiOpen, setIsEmiOpen] = useState(false);
+  const [isZoomModalOpen, setIsZoomModalOpen] = useState(false);
+  const [shareToast, setShareToast] = useState(false);
+
+  const [mobileSpecOpen, setMobileSpecOpen] = useState<Record<string, boolean>>({
+    display: true,
+    processor: false,
+    camera: false,
+    battery: false,
+    os: false,
+  });
+
+  const toggleMobileSpec = (key: string) => {
+    setMobileSpecOpen((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  useEffect(() => {
+    fetch("/api/products")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success && Array.isArray(d.products)) {
+          setAllProducts(d.products);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleShare = () => {
+    if (typeof navigator !== "undefined" && navigator.share && product) {
+      navigator.share({
+        title: product.name,
+        text: `Check out ${product.name} on VN Mobiles!`,
+        url: window.location.href,
+      }).catch(() => {});
+    } else if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(window.location.href);
+      setShareToast(true);
+      setTimeout(() => setShareToast(false), 2000);
+    }
+  };
 
   const initialMatch = getCachedProduct(resolvedParams.id) || null;
 
@@ -224,8 +278,17 @@ export default function MobileDetailPage({
 
   const currentPrice = selectedVariant.basePrice || product.basePrice || 49999;
   const originalPrice = selectedVariant.originalPrice || product.originalPrice || currentPrice + 10000;
+  const discountPercent = originalPrice > currentPrice ? Math.round(((originalPrice - currentPrice) / originalPrice) * 100) : 0;
   const isCompared = compareList.some((p) => p.id === product.id);
   const isOutOfStock = !selectedVariant.inStock || (selectedVariant.stock !== undefined && selectedVariant.stock <= 0);
+
+  const similarPhones: MobileProductData[] = useMemo(() => {
+    if (!product || allProducts.length === 0) return [];
+    return allProducts
+      .filter((p) => p.id !== product.id)
+      .sort((a, b) => (a.brand === product.brand ? -1 : 1))
+      .slice(0, 6);
+  }, [allProducts, product]);
 
   const productImagesList: ProductImageData[] = useMemo(() => {
     if (!product) return [];
@@ -341,16 +404,634 @@ export default function MobileDetailPage({
 
   return (
     <div className="min-h-screen pb-28 lg:pb-20 bg-background text-foreground transition-colors duration-200">
-      {/* Breadcrumbs */}
-      <div className="bg-card border-b border-border">
-        <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-3 text-xs text-muted flex items-center gap-1.5 overflow-x-auto">
-          <Link href="/" className="hover:text-foreground transition-colors">Phones</Link>
-          <ChevronRight className="w-3 h-3 text-muted" />
-          <Link href={`/?brand=${product.brand}`} className="hover:text-foreground transition-colors">{product.brand}</Link>
-          <ChevronRight className="w-3 h-3 text-muted" />
-          <span className="text-foreground font-medium truncate">{product.name}</span>
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* PHONE SPECIFIC UI (<sm): Amazon / Flipkart Style */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      <div className="sm:hidden">
+        {/* Compact Phone Header */}
+        <div className="sticky top-0 z-40 bg-card/95 backdrop-blur-md border-b border-border px-3 h-14 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="w-10 h-10 rounded-full flex items-center justify-center text-foreground hover:bg-tile active:scale-95 transition-all cursor-pointer"
+            aria-label="Go back"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          
+          <div className="flex-1 px-2 text-center truncate">
+            <span className="text-xs font-bold text-foreground truncate block">
+              {product.name}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={handleShare}
+              className="w-9 h-9 rounded-full flex items-center justify-center text-foreground hover:bg-tile active:scale-95 transition-all cursor-pointer"
+              aria-label="Share product"
+            >
+              <Share2 className="w-4 h-4" />
+            </button>
+            {siteSettings.showWishlist === "true" && (
+              <button
+                type="button"
+                onClick={() => toggleWishlist(product.id)}
+                className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                  isInWishlist(product.id) ? "text-rose-500" : "text-foreground hover:bg-tile"
+                }`}
+                aria-label="Wishlist"
+              >
+                <Heart className={`w-4 h-4 ${isInWishlist(product.id) ? "fill-rose-500 text-rose-500" : ""}`} />
+              </button>
+            )}
+            <Link
+              href="/cart"
+              className="w-9 h-9 rounded-full flex items-center justify-center text-foreground hover:bg-tile relative cursor-pointer"
+              aria-label="Cart"
+            >
+              <ShoppingBag className="w-4 h-4" />
+              {cartCount > 0 && (
+                <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#C9A66B] text-white text-[9px] font-bold flex items-center justify-center">
+                  {cartCount}
+                </span>
+              )}
+            </Link>
+          </div>
         </div>
+
+        {/* Share Feedback Toast */}
+        {shareToast && (
+          <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-black/80 text-white text-xs px-4 py-2 rounded-full shadow-lg animate-fade-in">
+            Link copied to clipboard!
+          </div>
+        )}
+
+        {/* Phone Content (Scrolls normally) */}
+        <div className="p-3.5 space-y-4 pb-28">
+          {/* 1. Swipeable Image Gallery */}
+          <div className="space-y-2">
+            <div className="relative aspect-square w-full rounded-2xl bg-white dark:bg-card border border-border/50 p-4 overflow-hidden flex items-center justify-center">
+              {discountPercent > 0 && (
+                <span className="absolute top-3 left-3 z-10 text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-600 text-white shadow-xs">
+                  {discountPercent}% OFF
+                </span>
+              )}
+              <Image
+                src={selectedImage || productImagesList[0]?.url || product.imageUrl}
+                alt={product.name}
+                fill
+                priority
+                unoptimized
+                className="object-contain"
+                onClick={() => setIsZoomModalOpen(true)}
+              />
+              <button
+                type="button"
+                onClick={() => setIsZoomModalOpen(true)}
+                className="absolute bottom-3 right-3 px-2.5 py-1 bg-black/60 backdrop-blur-xs text-white text-[10px] font-medium rounded-full flex items-center gap-1 cursor-pointer"
+              >
+                <ZoomIn className="w-3 h-3" /> Tap to zoom
+              </button>
+            </div>
+
+            {/* Thumbnail Strip */}
+            {productImagesList.length > 1 && (
+              <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1">
+                {productImagesList.map((img, idx) => (
+                  <button
+                    key={img.url || idx}
+                    type="button"
+                    onClick={() => setSelectedImage(img.url)}
+                    className={`w-14 h-14 rounded-xl p-1 bg-white dark:bg-card border shrink-0 transition-all cursor-pointer ${
+                      selectedImage === img.url
+                        ? "border-[#C9A66B] ring-2 ring-[#C9A66B]/30"
+                        : "border-border/60"
+                    }`}
+                  >
+                    <div className="relative w-full h-full">
+                      <Image src={img.url} alt="Thumb" fill unoptimized className="object-contain" />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 2. Brand, Title, Rating */}
+          <div className="space-y-1">
+            <span className="text-[10px] font-bold text-muted uppercase tracking-wider block">
+              {product.brand}
+            </span>
+            <h1 className="text-lg font-bold text-foreground leading-snug">
+              {product.name}
+            </h1>
+            {siteSettings.showReviews === "true" && (
+              <div className="flex items-center gap-2 pt-0.5 text-xs">
+                <span className="bg-emerald-600 dark:bg-emerald-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold inline-flex items-center gap-0.5">
+                  {product.rating || 4.8} <Star className="w-2.5 h-2.5 fill-white text-white" />
+                </span>
+                <span className="text-muted text-xs">({product.reviewCount || 380} reviews)</span>
+                <span className="text-muted/40">•</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold text-[11px]">98% Buyer Satisfaction</span>
+              </div>
+            )}
+          </div>
+
+          {/* 3. Price Block */}
+          <div className="bg-card border border-border rounded-xl p-3.5 space-y-1.5 shadow-2xs">
+            <div className="flex items-baseline gap-2 flex-wrap">
+              <span className="text-2xl font-extrabold text-foreground">
+                ₹{currentPrice.toLocaleString("en-IN")}
+              </span>
+              {originalPrice > currentPrice && (
+                <span className="text-xs text-muted line-through">
+                  ₹{originalPrice.toLocaleString("en-IN")}
+                </span>
+              )}
+              {discountPercent > 0 && (
+                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                  {discountPercent}% off
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-muted">
+              Inclusive of all taxes. Free express PAN-India delivery.
+            </p>
+
+            {/* Expandable No Cost EMI */}
+            <div className="pt-2 border-t border-border">
+              <button
+                type="button"
+                onClick={() => setIsEmiOpen(!isEmiOpen)}
+                className="w-full flex items-center justify-between text-xs font-semibold text-[#8C6226] dark:text-[#E5CBA2] cursor-pointer"
+              >
+                <div className="flex items-center gap-1.5">
+                  <CreditCard className="w-3.5 h-3.5 text-[#C9A66B]" />
+                  <span>No Cost EMI from ₹{calculateEMI(currentPrice).toLocaleString("en-IN")}/mo</span>
+                </div>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isEmiOpen ? "rotate-180" : ""}`} />
+              </button>
+              {isEmiOpen && (
+                <div className="mt-2.5 p-2.5 rounded-lg bg-tile/70 border border-border text-[11px] space-y-1.5 animate-in fade-in duration-150">
+                  <div className="flex justify-between text-muted">
+                    <span>3 Months:</span>
+                    <strong className="text-foreground">₹{Math.round(currentPrice / 3).toLocaleString("en-IN")}/mo</strong>
+                  </div>
+                  <div className="flex justify-between text-muted">
+                    <span>6 Months:</span>
+                    <strong className="text-foreground">₹{Math.round(currentPrice / 6).toLocaleString("en-IN")}/mo</strong>
+                  </div>
+                  <div className="flex justify-between text-muted">
+                    <span>12 Months:</span>
+                    <strong className="text-foreground">₹{calculateEMI(currentPrice).toLocaleString("en-IN")}/mo</strong>
+                  </div>
+                  <p className="text-[10px] text-muted/80 pt-1 border-t border-border/60">
+                    * Available on HDFC, ICICI, SBI, Axis, and OneCard credit cards.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Special Offers Strip */}
+            <div className="pt-2 border-t border-border space-y-1 text-xs">
+              <div className="flex items-center gap-1.5 text-foreground font-semibold">
+                <Tag className="w-3.5 h-3.5 text-accent" />
+                <span>Available Offers</span>
+              </div>
+              <ul className="text-[11px] text-muted space-y-1 list-disc list-inside">
+                <li>Bank Offer: Instant ₹3,000 off on ICICI & HDFC credit cards</li>
+                <li>Exchange Offer: Extra ₹3,500 bonus trade-in value on old phones</li>
+              </ul>
+            </div>
+          </div>
+
+          {/* 4. Finish Colors */}
+          <div className="space-y-2">
+            <span className="text-xs font-bold text-foreground block">
+              Finish: <span className="font-normal text-muted">{selectedColor.name}</span>
+            </span>
+            <div className="flex items-center gap-2">
+              {(product.colors || [{ name: "Standard", hex: "#1e1e1e" }]).map((c) => (
+                <button
+                  key={c.name}
+                  type="button"
+                  onClick={() => handleColorChange(c)}
+                  className={`w-8 h-8 rounded-full border-2 transition-all cursor-pointer ${
+                    selectedColor.name === c.name
+                      ? "ring-2 ring-offset-2 ring-[#C9A66B] scale-105"
+                      : "border-border hover:opacity-100 opacity-80"
+                  }`}
+                  style={{ backgroundColor: c.hex }}
+                  title={c.name}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* 5. Storage Variants with Price Delta */}
+          <div className="space-y-2">
+            <span className="text-xs font-bold text-foreground block">
+              Storage Capacity
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {distinctStorages.map((storageVariant) => {
+                const match = variantsList.find(
+                  (v) => v.storage === storageVariant.storage && (selectedVariant ? v.ram === selectedVariant.ram : true)
+                ) || storageVariant;
+                const isVarOos = !match.inStock || (match.stock !== undefined && match.stock <= 0);
+                const isSelected = selectedVariant?.storage === storageVariant.storage;
+                const priceDelta = match.basePrice - currentPrice;
+
+                return (
+                  <button
+                    key={storageVariant.storage}
+                    type="button"
+                    disabled={isVarOos}
+                    onClick={() => !isVarOos && setSelectedVariant(match)}
+                    className={`px-3 py-2 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
+                      isVarOos
+                        ? "opacity-40 line-through bg-tile text-muted cursor-not-allowed border-border"
+                        : isSelected
+                        ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] border-[#C9A66B] shadow-xs"
+                        : "bg-tile text-foreground border-border hover:border-foreground/30"
+                    }`}
+                  >
+                    <span>{storageVariant.storage}</span>
+                    {priceDelta !== 0 && !isSelected && !isVarOos && (
+                      <span className="text-[10px] ml-1 opacity-70">
+                        {priceDelta > 0 ? `+₹${priceDelta.toLocaleString("en-IN")}` : `-₹${Math.abs(priceDelta).toLocaleString("en-IN")}`}
+                      </span>
+                    )}
+                    {isVarOos && <span className="ml-1 text-[9px] no-underline font-normal">OOS</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 6. RAM Variants */}
+          {distinctRams.length > 0 && (
+            <div className="space-y-2">
+              <span className="text-xs font-bold text-foreground block">
+                RAM (Memory)
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {distinctRams.map((ram: string) => {
+                  const match = variantsList.find(
+                    (v) => v.ram === ram && (selectedVariant ? v.storage === selectedVariant.storage : true)
+                  ) || variantsList.find((v) => v.ram === ram);
+                  const isVarOos = match ? (!match.inStock || (match.stock !== undefined && match.stock <= 0)) : false;
+                  const isSelected = selectedVariant?.ram === ram;
+
+                  return (
+                    <button
+                      key={ram}
+                      type="button"
+                      disabled={isVarOos}
+                      onClick={() => match && !isVarOos && setSelectedVariant(match)}
+                      className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
+                        isVarOos
+                          ? "opacity-40 line-through bg-tile text-muted cursor-not-allowed border-border"
+                          : isSelected
+                          ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] border-[#C9A66B] shadow-xs"
+                          : "bg-tile text-foreground border-border"
+                      }`}
+                    >
+                      <span>{ram} RAM</span>
+                      {isVarOos && <span className="ml-1 text-[9px] no-underline">OOS</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* 7. Delivery PIN code check & Trust strip */}
+          <div className="bg-card border border-border rounded-xl p-3.5 space-y-3 shadow-2xs">
+            <span className="text-xs font-bold text-foreground block">Delivery Options</span>
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <MapPin className="w-4 h-4 text-muted absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  maxLength={6}
+                  inputMode="numeric"
+                  value={pinCode}
+                  onChange={(e) => setPinCode(e.target.value)}
+                  placeholder="Enter PIN code"
+                  className="w-full pl-9 pr-3 py-2 text-xs bg-tile border border-border rounded-xl text-foreground font-mono focus:outline-none focus:border-[#C9A66B]"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsPinChecked(true)}
+                className="px-4 py-2 bg-tile border border-border hover:bg-tile/80 text-foreground text-xs font-bold rounded-xl cursor-pointer"
+              >
+                Check
+              </button>
+            </div>
+
+            {isPinChecked && (
+              <div className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1.5 animate-in fade-in">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>FREE Delivery by Tomorrow, 11 PM to {pinCode}</span>
+              </div>
+            )}
+
+            {/* Trust Icon Strip */}
+            <div className="grid grid-cols-4 gap-2 pt-2 border-t border-border text-center">
+              <div className="flex flex-col items-center gap-1">
+                <div className="w-8 h-8 rounded-full bg-tile border border-border flex items-center justify-center text-[#C9A66B]">
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </div>
+                <span className="text-[9px] text-muted font-medium leading-tight">7-Day Replacement</span>
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <div className="w-8 h-8 rounded-full bg-tile border border-border flex items-center justify-center text-[#C9A66B]">
+                  <Truck className="w-3.5 h-3.5" />
+                </div>
+                <span className="text-[9px] text-muted font-medium leading-tight">Free Delivery</span>
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <div className="w-8 h-8 rounded-full bg-tile border border-border flex items-center justify-center text-[#C9A66B]">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                </div>
+                <span className="text-[9px] text-muted font-medium leading-tight">1-Yr Warranty</span>
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <div className="w-8 h-8 rounded-full bg-tile border border-border flex items-center justify-center text-[#C9A66B]">
+                  <CreditCard className="w-3.5 h-3.5" />
+                </div>
+                <span className="text-[9px] text-muted font-medium leading-tight">COD Available</span>
+              </div>
+            </div>
+          </div>
+
+          {/* 8. Key Highlights & Specs Accordions */}
+          <div className="bg-card border border-border rounded-xl p-4 space-y-3 shadow-2xs">
+            <span className="text-xs font-bold text-foreground uppercase tracking-wide block">Key Highlights</span>
+            <ul className="text-xs text-muted space-y-1.5">
+              <li className="flex items-start gap-2">
+                <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                <span>{product.display || "OLED ProMotion Display with 120Hz refresh"}</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                <span>{product.processor || "Flagship Octa-Core Processor"}</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                <span>{product.camera || "Triple Camera with 4K Dolby Vision"}</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                <span>{product.battery || "All-Day Battery with Fast Charging"}</span>
+              </li>
+            </ul>
+
+            {/* Accordions */}
+            <div className="pt-2 border-t border-border divide-y divide-border text-xs">
+              {/* Display Accordion */}
+              <div>
+                <button
+                  type="button"
+                  onClick={() => toggleMobileSpec("display")}
+                  className="w-full py-2.5 flex items-center justify-between text-left font-semibold text-foreground cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <Smartphone className="w-4 h-4 text-accent" />
+                    <span>Display Specifications</span>
+                  </div>
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform ${mobileSpecOpen.display ? "rotate-180" : ""}`} />
+                </button>
+                {mobileSpecOpen.display && (
+                  <p className="pb-2.5 text-[11px] text-muted leading-relaxed">
+                    {product.display || "AMOLED HDR10+ with 2000 nits peak outdoor brightness and Ceramic Shield glass protection."}
+                  </p>
+                )}
+              </div>
+
+              {/* Processor Accordion */}
+              <div>
+                <button
+                  type="button"
+                  onClick={() => toggleMobileSpec("processor")}
+                  className="w-full py-2.5 flex items-center justify-between text-left font-semibold text-foreground cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <Cpu className="w-4 h-4 text-accent" />
+                    <span>Processor & Graphics</span>
+                  </div>
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform ${mobileSpecOpen.processor ? "rotate-180" : ""}`} />
+                </button>
+                {mobileSpecOpen.processor && (
+                  <p className="pb-2.5 text-[11px] text-muted leading-relaxed">
+                    {product.processor || "4nm Architecture, 6-core GPU with hardware ray tracing, Neural Engine for on-device AI."}
+                  </p>
+                )}
+              </div>
+
+              {/* Camera Accordion */}
+              <div>
+                <button
+                  type="button"
+                  onClick={() => toggleMobileSpec("camera")}
+                  className="w-full py-2.5 flex items-center justify-between text-left font-semibold text-foreground cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <Camera className="w-4 h-4 text-accent" />
+                    <span>Camera System</span>
+                  </div>
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform ${mobileSpecOpen.camera ? "rotate-180" : ""}`} />
+                </button>
+                {mobileSpecOpen.camera && (
+                  <p className="pb-2.5 text-[11px] text-muted leading-relaxed">
+                    {product.camera || "Ultra-wide, main with sensor-shift OIS, 5x telephoto optical zoom, Night mode portraits, Action mode video."}
+                  </p>
+                )}
+              </div>
+
+              {/* Battery Accordion */}
+              <div>
+                <button
+                  type="button"
+                  onClick={() => toggleMobileSpec("battery")}
+                  className="w-full py-2.5 flex items-center justify-between text-left font-semibold text-foreground cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <Battery className="w-4 h-4 text-accent" />
+                    <span>Battery & Charging</span>
+                  </div>
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform ${mobileSpecOpen.battery ? "rotate-180" : ""}`} />
+                </button>
+                {mobileSpecOpen.battery && (
+                  <p className="pb-2.5 text-[11px] text-muted leading-relaxed">
+                    {product.battery || "Up to 29 hours video playback. 50% charge in 30 minutes with 20W+ adapter. Qi2 wireless charging supported."}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* 9. Reviews Summary with Rating Bars */}
+          {siteSettings.showReviews === "true" && (
+            <div className="bg-card border border-border rounded-xl p-4 space-y-3 shadow-2xs">
+              <span className="text-xs font-bold text-foreground uppercase tracking-wide block">Customer Reviews</span>
+              <div className="flex items-center gap-4">
+                <div className="text-center">
+                  <div className="text-3xl font-extrabold text-foreground">{product.rating || 4.8}</div>
+                  <div className="flex items-center gap-0.5 justify-center text-amber-500 pt-0.5">
+                    <Star className="w-3 h-3 fill-amber-500" />
+                    <Star className="w-3 h-3 fill-amber-500" />
+                    <Star className="w-3 h-3 fill-amber-500" />
+                    <Star className="w-3 h-3 fill-amber-500" />
+                    <Star className="w-3 h-3 fill-amber-500" />
+                  </div>
+                  <span className="text-[10px] text-muted block mt-0.5">{product.reviewCount || 380} verified</span>
+                </div>
+
+                {/* Rating bars */}
+                <div className="flex-1 space-y-1 text-[10px] text-muted">
+                  {[
+                    { stars: "5★", percent: 78 },
+                    { stars: "4★", percent: 14 },
+                    { stars: "3★", percent: 5 },
+                    { stars: "2★", percent: 2 },
+                    { stars: "1★", percent: 1 },
+                  ].map((bar) => (
+                    <div key={bar.stars} className="flex items-center gap-2">
+                      <span className="w-4">{bar.stars}</span>
+                      <div className="flex-1 h-1.5 bg-tile rounded-full overflow-hidden">
+                        <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${bar.percent}%` }} />
+                      </div>
+                      <span className="w-6 text-right">{bar.percent}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 10. "Similar Phones" horizontal scroll row */}
+          {similarPhones.length > 0 && (
+            <div className="space-y-2 pt-2">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold text-foreground uppercase tracking-wide">Similar Smartphones</h3>
+                <span className="text-[10px] text-muted">Swipe →</span>
+              </div>
+              <div className="flex items-stretch gap-2.5 overflow-x-auto scrollbar-none -mx-3.5 px-3.5 py-1">
+                {similarPhones.map((sp) => (
+                  <Link
+                    key={sp.id}
+                    href={`/mobile/${sp.id}`}
+                    className="w-[145px] shrink-0 bg-card border border-border rounded-xl p-2.5 flex flex-col justify-between shadow-2xs group"
+                  >
+                    <div className="relative aspect-square w-full rounded-lg bg-white dark:bg-card p-2 flex items-center justify-center overflow-hidden mb-1.5 border border-border/40">
+                      <Image src={sp.imageUrl} alt={sp.name} fill unoptimized className="object-contain" />
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="text-[9px] uppercase font-bold text-muted">{sp.brand}</span>
+                      <h4 className="text-xs font-bold text-foreground line-clamp-1 leading-snug">{sp.name}</h4>
+                      <div className="text-xs font-bold text-foreground pt-0.5">
+                        ₹{(sp.basePrice || 49999).toLocaleString("en-IN")}
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Sticky Bottom Buy Bar on Phone (<sm) */}
+        <div className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-md border-t border-border px-3.5 py-2.5 z-40 flex items-center justify-between gap-3 shadow-2xl text-foreground pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <div className="min-w-0 pr-1">
+            <div className="text-base font-extrabold text-foreground leading-tight">
+              ₹{currentPrice.toLocaleString("en-IN")}
+            </div>
+            <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold truncate">
+              EMI from ₹{calculateEMI(currentPrice).toLocaleString("en-IN")}/mo
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 shrink-0">
+            {siteSettings.showWishlist === "true" && (
+              <button
+                onClick={() => toggleWishlist(product.id)}
+                className={`w-10 h-10 rounded-full border flex items-center justify-center transition-colors cursor-pointer ${
+                  isInWishlist(product.id)
+                    ? "bg-rose-500/15 border-rose-500 text-rose-500"
+                    : "border-border bg-tile text-muted hover:text-rose-500"
+                }`}
+                title="Wishlist"
+              >
+                <Heart className={`w-4 h-4 ${isInWishlist(product.id) ? "fill-rose-500 text-rose-500" : ""}`} />
+              </button>
+            )}
+
+            <button
+              onClick={handleAddToCart}
+              disabled={isOutOfStock}
+              className="px-3.5 h-10 rounded-full border border-[#C9A66B] bg-[#C9A66B]/10 hover:bg-[#C9A66B]/20 text-[#8C6226] dark:text-[#D4B483] text-xs font-bold transition-all cursor-pointer disabled:opacity-40"
+            >
+              {isAdded ? "Added ✓" : "Add to Cart"}
+            </button>
+
+            <button
+              onClick={handleBuyNow}
+              disabled={isOutOfStock}
+              className="px-5 h-10 rounded-full bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] active:scale-95 text-[#FFFCFA] text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-40"
+            >
+              Buy Now
+            </button>
+          </div>
+        </div>
+
+        {/* Tap to Zoom Modal */}
+        {isZoomModalOpen && (
+          <div
+            className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col p-4 animate-in fade-in duration-150"
+            onClick={() => setIsZoomModalOpen(false)}
+          >
+            <div className="flex justify-between items-center text-white pb-3">
+              <span className="text-xs font-bold truncate">{product.name}</span>
+              <button
+                type="button"
+                onClick={() => setIsZoomModalOpen(false)}
+                className="p-1 rounded-full bg-white/20 text-white cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 relative flex items-center justify-center">
+              <Image
+                src={selectedImage || product.imageUrl}
+                alt={product.name}
+                fill
+                unoptimized
+                className="object-contain"
+              />
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* DESKTOP & TABLET UI (>=sm): 100% Intact and Unchanged */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      <div className="hidden sm:block">
+        {/* Breadcrumbs */}
+        <div className="bg-card border-b border-border">
+          <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-3 text-xs text-muted flex items-center gap-1.5 overflow-x-auto">
+            <Link href="/" className="hover:text-foreground transition-colors">Phones</Link>
+            <ChevronRight className="w-3 h-3 text-muted" />
+            <Link href={`/?brand=${product.brand}`} className="hover:text-foreground transition-colors">{product.brand}</Link>
+            <ChevronRight className="w-3 h-3 text-muted" />
+            <span className="text-foreground font-medium truncate">{product.name}</span>
+          </div>
+        </div>
 
       <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
@@ -772,6 +1453,7 @@ export default function MobileDetailPage({
             Buy Now
           </button>
         </div>
+      </div>
       </div>
 
       {/* Out of Stock Interactive Modal Alert */}

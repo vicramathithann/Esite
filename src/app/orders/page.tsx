@@ -206,37 +206,40 @@ export default function OrdersPage() {
           </div>
         )}
 
-        {/* Tabs - Dedicated Active, Cancelled, and Full History sections */}
-        <div className="border-b border-border flex gap-6 text-sm mb-6">
+        {/* Status Filter Chips - Horizontal Scrolling */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none text-xs">
           <button
+            type="button"
             onClick={() => setActiveOrderTab("active")}
-            className={`pb-3 text-xs md:text-sm transition-colors cursor-pointer ${
+            className={`px-4 py-2 rounded-xl font-semibold whitespace-nowrap transition cursor-pointer border shrink-0 ${
               activeOrderTab === "active"
-                ? "font-bold text-[#8C6226] dark:text-[#E5CBA2] border-b-2 border-[#C9A66B] dark:border-[#D4B483]"
-                : "text-muted hover:text-foreground"
+                ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] border-[#C9A66B] dark:border-[#D4B483] shadow-xs"
+                : "bg-card text-muted border-border hover:text-foreground hover:bg-tile"
             }`}
           >
-            Confirmed & Active Orders ({activeOrdersCount})
+            Confirmed & Active ({activeOrdersCount})
           </button>
           <button
+            type="button"
             onClick={() => setActiveOrderTab("cancelled")}
-            className={`pb-3 text-xs md:text-sm transition-colors cursor-pointer ${
+            className={`px-4 py-2 rounded-xl font-semibold whitespace-nowrap transition cursor-pointer border shrink-0 ${
               activeOrderTab === "cancelled"
-                ? "font-bold text-[#8C6226] dark:text-[#E5CBA2] border-b-2 border-[#C9A66B] dark:border-[#D4B483]"
-                : "text-muted hover:text-foreground"
+                ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] border-[#C9A66B] dark:border-[#D4B483] shadow-xs"
+                : "bg-card text-muted border-border hover:text-foreground hover:bg-tile"
             }`}
           >
             Cancelled Orders ({cancelledOrdersCount})
           </button>
           <button
+            type="button"
             onClick={() => setActiveOrderTab("all")}
-            className={`pb-3 text-xs md:text-sm transition-colors cursor-pointer ${
+            className={`px-4 py-2 rounded-xl font-semibold whitespace-nowrap transition cursor-pointer border shrink-0 ${
               activeOrderTab === "all"
-                ? "font-bold text-[#8C6226] dark:text-[#E5CBA2] border-b-2 border-[#C9A66B] dark:border-[#D4B483]"
-                : "text-muted hover:text-foreground"
+                ? "bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] border-[#C9A66B] dark:border-[#D4B483] shadow-xs"
+                : "bg-card text-muted border-border hover:text-foreground hover:bg-tile"
             }`}
           >
-            Full Order History ({orders.length})
+            All Orders ({orders.length})
           </button>
         </div>
 
@@ -299,8 +302,8 @@ export default function OrdersPage() {
 
               return (
               <div key={order.id} className="bg-card border border-border rounded-2xl overflow-hidden shadow-xs">
-                {/* Order Card Header */}
-                <div className="bg-tile border-b border-border px-5 py-3.5 flex flex-wrap items-center justify-between gap-4 text-xs text-muted">
+                {/* Desktop Order Card Header */}
+                <div className="hidden sm:flex bg-tile border-b border-border px-5 py-3.5 flex-wrap items-center justify-between gap-4 text-xs text-muted">
                   <div className="flex flex-wrap items-center gap-6">
                     <div>
                       <span className="block text-[10px] uppercase font-semibold text-muted">Order Placed</span>
@@ -326,13 +329,22 @@ export default function OrdersPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       {!orderIsCancelled && (
-                        <Link
-                          href={`/track/${order.orderNumber}`}
-                          className="bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] py-1.5 px-3 text-xs font-semibold rounded-xl flex items-center gap-1.5 shadow-2xs transition-all"
-                        >
-                          <Truck className="w-3.5 h-3.5" />
-                          <span>Track Package</span>
-                        </Link>
+                        <>
+                          <Link
+                            href={`/track/${order.orderNumber}`}
+                            className="bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] dark:hover:bg-[#C49A5A] active:bg-[#A67C3D] text-[#FFFCFA] py-1.5 px-3 text-xs font-semibold rounded-xl flex items-center gap-1.5 shadow-2xs transition-all"
+                          >
+                            <Truck className="w-3.5 h-3.5" />
+                            <span>Track Package</span>
+                          </Link>
+                          <Link
+                            href={`/account/warranties?orderNumber=${order.orderNumber}`}
+                            className="bg-card hover:bg-tile border border-border text-foreground py-1.5 px-3 text-xs font-semibold rounded-xl flex items-center gap-1.5 shadow-2xs transition-all"
+                          >
+                            <ShieldCheck className="w-3.5 h-3.5 text-[#C9A66B] dark:text-[#D4B483]" />
+                            <span>Certificate</span>
+                          </Link>
+                        </>
                       )}
 
                       {orderIsCancelled ? (
@@ -353,6 +365,32 @@ export default function OrdersPage() {
                         </button>
                       ) : null}
                     </div>
+                  </div>
+                </div>
+
+                {/* Mobile Order Card Header (sm:hidden) */}
+                <div className="sm:hidden bg-tile border-b border-border p-3.5 space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] uppercase text-muted font-bold block">Order Number</span>
+                      <span className="font-mono font-bold text-foreground">#{order.orderNumber}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] text-muted block">{formatDateOnly(order.createdAt)}</span>
+                      <span className="font-bold text-foreground text-sm">₹{order.totalAmount?.toLocaleString("en-IN")}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between pt-1 border-t border-border/60">
+                    <span className="text-[11px] text-muted">Ship to: <strong className="text-foreground">{order.customerName}</strong></span>
+                    {orderIsCancelled ? (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/10 text-red-500 border border-red-500/20">
+                        Cancelled
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                        Confirmed
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -491,6 +529,37 @@ export default function OrdersPage() {
                       </div>
                     );
                   })}
+                </div>
+
+                {/* Mobile Order Action Buttons Bar (sm:hidden) */}
+                <div className="sm:hidden p-3 bg-tile/50 border-t border-border flex items-center gap-2">
+                  {!orderIsCancelled && (
+                    <Link
+                      href={`/track/${order.orderNumber}`}
+                      className="flex-1 py-2 px-3 bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 shadow-2xs"
+                    >
+                      <Truck className="w-3.5 h-3.5" />
+                      <span>Track</span>
+                    </Link>
+                  )}
+                  <Link
+                    href={`/account/warranties?orderNumber=${order.orderNumber}`}
+                    className="flex-1 py-2 px-3 bg-card hover:bg-tile border border-border text-foreground text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 shadow-2xs"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5 text-[#C9A66B] dark:text-[#D4B483]" />
+                    <span>Certificate</span>
+                  </Link>
+                  {orderCanCancel && (
+                    <button
+                      onClick={() => {
+                        setCancelModalOrder(order);
+                        setCancelReason("Order created by mistake");
+                      }}
+                      className="py-2 px-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 text-xs font-semibold rounded-xl cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  )}
                 </div>
               </div>
             );

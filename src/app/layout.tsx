@@ -5,6 +5,7 @@ import { AppProvider } from "@/context/AppContext";
 import Navbar from "@/components/Navbar";
 import CartDrawer from "@/components/CartDrawer";
 import Footer from "@/components/Footer";
+import BottomTabBar from "@/components/BottomTabBar";
 import CustomerSupportChatbot from "@/components/CustomerSupportChatbot";
 
 export const metadata: Metadata = {
@@ -38,10 +39,11 @@ export default function RootLayout({
           <AppProvider>
             <Navbar />
             <CartDrawer />
-            <main className="flex-1">
+            <main className="flex-1 pb-16 sm:pb-0">
               {children}
             </main>
             <Footer />
+            <BottomTabBar />
             <CustomerSupportChatbot />
           </AppProvider>
         </ThemeProvider>

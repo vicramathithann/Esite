@@ -26,6 +26,11 @@ import {
   ZoomIn,
   ZoomOut,
   Check,
+  ShoppingBag,
+  Layers,
+  ChevronRight,
+  ChevronDown,
+  LogOut,
 } from "lucide-react";
 import DeleteAccountModal from "@/components/DeleteAccountModal";
 import { useApp } from "@/context/AppContext";
@@ -44,7 +49,8 @@ interface DeliveryAddress {
 }
 
 export default function AccountPage() {
-  const { currentUser, login, wishlistCount } = useApp();
+  const { currentUser, login, logout, wishlistCount } = useApp();
+  const [mobileActiveSection, setMobileActiveSection] = useState<"info" | "addresses" | "security" | null>(null);
 
   // Avatar states
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -803,8 +809,311 @@ export default function AccountPage() {
           </div>
         )}
 
-        {/* 2. Clean 2-Column Grid of Account Sections */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Mobile Flipkart-style 6-tile Grid & Menu (sm:hidden) */}
+        <div className="sm:hidden space-y-4">
+          <div className="grid grid-cols-2 gap-2.5">
+            <Link
+              href="/orders"
+              className="flex items-center gap-3 p-3.5 bg-card border border-border rounded-xl active:bg-tile transition-colors shadow-2xs"
+            >
+              <div className="w-10 h-10 rounded-xl bg-[#C9A66B]/15 text-[#8C6226] dark:text-[#E5CBA2] flex items-center justify-center shrink-0">
+                <Package className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-foreground">Orders</div>
+                <div className="text-[10px] text-muted truncate">Track & history</div>
+              </div>
+            </Link>
+
+            <Link
+              href="/account/warranties"
+              className="flex items-center gap-3 p-3.5 bg-card border border-border rounded-xl active:bg-tile transition-colors shadow-2xs"
+            >
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-foreground">Warranties</div>
+                <div className="text-[10px] text-muted truncate">Active certificates</div>
+              </div>
+            </Link>
+
+            <Link
+              href="/account/wishlist"
+              className="flex items-center gap-3 p-3.5 bg-card border border-border rounded-xl active:bg-tile transition-colors shadow-2xs"
+            >
+              <div className="w-10 h-10 rounded-xl bg-red-500/15 text-red-500 flex items-center justify-center shrink-0">
+                <Heart className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <span>Wishlist</span>
+                  {wishlistCount > 0 && (
+                    <span className="px-1.5 py-0.2 bg-red-500 text-white rounded-full text-[9px] font-bold">
+                      {wishlistCount}
+                    </span>
+                  )}
+                </div>
+                <div className="text-[10px] text-muted truncate">Saved smartphones</div>
+              </div>
+            </Link>
+
+            <Link
+              href="/cart"
+              className="flex items-center gap-3 p-3.5 bg-card border border-border rounded-xl active:bg-tile transition-colors shadow-2xs"
+            >
+              <div className="w-10 h-10 rounded-xl bg-blue-500/15 text-blue-500 flex items-center justify-center shrink-0">
+                <ShoppingBag className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-foreground">Cart</div>
+                <div className="text-[10px] text-muted truncate">View shopping bag</div>
+              </div>
+            </Link>
+
+            <Link
+              href="/compare"
+              className="flex items-center gap-3 p-3.5 bg-card border border-border rounded-xl active:bg-tile transition-colors shadow-2xs"
+            >
+              <div className="w-10 h-10 rounded-xl bg-purple-500/15 text-purple-500 flex items-center justify-center shrink-0">
+                <Layers className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-foreground">Compare</div>
+                <div className="text-[10px] text-muted truncate">Side-by-side specs</div>
+              </div>
+            </Link>
+
+            <button
+              type="button"
+              onClick={() => {
+                setMobileActiveSection(mobileActiveSection === "addresses" ? null : "addresses");
+              }}
+              className="flex items-center gap-3 p-3.5 bg-card border border-border rounded-xl active:bg-tile transition-colors shadow-2xs text-left cursor-pointer"
+            >
+              <div className="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-500 flex items-center justify-center shrink-0">
+                <MapPin className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-foreground">Addresses</div>
+                <div className="text-[10px] text-muted truncate">{displayedAddresses.length} saved</div>
+              </div>
+            </button>
+          </div>
+
+          {/* Account Settings List Rows (Flipkart-style) */}
+          <div className="bg-card border border-border rounded-2xl divide-y divide-border overflow-hidden shadow-xs">
+            {/* Row 1: Personal Information */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setMobileActiveSection(mobileActiveSection === "info" ? null : "info")}
+                className="w-full flex items-center justify-between p-4 text-left active:bg-tile transition-colors cursor-pointer"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-[#C9A66B]/15 text-[#8C6226] dark:text-[#E5CBA2] flex items-center justify-center shrink-0">
+                    <User className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-foreground">Personal Information</div>
+                    <div className="text-[10px] text-muted">{currentUser?.email || "Manage profile"}</div>
+                  </div>
+                </div>
+                <ChevronDown className={`w-4 h-4 text-muted transition-transform ${mobileActiveSection === "info" ? "rotate-180" : ""}`} />
+              </button>
+
+              {mobileActiveSection === "info" && (
+                <div className="p-4 bg-tile border-t border-border animate-in slide-in-from-top-2 duration-150">
+                  <form onSubmit={handleSavePersonalInfo} className="space-y-3">
+                    <div>
+                      <label className="block text-[10px] font-semibold text-foreground uppercase mb-1">Full Name</label>
+                      <input
+                        type="text"
+                        value={infoName}
+                        onChange={(e) => setInfoName(e.target.value)}
+                        className="w-full h-11 px-3 bg-card border border-border rounded-xl text-xs text-foreground focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-foreground uppercase mb-1">Email</label>
+                      <input
+                        type="email"
+                        value={infoEmail}
+                        onChange={(e) => setInfoEmail(e.target.value)}
+                        disabled={currentUser?.role === "ADMIN"}
+                        className="w-full h-11 px-3 bg-card border border-border rounded-xl text-xs text-foreground focus:outline-none disabled:opacity-60"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-foreground uppercase mb-1">Phone</label>
+                      <input
+                        type="tel"
+                        value={infoPhone}
+                        onChange={(e) => setInfoPhone(e.target.value.replace(/[^0-9]/g, ""))}
+                        className="w-full h-11 px-3 bg-card border border-border rounded-xl text-xs text-foreground focus:outline-none font-mono"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={infoSaving}
+                      className="w-full h-11 bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      {infoSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                      <span>Save Changes</span>
+                    </button>
+                  </form>
+                </div>
+              )}
+            </div>
+
+            {/* Row 2: Saved Delivery Addresses */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setMobileActiveSection(mobileActiveSection === "addresses" ? null : "addresses")}
+                className="w-full flex items-center justify-between p-4 text-left active:bg-tile transition-colors cursor-pointer"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-amber-500/15 text-amber-500 flex items-center justify-center shrink-0">
+                    <MapPin className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-foreground">Saved Delivery Addresses</div>
+                    <div className="text-[10px] text-muted">{displayedAddresses.length} saved</div>
+                  </div>
+                </div>
+                <ChevronDown className={`w-4 h-4 text-muted transition-transform ${mobileActiveSection === "addresses" ? "rotate-180" : ""}`} />
+              </button>
+
+              {mobileActiveSection === "addresses" && (
+                <div className="p-4 bg-tile border-t border-border space-y-3 animate-in slide-in-from-top-2 duration-150">
+                  <button
+                    type="button"
+                    onClick={openAddAddressModal}
+                    className="w-full h-10 border border-dashed border-[#C9A66B] text-[#8C6226] dark:text-[#E5CBA2] rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add New Address</span>
+                  </button>
+                  {displayedAddresses.map((addr) => (
+                    <div key={addr.id} className="p-3 bg-card border border-border rounded-xl text-xs space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-foreground">{addr.recipientName} ({addr.label})</span>
+                        {addr.isDefault && (
+                          <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-[#C9A66B]/15 text-[#8C6226] dark:text-[#E5CBA2]">Default</span>
+                        )}
+                      </div>
+                      <p className="text-muted text-[11px]">{addr.street}, {addr.city}, {addr.state} - {addr.pincode}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Row 3: Security & Password */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setMobileActiveSection(mobileActiveSection === "security" ? null : "security")}
+                className="w-full flex items-center justify-between p-4 text-left active:bg-tile transition-colors cursor-pointer"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500/15 text-emerald-500 flex items-center justify-center shrink-0">
+                    <Lock className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-foreground">Security & Password</div>
+                    <div className="text-[10px] text-muted">Update account password</div>
+                  </div>
+                </div>
+                <ChevronDown className={`w-4 h-4 text-muted transition-transform ${mobileActiveSection === "security" ? "rotate-180" : ""}`} />
+              </button>
+
+              {mobileActiveSection === "security" && (
+                <div className="p-4 bg-tile border-t border-border animate-in slide-in-from-top-2 duration-150">
+                  <form onSubmit={handleChangePassword} className="space-y-3">
+                    <div>
+                      <label className="block text-[10px] font-semibold text-foreground uppercase mb-1">Current Password</label>
+                      <input
+                        type="password"
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        className="w-full h-11 px-3 bg-card border border-border rounded-xl text-xs text-foreground focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-foreground uppercase mb-1">New Password</label>
+                      <input
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className="w-full h-11 px-3 bg-card border border-border rounded-xl text-xs text-foreground focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-foreground uppercase mb-1">Confirm New Password</label>
+                      <input
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="w-full h-11 px-3 bg-card border border-border rounded-xl text-xs text-foreground focus:outline-none"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={passwordUpdating}
+                      className="w-full h-11 bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      {passwordUpdating ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Lock className="w-3.5 h-3.5" />}
+                      <span>Update Password</span>
+                    </button>
+                  </form>
+                </div>
+              )}
+            </div>
+
+            {/* Row 4: Delete Account */}
+            <button
+              type="button"
+              onClick={() => setIsDeleteModalOpen(true)}
+              className="w-full flex items-center justify-between p-4 text-left active:bg-tile transition-colors cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-red-500/10 text-red-500 flex items-center justify-center shrink-0">
+                  <Trash2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-red-600 dark:text-red-400">Delete Account</div>
+                  <div className="text-[10px] text-muted">Permanently erase your account</div>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted" />
+            </button>
+
+            {/* Row 5: Sign Out */}
+            {currentUser && (
+              <button
+                type="button"
+                onClick={logout}
+                className="w-full flex items-center justify-between p-4 text-left active:bg-tile transition-colors cursor-pointer"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-tile text-foreground flex items-center justify-center shrink-0">
+                    <LogOut className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-foreground">Sign Out</div>
+                    <div className="text-[10px] text-muted">Log out of this device</div>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* 2. Desktop 2-Column Grid of Account Sections (hidden on phone) */}
+        <div className="hidden sm:grid sm:grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Card 1: Personal Information */}
           <div className="bg-card border border-border rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col justify-between">
             <div>
