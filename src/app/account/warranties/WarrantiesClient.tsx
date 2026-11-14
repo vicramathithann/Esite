@@ -32,6 +32,7 @@ export interface EnrichedWarranty {
   variantInfo: string;
   imeiNumber: string;
   purchaseDate: string;
+  purchaseAmount?: number | string | null;
   warrantyStartDate: string;
   warrantyExpiryDate: string;
   warrantyDuration: string;

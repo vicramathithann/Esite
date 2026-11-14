@@ -151,6 +151,7 @@ export default async function UserWarrantiesPage() {
               imeiNumber: item.imeiNumber,
               warrantyNumber: `WRT-${ord.orderNumber}-${idx + 1}`,
               purchaseDate: ord.createdAt || new Date().toISOString(),
+              purchaseAmount: item.price,
               warrantyStartDate: item.warrantyStartDate || ord.createdAt || new Date().toISOString(),
               warrantyExpiryDate:
                 item.warrantyExpiryDate ||
@@ -287,6 +288,7 @@ export default async function UserWarrantiesPage() {
         variantInfo,
         imeiNumber: w.imeiNumber || matchedItem?.imeiNumber || "N/A",
         purchaseDate: w.purchaseDate || matchedOrder?.createdAt || new Date().toISOString(),
+        purchaseAmount: matchedItem?.price ?? w.purchaseAmount ?? matchedOrder?.totalAmount ?? null,
         warrantyStartDate: startDateStr,
         warrantyExpiryDate: expiryDateStr,
         warrantyDuration: w.warrantyDuration || "1 Year",
