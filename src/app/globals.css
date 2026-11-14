@@ -31,8 +31,18 @@
 
 :root {
   /* Header & Sticky Layout Offsets */
-  --header-height: 108px;
-  --header-offset: calc(var(--header-height) + 16px);
+  --header-height: 56px;
+  --header-offset: var(--header-height);
+}
+
+@media (min-width: 641px) {
+  :root {
+    --header-height: 108px;
+    --header-offset: calc(var(--header-height) + 16px);
+  }
+}
+
+:root {
 
   --background: #F5F5F7;
   --card: #FFFFFF;

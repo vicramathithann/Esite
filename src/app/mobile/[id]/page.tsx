@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, use } from "react";
+import React, { useState, useEffect, useMemo, useRef, use } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -62,6 +62,77 @@ export default function MobileDetailPage({
   const [isEmiOpen, setIsEmiOpen] = useState(false);
   const [isZoomModalOpen, setIsZoomModalOpen] = useState(false);
   const [shareToast, setShareToast] = useState(false);
+
+  // Phone Sticky Hero & Carousel States
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [headerOffset, setHeaderOffset] = useState<number>(56);
+  const [isCollapsedHero, setIsCollapsedHero] = useState<boolean>(false);
+
+  useEffect(() => {
+    const updateHeaderOffset = () => {
+      const header = document.querySelector("header");
+      if (header) {
+        const rect = header.getBoundingClientRect();
+        if (rect.height > 0) {
+          setHeaderOffset(rect.height);
+          document.documentElement.style.setProperty("--header-offset", `${rect.height}px`);
+        }
+      }
+    };
+
+    updateHeaderOffset();
+    const header = document.querySelector("header");
+    let ro: ResizeObserver | null = null;
+    if (header && typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver(() => updateHeaderOffset());
+      ro.observe(header);
+    }
+    window.addEventListener("resize", updateHeaderOffset);
+
+    const handleScroll = () => {
+      // Smooth collapse into compact thumbnail bar once scrolled into specs & options
+      if (window.scrollY > 380) {
+        setIsCollapsedHero(true);
+      } else {
+        setIsCollapsedHero(false);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => {
+      ro?.disconnect();
+      window.removeEventListener("resize", updateHeaderOffset);
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
+
+  const scrollToImageIndex = (index: number) => {
+    setActiveImageIndex(index);
+    if (carouselRef.current) {
+      carouselRef.current.scrollTo({
+        left: index * carouselRef.current.clientWidth,
+        behavior: "smooth",
+      });
+    }
+    if (productImagesList[index]) {
+      setSelectedImage(productImagesList[index].url);
+    }
+  };
+
+  const handleCarouselScroll = () => {
+    if (carouselRef.current) {
+      const { scrollLeft, clientWidth } = carouselRef.current;
+      if (clientWidth > 0) {
+        const index = Math.round(scrollLeft / clientWidth);
+        if (index !== activeImageIndex && productImagesList[index]) {
+          setActiveImageIndex(index);
+          setSelectedImage(productImagesList[index].url);
+        }
+      }
+    }
+  };
 
   const [mobileSpecOpen, setMobileSpecOpen] = useState<Record<string, boolean>>({
     display: true,
@@ -327,15 +398,18 @@ export default function MobileDetailPage({
 
   const handleColorChange = (color: ProductColor) => {
     setSelectedColor(color);
-    const colorPhoto = productImagesList.find(
+    const colorPhotoIndex = productImagesList.findIndex(
       (img) => img.colorKey && img.colorKey.toLowerCase() === color.name.toLowerCase()
     );
-    if (colorPhoto) {
-      setSelectedImage(colorPhoto.url);
+    if (colorPhotoIndex !== -1) {
+      setSelectedImage(productImagesList[colorPhotoIndex].url);
+      scrollToImageIndex(colorPhotoIndex);
     } else {
-      const primary = productImagesList.find((img) => img.isPrimary) || productImagesList[0];
-      if (primary) {
-        setSelectedImage(primary.url);
+      const primaryIndex = productImagesList.findIndex((img) => img.isPrimary);
+      const targetIdx = primaryIndex !== -1 ? primaryIndex : 0;
+      if (productImagesList[targetIdx]) {
+        setSelectedImage(productImagesList[targetIdx].url);
+        scrollToImageIndex(targetIdx);
       }
     }
   };
@@ -408,57 +482,35 @@ export default function MobileDetailPage({
       {/* PHONE SPECIFIC UI (<sm): Amazon / Flipkart Style */}
       {/* ───────────────────────────────────────────────────────────── */}
       <div className="sm:hidden">
-        {/* Compact Phone Header */}
-        <div className="sticky top-0 z-40 bg-card/95 backdrop-blur-md border-b border-border px-3 h-14 flex items-center justify-between">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="w-10 h-10 rounded-full flex items-center justify-center text-foreground hover:bg-tile active:scale-95 transition-all cursor-pointer"
-            aria-label="Go back"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          
-          <div className="flex-1 px-2 text-center truncate">
-            <span className="text-xs font-bold text-foreground truncate block">
-              {product.name}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-1">
+        {/* Phone Breadcrumbs & Back Row (Non-sticky, scrolls away cleanly under header) */}
+        <div className="bg-card/90 border-b border-border px-3.5 py-2.5 flex items-center justify-between text-xs text-muted">
+          <div className="flex items-center gap-1.5 truncate">
             <button
               type="button"
-              onClick={handleShare}
-              className="w-9 h-9 rounded-full flex items-center justify-center text-foreground hover:bg-tile active:scale-95 transition-all cursor-pointer"
-              aria-label="Share product"
+              onClick={() => router.back()}
+              className="inline-flex items-center gap-1 text-foreground hover:text-accent font-semibold cursor-pointer shrink-0 mr-1"
+              aria-label="Go back"
             >
-              <Share2 className="w-4 h-4" />
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back</span>
             </button>
-            {siteSettings.showWishlist === "true" && (
-              <button
-                type="button"
-                onClick={() => toggleWishlist(product.id)}
-                className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
-                  isInWishlist(product.id) ? "text-rose-500" : "text-foreground hover:bg-tile"
-                }`}
-                aria-label="Wishlist"
-              >
-                <Heart className={`w-4 h-4 ${isInWishlist(product.id) ? "fill-rose-500 text-rose-500" : ""}`} />
-              </button>
-            )}
-            <Link
-              href="/cart"
-              className="w-9 h-9 rounded-full flex items-center justify-center text-foreground hover:bg-tile relative cursor-pointer"
-              aria-label="Cart"
-            >
-              <ShoppingBag className="w-4 h-4" />
-              {cartCount > 0 && (
-                <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#C9A66B] text-white text-[9px] font-bold flex items-center justify-center">
-                  {cartCount}
-                </span>
-              )}
-            </Link>
+            <span className="text-muted/40">|</span>
+            <Link href="/" className="hover:text-foreground">Phones</Link>
+            <ChevronRight className="w-3 h-3 text-muted/60 shrink-0" />
+            <Link href={`/?brand=${encodeURIComponent(product.brand)}`} className="hover:text-foreground">{product.brand}</Link>
+            <ChevronRight className="w-3 h-3 text-muted/60 shrink-0" />
+            <span className="text-foreground font-semibold truncate">{product.name}</span>
           </div>
+
+          <button
+            type="button"
+            onClick={handleShare}
+            className="p-1.5 rounded-lg text-muted hover:text-foreground hover:bg-tile transition-colors cursor-pointer shrink-0"
+            aria-label="Share product"
+            title="Share"
+          >
+            <Share2 className="w-4 h-4" />
+          </button>
         </div>
 
         {/* Share Feedback Toast */}
@@ -468,56 +520,127 @@ export default function MobileDetailPage({
           </div>
         )}
 
-        {/* Phone Content (Scrolls normally) */}
-        <div className="p-3.5 space-y-4 pb-28">
-          {/* 1. Swipeable Image Gallery */}
-          <div className="space-y-2">
-            <div className="relative aspect-square w-full rounded-2xl bg-white dark:bg-card border border-border/50 p-4 overflow-hidden flex items-center justify-center">
-              {discountPercent > 0 && (
-                <span className="absolute top-3 left-3 z-10 text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-600 text-white shadow-xs">
-                  {discountPercent}% OFF
-                </span>
-              )}
-              <Image
-                src={selectedImage || productImagesList[0]?.url || product.imageUrl}
-                alt={product.name}
-                fill
-                priority
-                unoptimized
-                className="object-contain"
-                onClick={() => setIsZoomModalOpen(true)}
-              />
-              <button
-                type="button"
-                onClick={() => setIsZoomModalOpen(true)}
-                className="absolute bottom-3 right-3 px-2.5 py-1 bg-black/60 backdrop-blur-xs text-white text-[10px] font-medium rounded-full flex items-center gap-1 cursor-pointer"
-              >
-                <ZoomIn className="w-3 h-3" /> Tap to zoom
-              </button>
-            </div>
+        {/* 1. Phone Sticky Product Hero Image Card */}
+        <div 
+          className="sticky z-20 bg-background transition-all duration-300 ease-out"
+          style={{ top: `var(--header-offset, ${headerOffset}px)` }}
+        >
+          {/* Main Card with Opaque Theme Background so scrolling text never shows through */}
+          <div className="bg-card border-b border-border shadow-2xs p-3">
+            {!isCollapsedHero ? (
+              /* Expanded State: Full Swipeable Carousel */
+              <div className="space-y-1.5">
+                <div className="relative h-[34vh] max-h-[38vh] min-h-[220px] w-full rounded-2xl bg-white dark:bg-card border border-border/40 p-2 overflow-hidden flex items-center justify-center">
+                  {discountPercent > 0 && (
+                    <span className="absolute top-2.5 left-2.5 z-10 text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-600 text-white shadow-xs">
+                      {discountPercent}% OFF
+                    </span>
+                  )}
 
-            {/* Thumbnail Strip */}
-            {productImagesList.length > 1 && (
-              <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1">
-                {productImagesList.map((img, idx) => (
-                  <button
-                    key={img.url || idx}
-                    type="button"
-                    onClick={() => setSelectedImage(img.url)}
-                    className={`w-14 h-14 rounded-xl p-1 bg-white dark:bg-card border shrink-0 transition-all cursor-pointer ${
-                      selectedImage === img.url
-                        ? "border-[#C9A66B] ring-2 ring-[#C9A66B]/30"
-                        : "border-border/60"
-                    }`}
+                  {/* Swipeable Carousel */}
+                  <div 
+                    ref={carouselRef}
+                    onScroll={handleCarouselScroll}
+                    className="w-full h-full flex overflow-x-auto snap-x snap-mandatory scrollbar-none"
                   >
-                    <div className="relative w-full h-full">
-                      <Image src={img.url} alt="Thumb" fill unoptimized className="object-contain" />
-                    </div>
+                    {productImagesList.map((img, idx) => (
+                      <div 
+                        key={img.url || idx}
+                        className="w-full h-full shrink-0 snap-center relative flex items-center justify-center cursor-pointer"
+                        onClick={() => {
+                          setSelectedImage(img.url);
+                          setIsZoomModalOpen(true);
+                        }}
+                      >
+                        <Image
+                          src={img.url}
+                          alt={img.alt || product.name}
+                          fill
+                          priority={idx === 0}
+                          unoptimized
+                          className="object-contain p-2"
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Tap to zoom hint (Hover does not exist on phones) */}
+                  <button
+                    type="button"
+                    onClick={() => setIsZoomModalOpen(true)}
+                    className="absolute bottom-2.5 right-2.5 z-10 px-2.5 py-1 bg-black/60 backdrop-blur-xs text-white text-[10px] font-medium rounded-full flex items-center gap-1 cursor-pointer"
+                  >
+                    <ZoomIn className="w-3 h-3" />
+                    <span>Tap to zoom</span>
                   </button>
-                ))}
+                </div>
+
+                {/* Dots Indicator */}
+                {productImagesList.length > 1 && (
+                  <div className="flex items-center justify-center gap-1.5 pt-0.5">
+                    {productImagesList.map((_, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => scrollToImageIndex(idx)}
+                        className={`h-1.5 rounded-full transition-all duration-200 cursor-pointer ${
+                          activeImageIndex === idx
+                            ? "w-5 bg-[#C9A66B] dark:bg-[#D4B483]"
+                            : "w-1.5 bg-muted/40 hover:bg-muted"
+                        }`}
+                        aria-label={`Go to slide ${idx + 1}`}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Collapsed Thumbnail Summary Bar (When scrolled deep into specs) */
+              <div 
+                onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+                className="h-12 flex items-center justify-between gap-3 cursor-pointer group"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="relative w-10 h-10 rounded-lg bg-white dark:bg-card border border-border shrink-0 p-1 overflow-hidden">
+                    <Image
+                      src={selectedImage || product.imageUrl}
+                      alt={product.name}
+                      fill
+                      unoptimized
+                      className="object-contain"
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[10px] uppercase font-bold text-muted">{product.brand}</div>
+                    <div className="text-xs font-bold text-foreground truncate">{product.name}</div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="text-right">
+                    <span className="text-xs font-extrabold text-foreground">
+                      ₹{currentPrice.toLocaleString("en-IN")}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsZoomModalOpen(true);
+                    }}
+                    className="p-1.5 rounded-full bg-tile text-muted hover:text-foreground"
+                    title="Tap to zoom"
+                  >
+                    <ZoomIn className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
             )}
           </div>
+        </div>
+
+        {/* 2. Scrolling Details Section (Positioned naturally below the sticky hero) */}
+        <div className="relative z-10 p-3.5 space-y-4 pb-32 bg-background">
 
           {/* 2. Brand, Title, Rating */}
           <div className="space-y-1">

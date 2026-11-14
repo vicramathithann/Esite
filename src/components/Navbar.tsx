@@ -175,7 +175,13 @@ export default function Navbar() {
       if (headerRef.current) {
         const height = headerRef.current.getBoundingClientRect().height;
         document.documentElement.style.setProperty("--header-height", `${height}px`);
-        document.documentElement.style.setProperty("--header-offset", `${height + 16}px`);
+        // On phone (<= 640px), --header-offset matches exact header height so sticky elements dock flush.
+        // On desktop, retain +16px offset for desktop sidebar aesthetics.
+        const isPhone = window.innerWidth <= 640;
+        document.documentElement.style.setProperty(
+          "--header-offset", 
+          isPhone ? `${height}px` : `${height + 16}px`
+        );
       }
     };
 
@@ -191,7 +197,7 @@ export default function Navbar() {
       ro.disconnect();
       window.removeEventListener("resize", updateHeaderOffset);
     };
-  }, [siteSettings.showAnnouncement, isAnnouncementDismissed, isHome]);
+  }, [siteSettings.showAnnouncement, isAnnouncementDismissed, isHome, pathname]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
