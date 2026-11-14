@@ -153,6 +153,7 @@ export default function Navbar() {
 
   const router = useRouter();
   const { 
+    currentUser,
     siteSettings,
     setIsUserSidebarOpen,
     wishlist,
@@ -329,9 +330,41 @@ export default function Navbar() {
               </button>
             </div>
 
-            {/* Desktop Theme Toggle & Menu (stays exact on laptop/tablet) */}
+            {/* Desktop Theme Toggle, Account & Menu (stays exact on laptop/tablet) */}
             <div className="hidden sm:flex items-center gap-2">
               <ThemeToggle />
+
+              {/* User Account Avatar / Sign In */}
+              {currentUser ? (
+                <Link
+                  href="/account"
+                  className="flex items-center gap-2 p-1 pr-2.5 rounded-full hover:bg-tile border border-border/60 transition-colors shrink-0"
+                  title="My Account"
+                >
+                  {currentUser.avatar ? (
+                    <img
+                      src={currentUser.avatar}
+                      alt={currentUser.name || "User"}
+                      className="w-7 h-7 rounded-full object-cover border border-[#C9A66B]/50 shrink-0"
+                    />
+                  ) : (
+                    <div className="w-7 h-7 rounded-full bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] font-bold text-xs flex items-center justify-center shrink-0">
+                      {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "U"}
+                    </div>
+                  )}
+                  <span className="text-xs font-semibold text-foreground max-w-[90px] truncate hidden md:inline">
+                    {currentUser.name?.split(" ")[0] || "Account"}
+                  </span>
+                </Link>
+              ) : (
+                <Link
+                  href="/login"
+                  className="px-3 py-1.5 text-xs font-semibold rounded-full bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] text-[#FFFCFA] transition-colors"
+                >
+                  Sign In
+                </Link>
+              )}
+
               <button
                 type="button"
                 onClick={() => setIsUserSidebarOpen(true)}

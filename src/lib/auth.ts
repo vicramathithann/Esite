@@ -412,7 +412,8 @@ export async function getAuthenticatedUser(request?: Request): Promise<AuthUser 
       signupSource: true,
       tokenExpires: true,
       createdAt: true,
-    },
+      avatar: true,
+    } as any,
   });
 
   if (!user) return null;

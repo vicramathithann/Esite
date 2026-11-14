@@ -33,6 +33,7 @@ import {
   LogOut,
 } from "lucide-react";
 import DeleteAccountModal from "@/components/DeleteAccountModal";
+import AvatarCropModal from "@/components/AvatarCropModal";
 import { useApp } from "@/context/AppContext";
 import AccountLayout from "@/components/AccountLayout";
 
@@ -57,16 +58,8 @@ export default function AccountPage() {
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const [avatarSuccess, setAvatarSuccess] = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
-
-  // Crop & Preview Modal States
   const [cropModalOpen, setCropModalOpen] = useState(false);
-  const [rawImageSrc, setRawImageSrc] = useState<string | null>(null);
-  const [zoom, setZoom] = useState(1);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const dragStartRef = useRef({ x: 0, y: 0 });
-  const [cropShape, setCropShape] = useState<"circle" | "square">("circle");
-  const imageElementRef = useRef<HTMLImageElement | null>(null);
+  const [selectedCropFile, setSelectedCropFile] = useState<File | null>(null);
 
   // Personal Information Inline Edit States
   const [isEditingInfo, setIsEditingInfo] = useState(false);
@@ -246,104 +239,11 @@ export default function AccountPage() {
     // Reset input value so same file can be re-selected if cancelled
     e.target.value = "";
 
-    // 1. Validate file size (max 2 MB)
-    if (file.size > 2 * 1024 * 1024) {
-      setAvatarError("Image file exceeds 2 MB limit. Please choose a smaller photo.");
-      return;
-    }
-
-    // 2. Validate MIME type
-    const validTypes = ["image/jpeg", "image/png", "image/webp"];
-    if (!validTypes.includes(file.type)) {
-      setAvatarError("Please select a valid image file (JPG, PNG, or WEBP).");
-      return;
-    }
-
-    // Read image for preview & crop
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const result = event.target?.result as string;
-      setRawImageSrc(result);
-      setZoom(1);
-      setPan({ x: 0, y: 0 });
-      setCropModalOpen(true);
-    };
-    reader.onerror = () => {
-      setAvatarError("Failed to read image file. Please try another photo.");
-    };
-    reader.readAsDataURL(file);
+    setSelectedCropFile(file);
+    setCropModalOpen(true);
   };
 
-  // Crop & Save to Server
-  const handleSaveCroppedPhoto = async () => {
-    if (!rawImageSrc || !imageElementRef.current) return;
-
-    try {
-      setAvatarUploading(true);
-      setAvatarError(null);
-
-      // Create high-res canvas (400x400)
-      const canvas = document.createElement("canvas");
-      canvas.width = 400;
-      canvas.height = 400;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) throw new Error("Could not initialize canvas context");
-
-      const img = imageElementRef.current;
-      const naturalWidth = img.naturalWidth || 400;
-      const naturalHeight = img.naturalHeight || 400;
-
-      // Base scale to cover 400x400
-      const baseScale = Math.max(400 / naturalWidth, 400 / naturalHeight);
-      const currentScale = baseScale * zoom;
-
-      const drawWidth = naturalWidth * currentScale;
-      const drawHeight = naturalHeight * currentScale;
-
-      // Center with pan offset
-      const drawX = (400 - drawWidth) / 2 + pan.x;
-      const drawY = (400 - drawHeight) / 2 + pan.y;
-
-      ctx.imageSmoothingQuality = "high";
-      ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
-
-      // Convert canvas to Blob
-      const blob: Blob | null = await new Promise((resolve) =>
-        canvas.toBlob((b) => resolve(b), "image/jpeg", 0.92)
-      );
-
-      if (!blob) throw new Error("Canvas export failed");
-
-      // Send to authenticated API
-      const formData = new FormData();
-      formData.append("file", blob, "profile.jpg");
-
-      const res = await fetch("/api/auth/profile/avatar", {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await res.json();
-      if (data.success && data.avatar) {
-        if (currentUser) {
-          login({ ...currentUser, avatar: data.avatar });
-        }
-        setAvatarSuccess("Profile picture updated successfully!");
-        setCropModalOpen(false);
-        setRawImageSrc(null);
-        setTimeout(() => setAvatarSuccess(null), 4000);
-      } else {
-        setAvatarError(data.error || "Failed to upload profile picture.");
-      }
-    } catch (err) {
-      console.error("Avatar save error:", err);
-      setAvatarError("An error occurred while uploading. Please try again.");
-    } finally {
-      setAvatarUploading(false);
-    }
-  };
-
-  // Remove Photo
+  // Remove Photo Handler
   const handleRemovePhoto = async () => {
     if (!currentUser?.avatar) return;
     if (!confirm("Are you sure you want to remove your profile photo?")) return;
@@ -366,24 +266,6 @@ export default function AccountPage() {
     } finally {
       setAvatarUploading(false);
     }
-  };
-
-  // Drag Handlers for Crop Pan
-  const handleMouseDown = (e: React.MouseEvent) => {
-    setIsDragging(true);
-    dragStartRef.current = { x: e.clientX - pan.x, y: e.clientY - pan.y };
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging) return;
-    setPan({
-      x: e.clientX - dragStartRef.current.x,
-      y: e.clientY - dragStartRef.current.y,
-    });
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
   };
 
   // Save Personal Information
@@ -707,16 +589,35 @@ export default function AccountPage() {
           <div className="bg-gradient-to-r from-[#0B1220] via-[#121B2E] to-[#0B1220] border border-[#1F2A44] rounded-2xl p-6 sm:p-7 text-white shadow-md transition-all duration-200">
             {/* Avatar with Camera Overlay + User Details */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
-              {/* Large Avatar with Upload Action */}
-              <div className="relative group shrink-0">
+              {/* Large Avatar with Upload Action & Drag/Drop */}
+              <div 
+                className="relative group shrink-0 cursor-pointer"
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) {
+                    setSelectedCropFile(file);
+                    setCropModalOpen(true);
+                  }
+                }}
+                onDragOver={(e) => e.preventDefault()}
+                onClick={() => {
+                  if (currentUser.avatar) {
+                    setCropModalOpen(true);
+                  } else {
+                    fileInputRef.current?.click();
+                  }
+                }}
+                title="Click or drag photo to edit profile picture (JPG, PNG, WEBP)"
+              >
                 {currentUser.avatar ? (
                   <img
                     src={currentUser.avatar}
                     alt={currentUser.name || "Customer"}
-                    className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-2 border-[#C9A66B] dark:border-[#D4B483] shadow-md"
+                    className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-2 border-[#C9A66B] dark:border-[#D4B483] shadow-md group-hover:opacity-90 transition-opacity"
                   />
                 ) : (
-                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-tr from-[#C9A66B] to-[#E2C799] text-[#0B1220] flex items-center justify-center text-3xl sm:text-4xl font-extrabold shadow-md">
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-tr from-[#C9A66B] to-[#E2C799] text-[#0B1220] flex items-center justify-center text-3xl sm:text-4xl font-extrabold shadow-md group-hover:opacity-90 transition-opacity">
                     {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "U"}
                   </div>
                 )}
@@ -724,10 +625,13 @@ export default function AccountPage() {
                 {/* Camera Overlay Button */}
                 <button
                   type="button"
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    fileInputRef.current?.click();
+                  }}
                   disabled={avatarUploading}
                   className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-[#C9A66B] hover:bg-[#B8914A] active:bg-[#A67C3D] text-[#FFFCFA] flex items-center justify-center shadow-md border-2 border-[#121B2E] transition-transform duration-200 hover:scale-110 cursor-pointer disabled:opacity-50"
-                  title="Upload profile picture (JPG, PNG, WEBP, max 2 MB)"
+                  title="Upload new profile picture"
                   aria-label="Upload profile picture"
                 >
                   {avatarUploading ? (
@@ -1599,138 +1503,31 @@ export default function AccountPage() {
         </div>
       </div>
 
-      {/* 3. Crop & Preview Modal */}
-      {cropModalOpen && rawImageSrc && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-card border border-border rounded-2xl max-w-md w-full shadow-2xl overflow-hidden flex flex-col">
-            {/* Modal Header */}
-            <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Camera className="w-4 h-4 text-[#C9A66B]" />
-                <h3 className="font-bold text-sm text-foreground">Crop Profile Picture</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setCropModalOpen(false)}
-                className="p-1 rounded-lg text-muted hover:text-foreground hover:bg-tile transition-colors cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Interactive Crop Viewport */}
-            <div className="p-5 flex flex-col items-center">
-              <p className="text-xs text-muted mb-3 text-center">
-                Drag to reposition or adjust zoom to fit your profile avatar.
-              </p>
-
-              <div
-                className="relative w-64 h-64 bg-slate-950 rounded-2xl overflow-hidden flex items-center justify-center cursor-move border border-border select-none"
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseUp}
-              >
-                <img
-                  ref={imageElementRef}
-                  src={rawImageSrc}
-                  alt="Crop preview"
-                  draggable={false}
-                  style={{
-                    transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-                    transformOrigin: "center center",
-                    maxWidth: "none",
-                    transition: isDragging ? "none" : "transform 0.1s ease-out",
-                  }}
-                  className="pointer-events-none"
-                />
-
-                {/* Mask Overlay */}
-                <div
-                  className={`pointer-events-none absolute inset-0 border-4 border-[#C9A66B] ${
-                    cropShape === "circle" ? "rounded-full" : "rounded-2xl"
-                  } shadow-[0_0_0_9999px_rgba(0,0,0,0.65)]`}
-                />
-              </div>
-
-              {/* Controls: Zoom slider & Shape selector */}
-              <div className="w-full mt-4 space-y-3">
-                <div className="flex items-center gap-3">
-                  <ZoomOut className="w-4 h-4 text-muted shrink-0" />
-                  <input
-                    type="range"
-                    min="1"
-                    max="3"
-                    step="0.05"
-                    value={zoom}
-                    onChange={(e) => setZoom(parseFloat(e.target.value))}
-                    className="w-full accent-[#C9A66B] cursor-pointer"
-                  />
-                  <ZoomIn className="w-4 h-4 text-muted shrink-0" />
-                </div>
-
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted">Crop Shape:</span>
-                  <div className="flex items-center gap-1.5 bg-tile p-1 rounded-lg border border-border">
-                    <button
-                      type="button"
-                      onClick={() => setCropShape("circle")}
-                      className={`px-2.5 py-1 rounded-md font-semibold text-[11px] transition-colors cursor-pointer ${
-                        cropShape === "circle"
-                          ? "bg-[#C9A66B] text-[#FFFCFA]"
-                          : "text-muted hover:text-foreground"
-                      }`}
-                    >
-                      Circle
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setCropShape("square")}
-                      className={`px-2.5 py-1 rounded-md font-semibold text-[11px] transition-colors cursor-pointer ${
-                        cropShape === "square"
-                          ? "bg-[#C9A66B] text-[#FFFCFA]"
-                          : "text-muted hover:text-foreground"
-                      }`}
-                    >
-                      Square
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="px-5 py-3.5 bg-tile border-t border-border flex items-center justify-end gap-2.5">
-              <button
-                type="button"
-                onClick={() => setCropModalOpen(false)}
-                disabled={avatarUploading}
-                className="px-4 py-2 text-xs font-semibold rounded-xl border border-border bg-card hover:bg-tile text-foreground cursor-pointer transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveCroppedPhoto}
-                disabled={avatarUploading}
-                className="px-5 py-2 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] active:bg-[#A67C3D] text-[#FFFCFA] text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
-              >
-                {avatarUploading ? (
-                  <>
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    <span>Saving Photo...</span>
-                  </>
-                ) : (
-                  <>
-                    <Check className="w-3.5 h-3.5" />
-                    <span>Save Photo</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 3. LinkedIn-Style Avatar Crop & Precision Editor Modal */}
+      <AvatarCropModal
+        isOpen={cropModalOpen}
+        onClose={() => {
+          setCropModalOpen(false);
+          setSelectedCropFile(null);
+        }}
+        initialFile={selectedCropFile}
+        currentAvatarUrl={currentUser?.avatar}
+        userInitial={currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : "U"}
+        onSuccess={(newAvatarUrl) => {
+          if (currentUser) {
+            login({ ...currentUser, avatar: newAvatarUrl });
+          }
+          setAvatarSuccess("Profile picture updated successfully!");
+          setTimeout(() => setAvatarSuccess(null), 4000);
+        }}
+        onRemoveSuccess={() => {
+          if (currentUser) {
+            login({ ...currentUser, avatar: undefined });
+          }
+          setAvatarSuccess("Profile photo removed.");
+          setTimeout(() => setAvatarSuccess(null), 3000);
+        }}
+      />
 
       {/* 4. Add / Edit Delivery Address Modal */}
       {isAddressModalOpen && (

@@ -1,32 +1,42 @@
 import { NextResponse } from "next/server";
-import path from "node:path";
-import fs from "node:fs/promises";
 import { requireAuth } from "@/lib/auth";
-
-export const runtime = "nodejs";
 import { prisma } from "@/lib/prisma";
 import {
-  ensureAvatarDir,
+  MAX_AVATAR_SIZE,
+  validateImageBuffer,
+  uploadAvatarToStorage,
+  deleteAvatarFromStorage,
   setUserAvatar,
   removeUserAvatar,
-  validateImageBuffer,
 } from "@/lib/userAvatarStorage";
 
-// Max file size: 2 MB
-const MAX_FILE_SIZE = 2 * 1024 * 1024;
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "avatars");
+export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   try {
+    // 1. Strict authentication check: authenticated user only
     const auth = await requireAuth(request);
     if (auth instanceof Response) {
-      return auth;
+      return NextResponse.json(
+        { success: false, error: "Session expired, sign in again." },
+        { status: 401 }
+      );
     }
     const authUser = auth;
 
-    const formData = await request.formData();
-    const file = formData.get("file") as File | null;
+    // 2. Parse Multipart FormData
+    let formData: FormData;
+    try {
+      formData = await request.formData();
+    } catch (formErr) {
+      console.error("[Avatar Upload] Failed to parse formData:", formErr);
+      return NextResponse.json(
+        { success: false, error: "Upload failed, please try again." },
+        { status: 400 }
+      );
+    }
 
+    const file = formData.get("file") as File | null;
     if (!file) {
       return NextResponse.json(
         { success: false, error: "No image file provided." },
@@ -34,62 +44,67 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check size limit
-    if (file.size > MAX_FILE_SIZE) {
+    // 3. Size validation (max 5 MB)
+    if (file.size > MAX_AVATAR_SIZE) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Image exceeds 2 MB size limit. Please select a smaller photo.",
-        },
+        { success: false, error: "File too large" },
         { status: 400 }
       );
     }
 
+    // 4. File signature validation (real magic bytes: JPG, PNG, WEBP)
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-
-    // Validate image format through magic bytes
     const formatCheck = validateImageBuffer(buffer);
+
     if (!formatCheck.valid) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Invalid image format. Supported formats: JPG, PNG, and WEBP.",
-        },
+        { success: false, error: "Unsupported file type (use JPG, PNG or WEBP)" },
         { status: 400 }
       );
     }
 
-    ensureAvatarDir();
-    const fileName = `avatar-${authUser.id}-${Date.now()}.${formatCheck.ext}`;
-    const filePath = path.join(UPLOAD_DIR, fileName);
-
-    // Write file to disk
-    await fs.writeFile(filePath, buffer);
-    const avatarUrl = `/uploads/avatars/${fileName}`;
-
-    // Update manifest storage (cleans up any older avatar file for this user)
-    setUserAvatar(authUser.id, avatarUrl);
-
-    // Try updating user record in DB if avatar column is supported
+    // 5. Query user record to safely delete their previous avatar if replacing
     try {
-      await prisma.user.update({
+      const existingUser = await prisma.user.findUnique({
         where: { id: authUser.id },
-        data: { avatar: avatarUrl } as Record<string, unknown>,
       });
-    } catch {
-      // Ignored if column doesn't exist yet on remote table
+      const previousAvatar = (existingUser as any)?.avatar;
+      if (previousAvatar) {
+        await deleteAvatarFromStorage(previousAvatar);
+      }
+    } catch (prevErr) {
+      console.warn("[Avatar Upload] Cleanup previous avatar notice:", prevErr);
     }
 
+    // 6. Upload new avatar to Cloud Storage (Supabase Storage 'avatars' bucket)
+    const { publicUrl } = await uploadAvatarToStorage(
+      authUser.id,
+      buffer,
+      formatCheck.mime,
+      formatCheck.ext
+    );
+
+    // 7. Persist avatar URL on user record in database
+    await prisma.user.update({
+      where: { id: authUser.id },
+      data: { avatar: publicUrl } as any,
+    });
+
+    // Update process memory cache
+    setUserAvatar(authUser.id, publicUrl);
+
+    // 8. Return successful response with new URL
     return NextResponse.json({
       success: true,
-      avatar: avatarUrl,
+      avatar: publicUrl,
       message: "Profile picture updated successfully!",
     });
   } catch (error) {
-    console.error("Avatar upload error:", error);
+    // Log real internal error server-side only
+    console.error("[Avatar Upload Server Error]:", error);
     return NextResponse.json(
-      { success: false, error: "Failed to upload profile picture." },
+      { success: false, error: "Upload failed, please try again." },
       { status: 500 }
     );
   }
@@ -97,23 +112,37 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    // 1. Strict authentication check
     const auth = await requireAuth(request);
     if (auth instanceof Response) {
-      return auth;
+      return NextResponse.json(
+        { success: false, error: "Session expired, sign in again." },
+        { status: 401 }
+      );
     }
     const authUser = auth;
 
-    removeUserAvatar(authUser.id);
-
-    // Try updating user record in DB
+    // 2. Locate existing avatar and delete from cloud storage
     try {
-      await prisma.user.update({
+      const existingUser = await prisma.user.findUnique({
         where: { id: authUser.id },
-        data: { avatar: "" } as Record<string, unknown>,
       });
-    } catch {
-      // Ignored
+      const currentAvatar = (existingUser as any)?.avatar;
+      if (currentAvatar) {
+        await deleteAvatarFromStorage(currentAvatar);
+      }
+    } catch (cleanErr) {
+      console.warn("[Avatar Delete] Cleanup notice:", cleanErr);
     }
+
+    // 3. Clear avatar on database record
+    await prisma.user.update({
+      where: { id: authUser.id },
+      data: { avatar: "" } as any,
+    });
+
+    // Clear process memory cache
+    removeUserAvatar(authUser.id);
 
     return NextResponse.json({
       success: true,
@@ -121,11 +150,10 @@ export async function DELETE(request: Request) {
       message: "Profile picture removed successfully.",
     });
   } catch (error) {
-    console.error("Avatar delete error:", error);
+    console.error("[Avatar Delete Server Error]:", error);
     return NextResponse.json(
-      { success: false, error: "Failed to remove profile picture." },
+      { success: false, error: "Upload failed, please try again." },
       { status: 500 }
     );
   }
 }
-
