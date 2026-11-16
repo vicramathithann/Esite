@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import ThemeToggle from "@/components/ThemeToggle";
+import UserAvatar from "@/components/UserAvatar";
 
 interface MobileDrawerProps {
   isOpen: boolean;
@@ -146,17 +147,11 @@ export default function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
 
             {currentUser ? (
               <div className="flex items-center gap-3">
-                {currentUser.avatar ? (
-                  <img
-                    src={currentUser.avatar}
-                    alt={currentUser.name || "User"}
-                    className="w-11 h-11 rounded-full object-cover border-2 border-[#C9A66B]/50 shrink-0"
-                  />
-                ) : (
-                  <div className="w-11 h-11 rounded-full bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] font-bold text-sm flex items-center justify-center shrink-0 shadow-xs">
-                    {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "U"}
-                  </div>
-                )}
+                <UserAvatar
+                  name={currentUser.name}
+                  email={currentUser.email}
+                  size="md"
+                />
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-bold text-foreground truncate">
                     {currentUser.name || "Customer"}

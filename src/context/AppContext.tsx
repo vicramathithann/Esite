@@ -12,7 +12,6 @@ export interface UserProfile {
   role: "USER" | "ADMIN";
   emailVerified?: boolean;
   signupSource?: "self" | "admin" | string;
-  avatar?: string | null;
   createdAt?: string;
 }
 

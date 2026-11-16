@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useApp } from "@/context/AppContext";
+import UserAvatar from "@/components/UserAvatar";
 import {
   LayoutDashboard,
   Package,
@@ -189,9 +190,11 @@ export default function AdminNav() {
       {/* Admin User Profile & Sign Out Footer */}
       <div className="p-3.5 border-t border-border bg-tile/40 space-y-2.5 shrink-0">
         <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-card border border-border/80">
-          <div className="w-8 h-8 rounded-lg bg-[#C9A66B]/15 border border-[#C9A66B]/30 flex items-center justify-center text-[#8C6226] dark:text-[#E5CBA2] shrink-0 font-bold text-xs">
-            AD
-          </div>
+          <UserAvatar
+            name={currentUser?.name || "Store Administrator"}
+            email={currentUser?.email}
+            size="sm"
+          />
           <div className="min-w-0 flex-1">
             <div className="text-xs font-bold text-foreground truncate">
               Store Administrator

@@ -15,6 +15,7 @@ import {
 import ThemeToggle from "@/components/ThemeToggle";
 import SearchOverlay from "@/components/SearchOverlay";
 import MobileDrawer from "@/components/MobileDrawer";
+import UserAvatar from "@/components/UserAvatar";
 
 const BRANDS = [
   "Apple", "Samsung", "Google Pixel", "OnePlus", "Xiaomi", 
@@ -341,17 +342,11 @@ export default function Navbar() {
                   className="flex items-center gap-2 p-1 pr-2.5 rounded-full hover:bg-tile border border-border/60 transition-colors shrink-0"
                   title="My Account"
                 >
-                  {currentUser.avatar ? (
-                    <img
-                      src={currentUser.avatar}
-                      alt={currentUser.name || "User"}
-                      className="w-7 h-7 rounded-full object-cover border border-[#C9A66B]/50 shrink-0"
-                    />
-                  ) : (
-                    <div className="w-7 h-7 rounded-full bg-[#C9A66B] dark:bg-[#D4B483] text-[#FFFCFA] font-bold text-xs flex items-center justify-center shrink-0">
-                      {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "U"}
-                    </div>
-                  )}
+                  <UserAvatar
+                    name={currentUser.name}
+                    email={currentUser.email}
+                    size="sm"
+                  />
                   <span className="text-xs font-semibold text-foreground max-w-[90px] truncate hidden md:inline">
                     {currentUser.name?.split(" ")[0] || "Account"}
                   </span>

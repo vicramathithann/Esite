@@ -9,7 +9,6 @@ import {
   MapPin,
   ShieldCheck,
   Lock,
-  Camera,
   Pencil,
   Trash2,
   Plus,
@@ -23,8 +22,6 @@ import {
   X,
   Eye,
   EyeOff,
-  ZoomIn,
-  ZoomOut,
   Check,
   ShoppingBag,
   Layers,
@@ -33,7 +30,7 @@ import {
   LogOut,
 } from "lucide-react";
 import DeleteAccountModal from "@/components/DeleteAccountModal";
-import AvatarCropModal from "@/components/AvatarCropModal";
+import UserAvatar from "@/components/UserAvatar";
 import { useApp } from "@/context/AppContext";
 import AccountLayout from "@/components/AccountLayout";
 
@@ -52,14 +49,6 @@ interface DeliveryAddress {
 export default function AccountPage() {
   const { currentUser, login, logout, wishlistCount } = useApp();
   const [mobileActiveSection, setMobileActiveSection] = useState<"info" | "addresses" | "security" | null>(null);
-
-  // Avatar states
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [avatarError, setAvatarError] = useState<string | null>(null);
-  const [avatarSuccess, setAvatarSuccess] = useState<string | null>(null);
-  const [avatarUploading, setAvatarUploading] = useState(false);
-  const [cropModalOpen, setCropModalOpen] = useState(false);
-  const [selectedCropFile, setSelectedCropFile] = useState<File | null>(null);
 
   // Personal Information Inline Edit States
   const [isEditingInfo, setIsEditingInfo] = useState(false);
@@ -228,45 +217,6 @@ export default function AccountPage() {
       isMounted = false;
     };
   }, [currentUser?.id, currentUser?.email]);
-
-  // Handle Photo Picker Selection
-  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setAvatarError(null);
-    setAvatarSuccess(null);
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Reset input value so same file can be re-selected if cancelled
-    e.target.value = "";
-
-    setSelectedCropFile(file);
-    setCropModalOpen(true);
-  };
-
-  // Remove Photo Handler
-  const handleRemovePhoto = async () => {
-    if (!currentUser?.avatar) return;
-    if (!confirm("Are you sure you want to remove your profile photo?")) return;
-
-    try {
-      setAvatarUploading(true);
-      setAvatarError(null);
-      const res = await fetch("/api/auth/profile/avatar", { method: "DELETE" });
-      const data = await res.json();
-      if (data.success) {
-        login({ ...currentUser, avatar: undefined });
-        setAvatarSuccess("Profile photo removed.");
-        setTimeout(() => setAvatarSuccess(null), 3000);
-      } else {
-        setAvatarError(data.error || "Failed to remove photo.");
-      }
-    } catch (err) {
-      console.error(err);
-      setAvatarError("Failed to remove photo. Please try again.");
-    } finally {
-      setAvatarUploading(false);
-    }
-  };
 
   // Save Personal Information
   const handleSavePersonalInfo = async (e: React.FormEvent) => {
@@ -552,95 +502,17 @@ export default function AccountPage() {
   return (
     <AccountLayout>
       <div className="space-y-6">
-        {/* Hidden File Picker for Avatar Upload */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          onChange={handlePhotoSelect}
-          className="hidden"
-          aria-hidden="true"
-        />
-
-        {/* Global Feedback Banners */}
-        {avatarSuccess && (
-          <div className="p-3.5 bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-semibold rounded-2xl flex items-center gap-2.5 animate-in fade-in duration-200">
-            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
-            <span>{avatarSuccess}</span>
-          </div>
-        )}
-        {avatarError && (
-          <div className="p-3.5 bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-semibold rounded-2xl flex items-center justify-between gap-2.5 animate-in fade-in duration-200">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
-              <span>{avatarError}</span>
-            </div>
-            <button
-              onClick={() => setAvatarError(null)}
-              className="p-1 hover:text-white cursor-pointer"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
-
         {/* 1. Dark Profile Header Card */}
         {currentUser ? (
           <div className="bg-gradient-to-r from-[#0B1220] via-[#121B2E] to-[#0B1220] border border-[#1F2A44] rounded-2xl p-6 sm:p-7 text-white shadow-md transition-all duration-200">
-            {/* Avatar with Camera Overlay + User Details */}
+            {/* Letter Avatar + User Details */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
-              {/* Large Avatar with Upload Action & Drag/Drop */}
-              <div 
-                className="relative group shrink-0 cursor-pointer"
-                onDrop={(e) => {
-                  e.preventDefault();
-                  const file = e.dataTransfer.files?.[0];
-                  if (file) {
-                    setSelectedCropFile(file);
-                    setCropModalOpen(true);
-                  }
-                }}
-                onDragOver={(e) => e.preventDefault()}
-                onClick={() => {
-                  if (currentUser.avatar) {
-                    setCropModalOpen(true);
-                  } else {
-                    fileInputRef.current?.click();
-                  }
-                }}
-                title="Click or drag photo to edit profile picture (JPG, PNG, WEBP)"
-              >
-                {currentUser.avatar ? (
-                  <img
-                    src={currentUser.avatar}
-                    alt={currentUser.name || "Customer"}
-                    className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-2 border-[#C9A66B] dark:border-[#D4B483] shadow-md group-hover:opacity-90 transition-opacity"
-                  />
-                ) : (
-                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-tr from-[#C9A66B] to-[#E2C799] text-[#0B1220] flex items-center justify-center text-3xl sm:text-4xl font-extrabold shadow-md group-hover:opacity-90 transition-opacity">
-                    {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "U"}
-                  </div>
-                )}
-
-                {/* Camera Overlay Button */}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    fileInputRef.current?.click();
-                  }}
-                  disabled={avatarUploading}
-                  className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-[#C9A66B] hover:bg-[#B8914A] active:bg-[#A67C3D] text-[#FFFCFA] flex items-center justify-center shadow-md border-2 border-[#121B2E] transition-transform duration-200 hover:scale-110 cursor-pointer disabled:opacity-50"
-                  title="Upload new profile picture"
-                  aria-label="Upload profile picture"
-                >
-                  {avatarUploading ? (
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Camera className="w-3.5 h-3.5" />
-                  )}
-                </button>
-              </div>
+              <UserAvatar
+                name={currentUser.name}
+                email={currentUser.email}
+                size="lg"
+                border
+              />
 
               {/* User Details: Name, Administrator Badge (if admin), Email, Phone, Address */}
               <div className="space-y-1.5 min-w-0">
@@ -652,15 +524,6 @@ export default function AccountPage() {
                     <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
                       👑 Administrator
                     </span>
-                  )}
-                  {currentUser.avatar && (
-                    <button
-                      type="button"
-                      onClick={handleRemovePhoto}
-                      className="text-[11px] text-slate-400 hover:text-red-400 underline underline-offset-2 transition-colors cursor-pointer"
-                    >
-                      Remove photo
-                    </button>
                   )}
                 </div>
 
@@ -1503,31 +1366,6 @@ export default function AccountPage() {
         </div>
       </div>
 
-      {/* 3. LinkedIn-Style Avatar Crop & Precision Editor Modal */}
-      <AvatarCropModal
-        isOpen={cropModalOpen}
-        onClose={() => {
-          setCropModalOpen(false);
-          setSelectedCropFile(null);
-        }}
-        initialFile={selectedCropFile}
-        currentAvatarUrl={currentUser?.avatar}
-        userInitial={currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : "U"}
-        onSuccess={(newAvatarUrl) => {
-          if (currentUser) {
-            login({ ...currentUser, avatar: newAvatarUrl });
-          }
-          setAvatarSuccess("Profile picture updated successfully!");
-          setTimeout(() => setAvatarSuccess(null), 4000);
-        }}
-        onRemoveSuccess={() => {
-          if (currentUser) {
-            login({ ...currentUser, avatar: undefined });
-          }
-          setAvatarSuccess("Profile photo removed.");
-          setTimeout(() => setAvatarSuccess(null), 3000);
-        }}
-      />
 
       {/* 4. Add / Edit Delivery Address Modal */}
       {isAddressModalOpen && (

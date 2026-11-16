@@ -378,7 +378,6 @@ export type AuthUser = {
   emailVerified: boolean;
   signupSource?: "self" | "admin" | null;
   createdAt: Date;
-  avatar?: string | null;
 };
 
 /**
@@ -412,8 +411,7 @@ export async function getAuthenticatedUser(request?: Request): Promise<AuthUser 
       signupSource: true,
       tokenExpires: true,
       createdAt: true,
-      avatar: true,
-    } as any,
+    },
   });
 
   if (!user) return null;
@@ -437,7 +435,6 @@ export async function getAuthenticatedUser(request?: Request): Promise<AuthUser 
     ...user,
     emailVerified: isEmailVerified,
     signupSource: rawSignupSource as "self" | "admin",
-    avatar: (user as any).avatar || null,
     role: isAuthorizedAdmin ? "ADMIN" : "USER",
   };
 }

@@ -1,19 +1,14 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
-import { User, Mail, CheckCircle2, AlertCircle, Save, RefreshCw, Camera, Trash2 } from "lucide-react";
+import { User, Mail, CheckCircle2, AlertCircle, Save, RefreshCw } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import AccountLayout from "@/components/AccountLayout";
-import AvatarCropModal from "@/components/AvatarCropModal";
+import UserAvatar from "@/components/UserAvatar";
 
 export default function ProfilePage() {
   const { currentUser, login } = useApp();
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [cropModalOpen, setCropModalOpen] = useState(false);
-  const [selectedCropFile, setSelectedCropFile] = useState<File | null>(null);
-  const [avatarSuccess, setAvatarSuccess] = useState<string | null>(null);
 
   const [name, setName] = useState(currentUser?.name || "");
   const [email, setEmail] = useState(currentUser?.email || "");
@@ -156,126 +151,15 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* Hidden File Input for Avatar */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) {
-              setSelectedCropFile(file);
-              setCropModalOpen(true);
-            }
-            e.target.value = "";
-          }}
-          className="hidden"
-          aria-hidden="true"
-        />
-
-        {/* Profile Picture Card */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col sm:flex-row items-center sm:items-start justify-between gap-5">
-          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 text-center sm:text-left">
-            <div
-              className="relative group shrink-0 cursor-pointer"
-              onDrop={(e) => {
-                e.preventDefault();
-                const file = e.dataTransfer.files?.[0];
-                if (file) {
-                  setSelectedCropFile(file);
-                  setCropModalOpen(true);
-                }
-              }}
-              onDragOver={(e) => e.preventDefault()}
-              onClick={() => {
-                if (currentUser.avatar) {
-                  setCropModalOpen(true);
-                } else {
-                  fileInputRef.current?.click();
-                }
-              }}
-              title="Click or drag photo to edit profile picture"
-            >
-              {currentUser.avatar ? (
-                <img
-                  src={currentUser.avatar}
-                  alt={currentUser.name || "Customer"}
-                  className="w-20 h-20 rounded-full object-cover border-2 border-[#C9A66B] dark:border-[#D4B483] shadow-md group-hover:opacity-90 transition-opacity"
-                />
-              ) : (
-                <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-[#C9A66B] to-[#E2C799] text-[#0B1220] flex items-center justify-center text-3xl font-extrabold shadow-md group-hover:opacity-90 transition-opacity">
-                  {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "U"}
-                </div>
-              )}
-              <div className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-[#C9A66B] text-[#FFFCFA] flex items-center justify-center shadow-md border-2 border-slate-900">
-                <Camera className="w-3.5 h-3.5" />
-              </div>
-            </div>
-
-            <div>
-              <h2 className="text-base font-bold text-white">Profile Photo</h2>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Upload a clear photo to personalize your VN Mobiles account.
-              </p>
-              <p className="text-[11px] text-slate-500 mt-1">
-                JPG, PNG or WEBP • Drag & drop supported
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="px-4 py-2 bg-[#C9A66B] dark:bg-[#D4B483] hover:bg-[#B8914A] active:bg-[#A67C3D] text-[#FFFCFA] text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
-            >
-              {currentUser.avatar ? "Change Photo" : "Upload Photo"}
-            </button>
-            {currentUser.avatar && (
-              <button
-                type="button"
-                onClick={() => setCropModalOpen(true)}
-                className="px-3 py-2 border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
-              >
-                Edit / Crop
-              </button>
-            )}
-          </div>
-        </div>
-
-        {avatarSuccess && (
-          <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs rounded-xl flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 shrink-0" /> {avatarSuccess}
-          </div>
-        )}
-
-        <AvatarCropModal
-          isOpen={cropModalOpen}
-          onClose={() => {
-            setCropModalOpen(false);
-            setSelectedCropFile(null);
-          }}
-          initialFile={selectedCropFile}
-          currentAvatarUrl={currentUser.avatar}
-          userInitial={currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "U"}
-          onSuccess={(newAvatarUrl) => {
-            login({ ...currentUser, avatar: newAvatarUrl });
-            setAvatarSuccess("Profile picture updated successfully!");
-            setTimeout(() => setAvatarSuccess(null), 4000);
-          }}
-          onRemoveSuccess={() => {
-            login({ ...currentUser, avatar: undefined });
-            setAvatarSuccess("Profile photo removed.");
-            setTimeout(() => setAvatarSuccess(null), 3000);
-          }}
-        />
-
         {/* Profile Card */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
-          <div className="flex items-center gap-3 border-b border-slate-800/80 pb-5 mb-6">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
-              <User className="w-6 h-6" />
-            </div>
+          <div className="flex items-center gap-3.5 border-b border-slate-800/80 pb-5 mb-6">
+            <UserAvatar
+              name={currentUser.name}
+              email={currentUser.email}
+              size="md"
+              border
+            />
             <div>
               <h1 className="text-lg font-bold text-white">Profile Information</h1>
               <p className="text-xs text-slate-400">Manage your contact details and communication preferences.</p>

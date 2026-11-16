@@ -22,6 +22,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { formatINR, formatDateOnly } from "@/lib/formatters";
+import UserAvatar from "@/components/UserAvatar";
 
 export interface CustomerRecord {
   id: string;
@@ -477,22 +478,13 @@ export default function AdminCustomersPage() {
                   const isAdmin = c.role === "ADMIN";
                   const isMainAdmin = c.email.toLowerCase() === "rrroyce20@gmail.com";
                   const isPrimaryAdmin = isMainAdmin;
-                  const initial = (c.name || "U").charAt(0).toUpperCase();
 
                   return (
                     <tr key={c.id || idx} className="hover:bg-tile/50 transition">
                       {/* Name & Avatar */}
                       <td className="py-3.5 px-4 font-semibold text-foreground">
                         <div className="flex items-center gap-3">
-                          <div
-                            className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                              isAdmin
-                                ? "bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30"
-                                : "bg-[#C9A66B]/15 text-[#8C6226] dark:text-[#E5CBA2] border border-[#C9A66B]/30"
-                            }`}
-                          >
-                            {initial}
-                          </div>
+                          <UserAvatar name={c.name} email={c.email} size="sm" />
                           <div>
                             <div className="text-xs font-bold text-foreground leading-tight flex items-center gap-1.5">
                               <span>{c.name}</span>
